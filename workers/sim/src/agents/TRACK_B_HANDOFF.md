@@ -22,6 +22,10 @@ A uses TerseAgentStore + RunRelay in world/liveAdapter.ts. A new manually steppe
 
 MODEL_MODE=stub explicitly enables B's StubModelClient in MerchantAgent for credential-free adapter tests; it must be unset for live verification. No fake credentials are used. Tests cover same-turn cache across real runtime restart, cancellation, expired deadline, trade-step identity and Relay naming only—not live model/Relay service behavior.
 
-Both launch commands load repository-root .env; shell values win. Neon remains the agreed permanent reporting database. No external projection is implemented yet. See workers/sim/SETUP.md and src/engine/INTEGRATION_HANDOFF.md.
+Both launch commands load repository-root .env; shell values win. Neon remains the agreed permanent reporting database. WorldActor now projects committed snapshots transactionally to Neon; actor storage remains Terse SQLite. See workers/sim/SETUP.md and src/engine/INTEGRATION_HANDOFF.md.
 
 Actor-selection correction: factory defaults to terse and rejects AGENT_STORE=neon/do. Neon remains database/projection only. Root .env must use AGENT_STORE=terse; DURABLE_ACTORS_URL/PROJECT_ID aliases are accepted by A live adapter. No credential values were copied from screenshots.
+
+## Live notification regression gate (2026-10-31)
+
+A added `pnpm --filter sim exec tsx scripts/live-inbox-contract.ts`. It uses actual engine theft/reveal input and B's `withRelayInbox` with a healthy empty mocked Relay pull; no credentials/network/model calls. At 478b8ba it FAILS: authoritative World theft notification is erased. B owns the fix; this test is intentionally a failing acceptance gate, not part of the passing engine smoke. Preserve trusted World notices, advance the Relay cursor, and avoid duplicating ordinary messages or bypassing Relay. Pact proposal delivery still requires the agreed A/B routing/merge decision separately. A has not modified B files.

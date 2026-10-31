@@ -67,3 +67,9 @@ The export check feeds reversed events and duplicates through D's actual zustand
 ## Audit handoff (through c604ecc)
 
 See [AUDIT.md](./AUDIT.md) for implementation rules, confirmed defects, seven new edge checks, design risks and paid-run budget. D must drain the terminal event cursor and preserve visibility/mode grouping in reports. B must preserve authoritative pact/theft notifications during Relay inbox handling. E primary synthesis still needs policy grouping. A fixed projected report status: not-requested for stubs, failed after exhaustion, retrying before exhaustion, unknown during bounded unavailable/busy lookup. No new paid public run has been started pending cross-track coordination.
+
+## D integration 478b8ba
+
+Launch controls now exist and submit condition/seed to the agreed API. Public visibility is not yet sent by that form; omission correctly defaults private. The viewer still stops at terminal status without comparing its event cursor with status.seq. Report loader config/grouping fixes and B's authoritative-inbox fix are still outstanding. Repo-wide typecheck passes. A added the credential-free `live-inbox-contract.ts` regression gate; it currently FAILS on the confirmed B inbox defect. No paid run was started. The reserved public UI run remains capped at one, pending those fixes and E coordination.
+
+Post-integration verification: `smoke:next` PASS with actual Next.js + consolidated Terse, first round, unattended restart, six rounds, 266 ordered stub events and 144 E metric turns. This does not assert live models, Relay or a generated report.
