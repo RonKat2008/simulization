@@ -18,7 +18,21 @@ export const MAKER_PLACEHOLDER = '[maker]';
 const VENDOR_TERMS =
   /\b(?:anthropic|claude|opus|sonnet|haiku|fable|mythos|openai|chatgpt|gpt|codex|google|deepmind|gemini|gemma|meta|llama|mistral|xai|grok|deepseek|qwen|alibaba|cohere|amazon|microsoft|copilot)(?:[-.]\w+|\s?\d\w*(?:\.\w+)*)*(?!\w)/gi;
 
-const COMPANY_NOUNS = 'company|group|team|faction|maker|lab|camp|clan|side';
+const COMPANY_NOUNS = 'companies|company|groups|group|team|faction|maker|lab|camp|clan|side';
+
+// "A" is usually the English word, so it only counts as a company in these spots: beside a
+// group label ("A, Group 2", "Group 1/A"), in brackets, before a slash or "-company", "A merchants".
+const LIST_JOIN = '\\s*(?:[,/&]|and\\b|or\\b)\\s*(?:(?:and|or)\\s+)?';
+const COMPANY_A = new RegExp(
+  [
+    `\\bA(?=${LIST_JOIN}Group \\d)`,
+    `(?<=Group \\d${LIST_JOIN})A\\b`,
+    '(?<=\\()A(?=\\))',
+    '\\bA(?=/[A-Z])',
+    '\\bA(?=-(?:company|group|merchants?|agents?|team|side)\\b|\\s(?:merchants|agents)\\b)',
+  ].join('|'),
+  'g',
+);
 
 const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -95,9 +109,11 @@ export function createAnonymizer(
       });
     }
     out = out.replace(VENDOR_TERMS, MAKER_PLACEHOLDER);
-    out = out.replace(companyNounRe, (_, id: string) => groupFor(id));
+    // The noun match ignores case, so a lowercase "a" here is the word: "gave the group a deal".
+    out = out.replace(companyNounRe, (match, id: string) => (id === 'a' ? match : groupFor(id)));
     out = out.replace(possessiveRe, (_, id: string) => groupFor(id));
-    return bareIdRe ? out.replace(bareIdRe, (_, id: string) => groupFor(id)) : out;
+    if (bareIdRe) out = out.replace(bareIdRe, (_, id: string) => groupFor(id));
+    return groupOf.has('A') ? out.replace(COMPANY_A, groupFor('A')) : out;
   };
 
   const scrubEvent = (e: Event): Event => ({
