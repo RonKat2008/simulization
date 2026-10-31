@@ -23,10 +23,13 @@ const PIP: Record<PhaseState, string> = {
 
 /** Round x phase progress. Each round is a toggle that restricts the feed to that round. */
 export function RoundTimeline({ round, phase, ended }: { round: number | null; phase: Phase | null; ended: boolean }) {
-  const events = useEventStore((s) => s.events);
+  const allEvents = useEventStore((s) => s.events);
+  const playbackSeq = useEventStore((s) => s.playbackSeq);
+  const events = useMemo(() => playbackSeq === null ? allEvents : allEvents.filter(e => e.seq <= playbackSeq), [allEvents, playbackSeq]);
   const roundFilter = useEventStore((s) => s.roundFilter);
   const setRoundFilter = useEventStore((s) => s.setRoundFilter);
   const stats = useMemo(() => computeRoundStats(events), [events]);
+  ended = ended && (playbackSeq === null || playbackSeq >= (allEvents.at(-1)?.seq ?? Infinity));
   const phaseIdx = phase ? PHASES.indexOf(phase) : -1;
   // Current position comes from the log when the status poll has not caught up.
   const cur = ended ? ROUNDS : round;

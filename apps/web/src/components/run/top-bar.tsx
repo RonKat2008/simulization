@@ -61,7 +61,8 @@ export function TopBar({
 }) {
   const { runId, condition, blind } = useRun();
   const total = useEventStore((s) => s.events.length);
-  const st = STATUS_STYLE[status];
+  const playbackSeq = useEventStore(s => s.playbackSeq);
+  const st = status === "ended" && playbackSeq !== null ? { ...STATUS_STYLE.ended, label: "replay · recorded run" } : STATUS_STYLE[status];
   const modeInfo = mode ? (MODE_LABEL[mode] ?? { text: mode, hint: undefined, warn: false }) : null;
 
   return (

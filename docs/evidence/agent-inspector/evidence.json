@@ -1,0 +1,27 @@
+{
+  "surface": "recorded viewer",
+  "url": "http://localhost:3100/run/featured",
+  "recording": "78deca44-65c6-47d7-8992-a959fcfededa",
+  "paidRuns": 0,
+  "viewports": [
+    {
+      "width": 1440,
+      "height": 900,
+      "screenshot": "desktop.png"
+    },
+    {
+      "width": 768,
+      "height": 1024,
+      "screenshot": "tablet.png"
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "screenshot": "mobile.png"
+    }
+  ],
+  "targetedChecks": "PASS",
+  "visualPixelRegression": "INCONCLUSIVE",
+  "fullAccessibilityAudit": "NOT RUN",
+  "productionDeployment": false
+}

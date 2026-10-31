@@ -1,231 +1,45 @@
 "use client";
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { useEventStore } from "@/store/eventStore";
-import { EventRow } from "./event-row";
-import { FeedFilters } from "./feed-filters";
-import { useRun } from "./run-context";
-import { SHORTCUTS } from "./run-legend";
-import { eventVerb, isViolation, matchesFilter } from "./run-helpers";
-import type { RunStatus } from "./use-run-source";
+import {useEffect,useMemo,useRef,useState} from 'react';
+import type {Event} from '@simulization/shared';
+import {useEventStore} from '@/store/eventStore';
+import {useRun} from './run-context';
+import {claimCheck} from './run-helpers';
+import {activityText,activityAtCursor,activityGroupText} from './compact-activity';
+import type {RunStatus} from './use-run-source';
 
-const PIN_THRESHOLD_PX = 48;
-const ANNOUNCE_MAX = 3;
-
-export function EventFeed({ followLatest, status }: { followLatest: boolean; status: RunStatus }) {
-  const { label } = useRun();
-  const events = useEventStore((s) => s.events);
-  const typeFilter = useEventStore((s) => s.typeFilter);
-  const flagFilter = useEventStore((s) => s.flagFilter);
-  const agentFilter = useEventStore((s) => s.agentFilter);
-  const roundFilter = useEventStore((s) => s.roundFilter);
-  const query = useEventStore((s) => s.query);
-  const select = useEventStore((s) => s.select);
-  const clearFilters = useEventStore((s) => s.clearFilters);
-
-  const scroller = useRef<HTMLDivElement>(null);
-  const pinned = useRef(followLatest);
-  const [showJump, setShowJump] = useState(false);
-  const [active, setActive] = useState(0);
-  const [openSeqs, setOpenSeqs] = useState<ReadonlySet<number>>(new Set());
-  const [showAll, setShowAll] = useState(false);
-  const [expandAll, setExpandAll] = useState(false);
-  const [announce, setAnnounce] = useState("");
-  const prevCount = useRef(0);
-
-  const visible = useMemo(
-    () => { const matched=events.filter((e) => matchesFilter(e, { types: typeFilter, flags: flagFilter, round: roundFilter, agent: agentFilter, query }, label)); return showAll || typeFilter.length || flagFilter.length || agentFilter || roundFilter || query ? matched : matched.filter(e=>e.type!=="system"&&e.type!=="pass").slice(-8); },
-    [events, typeFilter, flagFilter, roundFilter, agentFilter, query, label, showAll],
-  );
-  const activeIdx = Math.min(active, Math.max(visible.length - 1, 0));
-  const filtered = visible.length !== events.length;
-
-  useEffect(() => {
-    const el = scroller.current;
-    if (el && pinned.current) el.scrollTop = el.scrollHeight;
-  }, [visible]);
-
-  // Screen readers get a short digest of new events, not every row of a polled batch.
-  useEffect(() => {
-    const added = events.length - prevCount.current;
-    const first = prevCount.current === 0;
-    prevCount.current = events.length;
-    if (first || added <= 0) return;
-    const fresh = events.slice(-added);
-    const flagged = fresh.filter(isViolation);
-    const lead = fresh.slice(-ANNOUNCE_MAX).map((e) => `${label(e.actorId)} ${eventVerb(e) || e.type}`);
-    setAnnounce(`${added} new events${flagged.length ? `, ${flagged.length} flagged` : ""}. Latest: ${lead.join("; ")}.`);
-  }, [events, label]);
-
-  const onScroll = () => {
-    const el = scroller.current;
-    if (!el) return;
-    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < PIN_THRESHOLD_PX;
-    pinned.current = atBottom;
-    setShowJump(!atBottom);
-  };
-
-  const jump = useCallback(() => {
-    const el = scroller.current;
-    if (!el) return;
-    pinned.current = true;
-    setShowJump(false);
-    el.scrollTo({ top: el.scrollHeight, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
-  }, []);
-
-  const toggle = useCallback((seq: number) => {
-    setOpenSeqs((prev) => {
-      const next = new Set(prev);
-      if (next.has(seq)) next.delete(seq);
-      else next.add(seq);
-      return next;
-    });
-  }, []);
-
-  const focusRow = (i: number) => {
-    const idx = Math.max(0, Math.min(visible.length - 1, i));
-    setActive(idx);
-    const el = scroller.current?.querySelector<HTMLElement>(`[data-row-index="${idx}"]`);
-    el?.focus();
-    el?.scrollIntoView({ block: "nearest" });
-  };
-
-  const onKeyDown = (ev: KeyboardEvent<HTMLDivElement>) => {
-    if (ev.altKey || ev.ctrlKey || ev.metaKey) return;
-    const t = ev.target as HTMLElement;
-    if (t.tagName === "INPUT" || t.tagName === "SELECT") return;
-    const onControl = t.tagName === "BUTTON";
-    const cur = visible[activeIdx];
-    switch (ev.key) {
-      case "j":
-      case "ArrowDown":
-        ev.preventDefault();
-        return focusRow(activeIdx + 1);
-      case "k":
-      case "ArrowUp":
-        ev.preventDefault();
-        return focusRow(activeIdx - 1);
-      case "Home":
-        ev.preventDefault();
-        return focusRow(0);
-      case "End":
-        ev.preventDefault();
-        focusRow(visible.length - 1);
-        return jump();
-      case "Enter":
-      case "p":
-        if (onControl && ev.key === "Enter") return;
-        if (cur?.privatePlan) {
-          ev.preventDefault();
-          toggle(cur.seq);
-        }
-        return;
-      case "a":
-        if (cur && cur.actorId !== "world") select(cur.actorId);
-        return;
-      case "t":
-        if (cur?.targetId) select(cur.targetId);
-        return;
-    }
-  };
-
-  const withPlans = useMemo(() => visible.filter((e) => e.privatePlan).length, [visible]);
-  const empty = events.length === 0;
-
-  return (
-    <section aria-labelledby="feed-title" className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border bg-surface shadow-raised">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
-        <h2 id="feed-title" className="text-[13px] font-semibold tracking-[-0.01em]">
-          Recent actions
-        </h2>
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          {withPlans > 0 ? (
-            <button
-              type="button"
-              aria-pressed={expandAll}
-              onClick={() => setExpandAll((v) => !v)}
-              className={`rounded-md border px-2 py-0.5 transition-colors hover:bg-surface-raised hover:text-foreground ${expandAll ? "border-border-strong bg-surface-raised text-foreground" : ""}`}
-            >
-              {expandAll ? "Collapse" : "Expand"} all plans ({withPlans})
-            </button>
-          ) : null}
-          <span className="font-mono text-[11px]" aria-label={`${visible.length} of ${events.length} events shown`}>
-            {visible.length}
-            {filtered ? ` / ${events.length}` : ""}
-          </span>
-        </div>
-      </div>
-      <button type="button" onClick={()=>setShowAll(v=>!v)} className="min-h-10 border-b px-3 text-left text-[13px] text-primary transition-colors hover:bg-surface-raised">{showAll ? 'Show eight recent actions' : 'Show complete event log'}</button>
-      <details className="border-b px-3 py-2 text-[13px]"><summary className="cursor-pointer rounded-sm text-muted-foreground transition-colors hover:text-foreground">Filter and search events</summary><FeedFilters /></details>
-      <details className="border-b px-3 py-1.5 text-xs text-muted-foreground">
-        <summary className="cursor-pointer select-none hover:text-foreground">Keyboard shortcuts</summary>
-        <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
-          {SHORTCUTS.map(([k, d]) => (
-            <Fragment key={k}>
-              <dt className="font-mono text-foreground">{k}</dt>
-              <dd>{d}</dd>
-            </Fragment>
-          ))}
-        </dl>
-      </details>
-      <p role="status" aria-live="polite" className="sr-only">
-        {announce}
-      </p>
-      <div className="relative min-h-0 flex-1">
-        <div
-          ref={scroller}
-          onScroll={onScroll}
-          onKeyDown={onKeyDown}
-          role="log"
-          aria-live="off"
-          aria-label="Market events, oldest first"
-          className="h-full max-h-[70vh] overflow-y-auto overscroll-contain lg:max-h-none"
-        >
-          {visible.length === 0 ? (
-            <div className="p-4 text-sm text-muted-foreground">
-              {empty ? (
-                status === "offline" ? (
-                  <p>No events received. The sim is unreachable; retrying.</p>
-                ) : (
-                  <p>{status === "failed" ? "This run failed or stopped before any events were committed." : status === "ended" ? "This run has no events." : "Waiting for the first event. The run is starting, so this can take a minute."}</p>
-                )
-              ) : (
-                <>
-                  <p>No events match these filters.</p>
-                  <button type="button" onClick={clearFilters} className="mt-2 text-primary underline underline-offset-4">
-                    Clear filters
-                  </button>
-                </>
-              )}
-            </div>
-          ) : (
-            <ol>
-              {visible.map((e, i) => {
-                const prev = visible[i - 1];
-                const newSection = !prev || prev.round !== e.round || prev.phase !== e.phase;
-                return (
-                  <Fragment key={e.seq}>
-                    {newSection ? (
-                      <li role="presentation" className="sticky top-0 z-10 border-b bg-surface-raised px-3 py-1 font-mono text-[10.5px] uppercase tracking-[0.08em] text-subtle-foreground">
-                        Round {e.round} / {e.phase}
-                      </li>
-                    ) : null}
-                    <EventRow e={e} index={i} active={i === activeIdx} open={expandAll || openSeqs.has(e.seq)} onToggle={toggle} onActivate={setActive} />
-                  </Fragment>
-                );
-              })}
-            </ol>
-          )}
-        </div>
-        {showJump ? (
-          <button
-            type="button"
-            onClick={jump}
-            className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-border-strong bg-surface-raised px-3 py-1 text-xs text-foreground shadow-pop transition-colors hover:bg-primary hover:text-primary-foreground"
-          >
-            Jump to latest
-          </button>
-        ) : null}
-      </div>
-    </section>
-  );
+function Evidence({event:e}:{event:Event}) {
+  const {label,agents}=useRun(); const select=useEventStore(s=>s.select); const claim=claimCheck(e);
+  const agentId=e.actorId==='world'?e.targetId:e.actorId;
+  return <div className="space-y-2 border-t border-border/60 py-3 text-sm">
+    {agentId&&agents.some(a=>a.id===agentId)&&<button data-agent-id={agentId} type="button" onClick={()=>select(agentId)} className="min-h-9 text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-primary">Inspect {label(agentId)}</button>}
+    {e.type==='message'&&e.channel&&e.channel!=='public'&&<p className="text-xs text-muted-foreground">{e.channel==='dm'?'Private message':'Coalition message'} · observer view</p>}
+    {e.text && <p className="whitespace-pre-wrap break-words leading-relaxed">{e.text}</p>}
+    {claim && <p>Claimed quality {claim.claimed}; actual quality {claim.actual??'not recorded'} <span className="text-muted-foreground">· observer only</span></p>}
+    {e.privatePlan && <div><h4 className="font-medium">Agent’s stated plan <span className="font-normal text-muted-foreground">· observer only</span></h4><p className="mt-1 whitespace-pre-wrap break-words leading-relaxed text-muted-foreground">{e.privatePlan}</p><p className="mt-1 text-xs text-muted-foreground">Model-generated explanation, not a record of internal thoughts.</p></div>}
+    <p className="break-all font-mono text-xs text-muted-foreground">Event {e.id} · {e.type}</p>
+  </div>;
+}
+export function EventFeed(props:{followLatest:boolean;status:RunStatus}) {
+  const {label}=useRun();
+  const all=useEventStore(s=>s.events),seq=useEventStore(s=>s.playbackSeq);
+  const [limit,setLimit]=useState(12);
+  const groups=useMemo(()=>activityAtCursor(all,seq),[all,seq]);
+  const visible=groups.slice(-limit);
+  const scroller=useRef<HTMLDivElement>(null);
+  useEffect(()=>{if(scroller.current)scroller.current.scrollTop=scroller.current.scrollHeight;},[seq,groups]);
+  return <section aria-label="Agent Activity" className="min-w-0">
+    <p className="border-b px-3 py-2 text-xs text-muted-foreground">{seq===null?'Full loaded run · all rounds':'Through the current replay position'}</p>
+    <div ref={scroller} className="max-h-[65dvh] overflow-y-auto overscroll-contain px-3">
+      {groups.length>limit && <button type="button" onClick={()=>setLimit(n=>n+20)} className="my-2 min-h-8 text-sm text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-primary">Show earlier actions</button>}
+      {!groups.length && <p className="py-5 text-sm text-muted-foreground">{all.length?'No actions at this replay position. Resume playback or choose a later round.':props.status==='offline'?'Connection lost. Retrying…':'Waiting for recorded actions.'}</p>}
+      <ol>{visible.map(g=>{const e=g.events[0]!,falseClaim=e.type==='trade_offer'&&e.flags.includes('lie');return <li key={e.id} className="border-b border-border/60 last:border-0"><details>
+        <summary className="cursor-pointer py-3 text-sm leading-relaxed marker:text-muted-foreground focus-visible:outline-2 focus-visible:outline-primary">
+          <span className="break-words">{activityGroupText(g,label)}</span>
+          {falseClaim&&<span className="mt-1 block font-medium text-violation"><span aria-hidden="true">! </span>False quality claim<span className="block text-xs font-normal">Actual quality {e.groundTruth?.trueQuality??'not recorded'} · observer only</span></span>}
+          <span className="mt-0.5 block text-xs text-muted-foreground">Round {e.round} · {e.phase}</span>
+        </summary>
+        {g.events.map(event=><div key={event.id}>{g.events.length>1&&<p className="pt-2 text-sm font-medium">{activityText(event,label)}</p>}<Evidence event={event}/></div>)}
+      </details></li>;})}</ol>
+    </div>
+  </section>;
 }

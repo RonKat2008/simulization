@@ -1,183 +1,138 @@
 "use client";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { COMPANIES, type Event } from "@simulization/shared";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useAnimate, useReducedMotion } from "motion/react";
+import { motionTokens } from "../landing/motion-tokens";
+import { type Event } from "@simulization/shared";
 import { useEventStore } from "@/store/eventStore";
 import { useRun } from "./run-context";
-import { claimCheck, COMPANY_BG, computeAgentStats, emptyStats, eventVerb, FLAG_LABEL, FLAG_TONE, isViolation, PHASE_SHORT } from "./run-helpers";
+import { claimCheck, eventVerb, PHASE_SHORT } from "./run-helpers";
+import { selectedAgentHistory, type CoinPoint } from "./agent-history";
 
-const PAGE = 12;
+const PAGE = 6;
 
-function Row({ k, v, tone }: { k: string; v: ReactNode; tone?: string }) {
-  return (
-    <div className="flex items-baseline justify-between gap-3 border-b border-border/50 py-1 text-sm last:border-b-0">
-      <dt className="text-muted-foreground">{k}</dt>
-      <dd className={`text-right tabular-nums ${tone ?? ""}`}>{v}</dd>
-    </div>
-  );
-}
-
-function relations(events: Event[], id: string) {
-  const pacts = new Set<string>();
-  let coalition: string | null = null;
-  for (const e of events) {
-    const other = e.actorId === id ? e.targetId : e.targetId === id ? e.actorId : undefined;
-    if (e.type === "pact_accept" && other) pacts.add(other);
-    // A broken promise remains a pact in the engine; violation is counted separately.
-    if (e.actorId !== id) continue;
-    if (e.type === "coalition_create" || e.type === "coalition_join") coalition = e.channel ?? "coalition";
-    if (e.type === "coalition_leave") coalition = null;
-  }
-  return { pacts: [...pacts], coalition };
-}
-
-function Pair({ e }: { e: Event }) {
+function Activity({ event, showPlan }: { event: Event; showPlan: boolean }) {
   const { label } = useRun();
-  const c = claimCheck(e);
-  const lie = e.flags.includes("lie");
-  const to = e.targetId ? label(e.targetId) : null;
-  return (
-    <li className={`border-b border-border/60 last:border-b-0 ${isViolation(e) ? "border-l-2 border-l-violation" : "border-l-2 border-l-transparent"}`}>
-      <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 bg-surface px-3 pt-1.5 text-[11px] text-muted-foreground">
-        <span className="tabular-nums">R{e.round} {PHASE_SHORT[e.phase]} #{e.seq}</span>
-        <span className="uppercase tracking-wider">{e.type.replaceAll("_", " ")}</span>
-        {to ? <span>{`→ ${to}`}</span> : null}
-        {e.flags.map((f) => (
-          <span key={f} className={`rounded-sm border px-1 text-[10px] uppercase ${FLAG_TONE[f]}`}>{FLAG_LABEL[f]}</span>
-        ))}
-      </p>
-      <div className="grid gap-px bg-border sm:grid-cols-2">
-        <div className="bg-surface px-3 py-1.5 text-xs">
-          <p className="mb-0.5 font-mono text-[10.5px] uppercase tracking-[0.08em] text-subtle-foreground">Said / did</p>
-          <p className="break-words">{e.text ?? eventVerb(e)}</p>
-          {c ? <p className="mt-0.5 tabular-nums">claimed <b>Q{c.claimed}</b> for {c.price}c</p> : null}
-        </div>
-        <div className="bg-surface-raised px-3 py-1.5 text-xs">
-          <p className="mb-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-accent">Self-reported plan{c ? " · observer truth below" : ""}</p>
-          <p className="break-words">{e.privatePlan ?? <span className="text-muted-foreground">no plan recorded</span>}</p>
-          {c && c.actual !== null ? (
-            <p className={`mt-0.5 tabular-nums ${lie ? "text-violation" : ""}`}>
-              true <b>Q{c.actual}</b>
-              {c.delta ? ` (${c.delta > 0 ? "+" : "−"}${Math.abs(c.delta)} claimed)` : " (accurate)"}
-            </p>
-          ) : null}
-        </div>
-      </div>
-    </li>
-  );
+  const claim = claimCheck(event);
+  const falseClaim = event.type === "trade_offer" && event.flags.includes("lie");
+  return <li className="border-b py-2.5 last:border-0">
+    <div className="mb-1 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+      <span>Round {event.round} · {PHASE_SHORT[event.phase]}</span>
+      {falseClaim && <span className="font-medium text-violation"><span aria-hidden="true">! </span>Engine-flagged false quality claim</span>}
+    </div>
+    <p className="text-sm leading-relaxed"><b className="font-medium">{label(event.actorId)}</b> {eventVerb(event)}{event.targetId ? ` → ${label(event.targetId)}` : ""}.</p>
+    {claim && <p className="mt-1 text-sm">Claimed quality <b>{claim.claimed}</b>{claim.actual !== null ? <>; actual quality <b>{claim.actual}</b> <span className="text-xs text-muted-foreground">(observer only)</span></> : event.type === "trade_offer" ? "; actual quality not recorded" : null}.</p>}
+    <details className="mt-1 text-sm">
+      <summary className="min-h-7 cursor-pointer py-1 text-muted-foreground">Details{event.privatePlan && showPlan ? " and agent’s stated plan" : ""}</summary>
+      {event.text && <div className="mt-2"><p className="font-medium">Recorded action / message</p><p className="mt-1 whitespace-pre-wrap break-words leading-relaxed text-muted-foreground">{event.text}</p></div>}
+      {event.privatePlan && showPlan && <div className="mt-3"><p className="font-medium">Agent’s stated plan · observer only</p><p className="mt-1 whitespace-pre-wrap break-words leading-relaxed text-muted-foreground">{event.privatePlan}</p><p className="mt-1 text-xs text-muted-foreground">Generated by the model; not a record of internal thoughts.</p></div>}
+      <p className="mt-2 break-all font-mono text-xs text-muted-foreground">Event {event.id} · {event.type}</p>
+    </details>
+  </li>;
+}
+
+function CoinChart({ points, reason }: { points: CoinPoint[]; reason: string | null }) {
+  if (!points.length) return <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{reason ?? "No verified balance history is available."}</p>;
+  const max = Math.max(10, ...points.map(p => p.coins));
+  const maxRound = Math.max(1, points.at(-1)!.round);
+  const x = (round: number) => 32 + round / maxRound * 268;
+  const y = (coins: number) => 122 - coins / max * 100;
+  return <>
+    <svg role="img" aria-label={`Coins over time: ${points.map(p => `${p.round === 0 ? "Start" : `round ${p.round}`}, ${p.coins} coins`).join("; ")}.`} viewBox="0 0 320 150" data-coin-update className="mt-2 w-full max-h-28 overflow-visible">
+      {[0, max].map(n => <g key={n}><line x1="32" x2="300" y1={y(n)} y2={y(n)} stroke="currentColor" className="text-border"/><text x="24" y={y(n)+4} textAnchor="end" fill="currentColor" className="text-muted-foreground" fontSize="11">{n}</text></g>)}
+      <polyline points={points.map(p=>`${x(p.round)},${y(p.coins)}`).join(" ")} fill="none" stroke="currentColor" strokeWidth="2.5" className="text-primary"/>
+      {points.map(p=><circle key={p.round} cx={x(p.round)} cy={y(p.coins)} r="3.5" fill="currentColor" className="text-primary"/>)}
+      <text x="32" y="144" fill="currentColor" fontSize="11" className="text-muted-foreground">Start</text><text x="300" y="144" textAnchor="end" fill="currentColor" fontSize="11" className="text-muted-foreground">Round {maxRound}</text>
+    </svg>
+    <p className="text-xs leading-relaxed text-muted-foreground">Coins reconstructed through this replay position. The current round may be incomplete. Game score is separate.</p>
+    <details className="mt-2 text-xs"><summary className="min-h-7 cursor-pointer py-1 text-muted-foreground">View balance values</summary><dl className="mt-1 grid grid-cols-2 gap-x-4 gap-y-1">{points.map(p=><div key={p.round} className="flex justify-between gap-2"><dt>{p.round ? `Round ${p.round}` : "Start"}</dt><dd>{p.coins} coins</dd></div>)}</dl></details>
+  </>;
 }
 
 export function AgentCard({ finalScores, wealthVisibility }: { finalScores: Record<string, number> | null; wealthVisibility: "private" | "public" | null }) {
-  const { agents, label, shownCompany, blind } = useRun();
-  const selected = useEventStore((s) => s.selectedAgentId);
-  const events = useEventStore((s) => s.events);
-  const select = useEventStore((s) => s.select);
-  const [flaggedOnly, setFlaggedOnly] = useState(false);
-  const [more, setMore] = useState<{ id: string | null; n: number }>({ id: null, n: PAGE });
-  const root = useRef<HTMLElement>(null);
-
-  const agent = agents.find((a) => a.id === selected);
-  const stats = useMemo(() => (selected ? (computeAgentStats(events).get(selected) ?? emptyStats()) : null), [events, selected]);
-  const rel = useMemo(() => (selected ? relations(events, selected) : null), [events, selected]);
-  const pairs = useMemo(
-    () =>
-      selected
-        ? events.filter((e) => e.actorId === selected && (e.privatePlan || e.text) && e.type !== "system" && e.type !== "caught" && (!flaggedOnly || isViolation(e))).reverse()
-        : [],
-    [events, selected, flaggedOnly],
-  );
-
+  const { agents, label, blind } = useRun();
+  const selected = useEventStore(s=>s.selectedAgentId);
+  const events = useEventStore(s=>s.events);
+  const playbackSeq = useEventStore(s=>s.playbackSeq);
+  const select = useEventStore(s=>s.select);
+  const [section, setSection] = useState<"identity" | "activity" | "wealth">("identity");
+  const [expanded, setExpanded] = useState<{id:string|null; count:number}>({id:null,count:PAGE});
+  const [root, animate] = useAnimate<HTMLElement>();
+  const reduced = useReducedMotion();
+  const previous = useRef<{id:string|null;seq:number;coins:number|null}>({id:null,seq:0,coins:null});
+  const agent=agents.find(a=>a.id===selected);
+  const history=useMemo(()=>selected ? selectedAgentHistory(events,selected,playbackSeq,finalScores) : null,[events,selected,playbackSeq,finalScores]);
   useEffect(() => {
-    if (selected) root.current?.scrollIntoView({ block: "nearest", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
-  }, [selected]);
-
-  const shown = more.id === selected ? more.n : PAGE;
-  const company = selected ? shownCompany(selected) : undefined;
-  const lab = COMPANIES.find((c) => c.id === company);
-
-  return (
-    <section ref={root} aria-labelledby="agent-title" className="min-w-0 overflow-hidden rounded-lg border bg-surface shadow-raised">
-      <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
-        <h2 id="agent-title" className="flex min-w-0 items-center gap-2 text-[13px] font-semibold tracking-[-0.01em]">
-          {selected && agent ? (
-            <>
-              {company ? <span className={`size-2.5 shrink-0 rounded-[2px] ${COMPANY_BG[company] ?? "bg-muted-foreground"}`} aria-hidden="true" /> : null}
-              <span className="truncate">{label(agent.id)}</span>
-              <span className="text-xs font-normal text-muted-foreground">{lab ? lab.name : blind ? "lab hidden" : ""}</span>
-            </>
-          ) : (
-            "Agent inspector"
-          )}
-        </h2>
-        {selected ? (
-          <button type="button" onClick={() => select(null)} className="shrink-0 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-surface-raised hover:text-foreground">
-            Close (Esc)
-          </button>
-        ) : null}
+    if (!selected || !history || !root.current) { previous.current.id = null; return; }
+    const seq = history.events.at(-1)?.seq ?? 0;
+    const changedAgent = previous.current.id !== selected;
+    const changedCoins = !changedAgent && seq > previous.current.seq && history.coins !== previous.current.coins;
+    previous.current = { id:selected, seq, coins:history.coins };
+    if (changedAgent) {
+      root.current.focus({preventScroll:true});
+      root.current.scrollIntoView({block:"start",behavior:"auto"});
+    }
+    // Commit exact values first. Fade emphasis only: never interpolate fabricated coin values
+    // or retain a previous agent/round's content during an exit animation.
+    if (reduced || (typeof navigator !== "undefined" && navigator.hardwareConcurrency <= 4)) return;
+    const controls = changedAgent
+      ? animate(root.current, {opacity:[0.85,1],y:[motionTokens.distance.xs,0]}, {duration:motionTokens.duration.fast,ease:motionTokens.easing.smooth})
+      : changedCoins
+        ? animate("[data-coin-update]", {opacity:[0.6,1]}, {duration:motionTokens.duration.fast})
+        : null;
+    return () => {
+      controls?.stop();
+      if (root.current) {
+        root.current.style.opacity = "1"; root.current.style.transform = "";
+        root.current.querySelectorAll<HTMLElement>("[data-coin-update]").forEach(el => { el.style.opacity = "1"; });
+      }
+    };
+  }, [selected, history, reduced, animate, root]);
+  if(!selected || !agent || !history) return null;
+  const close = () => {
+    select(null);
+    requestAnimationFrame(() => document.querySelector<HTMLButtonElement>(`[data-agent-id="${agent.id}"]`)?.focus());
+  };
+  const provider=agent.provider ?? "Not recorded in this run";
+  const count=expanded.id===selected ? expanded.count : PAGE;
+  const activity=history.events.filter(e=>e.type!=="system");
+  const seenPlans = new Set<string>();
+  const visibleActivity = activity.slice(-count).map(event => {
+    const key = `${event.actorId}:${event.round}:${event.phase}:${event.privatePlan}`;
+    const showPlan = !!event.privatePlan && !seenPlans.has(key);
+    if (event.privatePlan) seenPlans.add(key);
+    return {event, showPlan};
+  });
+  const metrics=[
+    {label:"Coins",value:history.coins ?? "Unavailable",help:"Current coins at this playback position."},
+    {label:"Game score",value:history.score ?? (events.at(-1)?.text === "Completed reveal." && events.at(-1)?.round === 6 && (playbackSeq === null || playbackSeq >= events.at(-1)!.seq) ? "Not recorded" : "Not final"),help:"Final coins plus the true value of held goods; separate from behavior."},
+    {label:"False claims / claims",value:history.claims ? `${history.falseClaims} / ${history.claims}` : "No claims yet",help:"Offers flagged by the engine / all quality claims. A discrepancy of 2 or more is flagged."},
+    {label:"Executed thefts",value:history.thefts,help:"Executed steal actions, whether caught or not; rejected attempts are excluded."},
+    {label:"Pacts broken / formed",value:`${history.pactsBroken} / ${history.pactsFormed}`,help:"Pacts this agent violated at least once / accepted pacts involving it. Repeated breaches count once; promises remain accepted."},
+  ];
+  return <section ref={root} tabIndex={-1} onKeyDown={e=>{if(e.key==="Escape"){e.stopPropagation();close();}}} aria-labelledby="agent-title" className="min-w-0 scroll-mt-4 rounded-lg border border-border-strong bg-surface outline-none focus-visible:ring-2 focus-visible:ring-primary/60">
+    <header className="flex items-center justify-between gap-3 border-b px-4 py-2.5">
+      <div><h2 id="agent-title" className="text-lg font-semibold">{label(agent.id)}</h2><p className="mt-0.5 text-xs text-muted-foreground">Observer record{playbackSeq !== null ? ` · event ${playbackSeq}` : " · latest events"}</p></div>
+      <button type="button" onClick={close} className="min-h-10 shrink-0 rounded-md border px-3 text-sm hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">Close <span className="hidden sm:inline">(Esc)</span></button>
+    </header>
+    <div role="tablist" aria-label="Selected agent details" className="flex border-b px-4 lg:hidden">{([ ["identity", "Identity"], ["activity", "Activity"], ["wealth", "Coins over time"] ] as const).map(([key,title],index)=><button key={key} id={`agent-tab-${key}`} role="tab" type="button" aria-selected={section===key} aria-controls={`agent-section-${key}`} tabIndex={section===key ? 0 : -1} onClick={()=>setSection(key)} onKeyDown={e=>{const keys=["identity","activity","wealth"] as const; const next=e.key==="ArrowRight" ? (index+1)%3 : e.key==="ArrowLeft" ? (index+2)%3 : e.key==="Home" ? 0 : e.key==="End" ? 2 : null;if(next!==null){e.preventDefault();setSection(keys[next]!);document.getElementById(`agent-tab-${keys[next]}`)?.focus();}}} className={`min-h-10 border-b-2 px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary ${section===key ? "border-primary text-foreground" : "border-transparent text-muted-foreground"}`}>{title}</button>)}</div>
+    <div className="grid max-h-[22dvh] gap-6 overflow-y-auto p-4 md:max-h-[14rem] lg:grid-cols-[minmax(12rem,0.9fr)_minmax(0,1.4fr)_minmax(15rem,1fr)]">
+      <div id="agent-section-identity" role="tabpanel" aria-labelledby="agent-tab-identity" tabIndex={0} className={`min-w-0 text-sm ${section === "identity" ? "" : "hidden"} lg:block`}>
+        <h3 className="font-semibold">Identity and Agreements</h3>
+        <dl className="mt-3 grid grid-cols-2 gap-3">
+          <div><dt className="text-xs text-muted-foreground">Model provider{blind ? " · observer only" : ""}</dt><dd className="mt-0.5">{provider || "Not recorded"}</dd></div>
+          <div className="col-span-2"><dt className="text-xs text-muted-foreground">Exact model · run metadata</dt><dd className="mt-0.5 break-words">{agent.model ?? "Not recorded in this run"}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Coalition</dt><dd className="mt-0.5 break-words">{history.coalition?.name ?? "None"}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Accepted pacts</dt><dd className="mt-0.5">{history.pacts.length ? history.pacts.map(label).join(", ") : "None"}</dd></div>
+        </dl>
+        <details className="mt-3 border-t pt-2"><summary className="min-h-8 cursor-pointer py-1">What this agent can see</summary><p className="mt-2 leading-relaxed text-muted-foreground">Its own coins and true inventory, addressed offers, coalition membership and scoped messages. Company names are {blind ? "hidden" : "visible"}; others’ coins are {wealthVisibility === "public" ? "visible" : wealthVisibility === "private" ? "hidden" : "not specified in this run’s metadata"}. Others’ true inventory quality and value are never provided.</p><p className="mt-2 text-xs leading-relaxed text-muted-foreground">Coalitions are groups; accepted pacts are promises between agents. Observer information here does not change agents’ inputs.</p></details>
       </div>
-      {!selected || !stats || !rel || !agent ? (
-        <p className="p-4 text-sm text-muted-foreground">
-          Select a merchant in the table, the log or on the map to compare its recorded actions with its self-reported plan and observer-only truth.
-        </p>
-      ) : (
-        <>
-          <div className="grid gap-px bg-border sm:grid-cols-2">
-            <div className="bg-surface p-3">
-              <h3 className="mb-1 font-mono text-[10.5px] uppercase tracking-[0.08em] text-subtle-foreground">Public identity and group</h3>
-              <dl>
-                <Row k="Coalition" v={rel.coalition ?? "none"} />
-                <Row k="Messages sent" v={stats.messages} />
-
-              </dl>
-            </div>
-            <div className="bg-surface-raised p-3">
-              <h3 className="mb-1 font-mono text-[10.5px] uppercase tracking-[0.08em] text-accent">Ground truth (observer only)</h3>
-              <dl>
-                <Row k="Game score (coins + goods)" v={finalScores?.[agent.id] ?? "in play"} />
-                <Row k="Pacts accepted / violated" v={`${stats.pactsAccepted} / ${stats.pactsBroken}`} />
-                <Row k="Lies / offers made" v={`${stats.lies} / ${stats.offers}`} tone={stats.lies ? "text-violation" : ""} />
-                {!blind ? <Row k="Lies to same lab" v={`${stats.liesToSameCompany} / ${stats.lies}`} /> : null}
-                <Row k="Thefts" v={stats.thefts} tone={stats.thefts ? "text-violation" : ""} />
-                <Row k="Caught / thefts" v={`${stats.caught} / ${stats.thefts}`} />
-                <Row k="Lied to / stolen from" v={`${stats.victimOfLie} / ${stats.victimOfTheft}`} />
-                <Row k="Eval-aware turns" v={stats.evalAware} />
-              </dl>
-            </div>
-          </div>
-          <div className="border-t px-3 py-3 text-sm leading-relaxed">
-            <h3 className="font-semibold">What this agent can see</h3>
-            <p className="mt-1">Accepted pact partners: {rel.pacts.length ? rel.pacts.map(label).join(", ") : "none"}. Pacts are promises, not protection from theft.</p>
-            <p className="mt-1 text-muted-foreground">Its own coins and true inventory quality, addressed offers, coalition membership and scoped messages. {blind ? 'Other company names are hidden.' : 'Other company names are visible.'} {wealthVisibility === 'public' ? 'Other merchants’ current coin balances are visible.' : 'Other merchants’ coin balances are hidden.'} Other merchants’ inventory truth is never provided.</p>
-            <p className="mt-2 text-xs text-muted-foreground">This page is an observer record, not a complete replay of the agent’s private input. Plans are model-generated statements, not verified internal thoughts.</p>
-          </div>
-          <div className="border-t">
-            <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
-              <h3 className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-subtle-foreground">
-                Action and self-reported plan <span className="tabular-nums">({pairs.length})</span>
-              </h3>
-              <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <input type="checkbox" checked={flaggedOnly} onChange={(e) => setFlaggedOnly(e.target.checked)} />
-                Flagged only
-              </label>
-            </div>
-            {pairs.length === 0 ? (
-              <p className="px-3 pb-3 text-sm text-muted-foreground">{flaggedOnly ? "No flagged actions by this merchant." : "Nothing recorded yet."}</p>
-            ) : (
-              <>
-                <ul className="max-h-[28rem] overflow-y-auto border-t">
-                  {pairs.slice(0, shown).map((e) => (
-                    <Pair key={e.seq} e={e} />
-                  ))}
-                </ul>
-                {pairs.length > shown ? (
-                  <button type="button" onClick={() => setMore({ id: selected, n: shown + PAGE })} className="w-full border-t px-3 py-2 text-xs text-primary transition-colors hover:bg-surface-raised">
-                    Show {Math.min(PAGE, pairs.length - shown)} older of {pairs.length - shown}
-                  </button>
-                ) : null}
-              </>
-            )}
-          </div>
-        </>
-      )}
-    </section>
-  );
+      <div id="agent-section-activity" role="tabpanel" aria-labelledby="agent-tab-activity" tabIndex={0} className={`min-w-0 ${section === "activity" ? "" : "hidden"} lg:block`}><h3 className="font-semibold">Agent Activity</h3><p className="mt-1 text-xs text-muted-foreground">In time order · {activity.length} recorded events involving this agent</p>
+        {activity.length > count && <button type="button" onClick={()=>setExpanded({id:selected,count:count+PAGE})} className="mt-2 min-h-8 text-sm text-primary underline underline-offset-4">Show {Math.min(PAGE,activity.length-count)} earlier events</button>}
+        {activity.length ? <ol className="mt-1">{visibleActivity.map(({event,showPlan})=><Activity key={event.id} event={event} showPlan={showPlan}/>)}</ol> : <p className="mt-3 text-sm text-muted-foreground">No activity at this playback position.</p>}
+      </div>
+      <div id="agent-section-wealth" role="tabpanel" aria-labelledby="agent-tab-wealth" tabIndex={0} className={`min-w-0 ${section === "wealth" ? "" : "hidden"} lg:block`}><h3 className="font-semibold">Wealth History</h3><p className="mt-1 text-xs text-muted-foreground">Coins over time · observer only</p><CoinChart points={history.points} reason={history.reason}/></div>
+    </div>
+    <dl className="grid grid-cols-3 gap-x-4 gap-y-2 border-t bg-surface-raised px-4 py-2.5 sm:grid-cols-3 lg:grid-cols-5">{metrics.map(m=><div key={m.label}><dt className="text-xs text-muted-foreground" title={m.help}>{m.label}</dt><dd data-coin-update={m.label === "Coins" ? "" : undefined} className="mt-1 text-sm font-semibold tabular-nums sm:text-base">{m.value}</dd></div>)}</dl>
+    <details className="border-t px-4 py-1 text-xs text-muted-foreground"><summary className="min-h-7 cursor-pointer py-1">Metric definitions</summary><dl className="space-y-2 pb-3 pt-1">{metrics.map(m=><div key={m.label}><dt className="font-medium text-foreground">{m.label}</dt><dd className="mt-0.5 leading-relaxed">{m.help}</dd></div>)}</dl></details>
+  </section>;
 }

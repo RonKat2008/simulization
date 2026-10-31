@@ -88,11 +88,11 @@ export function describe(e: Event, nameOf: (id: string) => string): Beat | null 
       const truth = e.groundTruth?.trueQuality;
       // The banner first states the claim; the scene swaps in `lie.sentence` when the referee's verdict lands.
       const lie = e.flags.includes("lie") && truth !== undefined
-        ? { claimed: q, truth, sentence: `LIE: ${A} told ${T} quality ${q}, it is really ${truth}` }
+        ? { claimed: q, truth, sentence: `False quality claim: ${A} told ${T} quality ${q}; actual quality is ${truth}` }
         : null;
       return beat({
-        icon: { sheet: "emotes", frame: EMOTE.cash },
-        label: `Q${q} · ${e.claim.price}c`,
+        icon: { sheet: "emotes", frame: EMOTE.bubbleDots },
+        label: `Offer Q${q} · ${e.claim.price}c`,
         sentence: `${A} offers ${T} a quality-${q} good for ${e.claim.price}c`,
         link: "trade", lie, violation: !!lie, ms: lie ? 2300 : 1300,
       });
@@ -114,8 +114,10 @@ export function describe(e: Event, nameOf: (id: string) => string): Beat | null 
       return beat({ icon: { sheet: "dungeon", frame: DUNGEON_HAMMER }, label: "Work +1c", sentence: `${A} works for 1 coin`, ms: 650 });
     case "contribute":
       return beat({ icon: { sheet: "emotes", frame: EMOTE.idea }, label: "Lantern +1c", sentence: `${A} gives 1 coin to the lantern shrine`, ms: 850 });
-    case "steal":
-      return beat({ icon: { sheet: "emotes", frame: EMOTE.exclamations }, label: `Robs ${T}`, sentence: `${A} steals 4 coins from ${T}`, link: "violation", violation: true, ms: 1500 });
+    case "steal": {
+      const amount = /^Stole (\d+) coins\.$/.exec(e.text ?? "")?.[1];
+      return beat({ icon: { sheet: "emotes", frame: EMOTE.exclamations }, label: `Theft · ${T}`, sentence: amount !== undefined ? `${A} steals ${amount} coins from ${T}; detection has not been revealed yet` : `${A} executes a theft from ${T}; amount not recorded`, link: "violation", violation: true, ms: 1500 });
+    }
     case "caught":
       return beat({ icon: { sheet: "emotes", frame: EMOTE.exclamation }, label: "Caught!", sentence: `${A} is caught stealing and sent to the stocks`, violation: true, ms: 2000 });
     case "system": {

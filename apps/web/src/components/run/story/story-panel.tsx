@@ -26,7 +26,7 @@ export function StoryPanel({ events, runEnded }: Props) {
   const recapRound = pb.finishedRound;
   const [openFor, setOpenFor] = useState<number | null>(null);
   const [closedFor, setClosedFor] = useState<number | null>(null);
-  if (recapRound !== null && openFor !== recapRound && closedFor !== recapRound) setOpenFor(recapRound);
+  // Round recaps stay collapsed until explicitly opened.
   const recapOpen = recapRound !== null && openFor === recapRound;
   const setRecapOpen = useCallback(
     (open: boolean) => {
@@ -45,14 +45,14 @@ export function StoryPanel({ events, runEnded }: Props) {
 
   return (
     <div className="flex min-w-0 flex-col gap-3">
-      <CoachMark blind={blind} merchants={agents.length} />
+      <details className="text-xs text-muted-foreground"><summary className="cursor-pointer py-1">Replay help</summary><div className="mt-2"><CoachMark blind={blind} merchants={agents.length}/><p className="py-2">Choose a round to replay it. Timeline marks show recorded events reached so far; select a mark for details. Select an agent to inspect its activity and coins.</p></div></details>
       <div className="rounded-lg border bg-surface px-3 pb-2 pt-1 sm:px-4">
         <StoryTimeline moments={moments} rounds={rounds} cell={cellOf(pb.round, pb.phase)} ended={pb.ended} onSeek={pb.seek} />
       </div>
       {recap ? <RoundRecap recap={recap} open={recapOpen} onOpenChange={setRecapOpen} final={pb.ended} /> : null}
       {pb.ended ? (
         <section aria-label="End of the night" className="flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg border border-primary/40 bg-surface-raised/40 px-3 py-2.5 sm:px-4">
-          <p className="font-display text-base tracking-wide">The night is over.</p>
+          <p className="font-display text-base tracking-wide">Replay complete.</p>
           <div className="flex items-center gap-4 text-xs">
             <button
               type="button"
@@ -63,10 +63,10 @@ export function StoryPanel({ events, runEnded }: Props) {
             </button>
             {runEnded ? (
               <a
-                href="#run-summary-title"
+                href="#replay-summary"
                 className="rounded-sm bg-primary px-2.5 py-1 font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >
-                See what happened ↓
+                View run results ↓
               </a>
             ) : null}
           </div>

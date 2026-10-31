@@ -10,18 +10,9 @@ import { PHASES, ROUNDS } from "@simulization/shared";
 import type { AgentInfo } from "./scene";
 import { PHASE_LABEL, type Icon, type Narration } from "./narrate";
 import { DUNGEON_SHEET, EMOTE_SHEET } from "./assets";
+import { useEventStore } from "@/store/eventStore";
 
 const NARROW_PX = 720; // below this canvas width the banner moves to the bottom edge
-const PIXEL = "var(--font-pixel), monospace";
-
-const btn = (on: boolean) => ({
-  padding: "2px 8px",
-  borderRadius: 4,
-  border: 0,
-  cursor: "pointer",
-  background: on ? "#e2e8f0" : "rgba(30,41,59,0.8)",
-  color: on ? "#0f172a" : "#cbd5e1",
-});
 
 /** The same Kenney frame the bubble uses, drawn from the sheet with CSS (2x, crisp). */
 function SheetIcon({ icon, size }: { icon: Icon; size: number }) {
@@ -78,20 +69,16 @@ function PhaseSteps({ n, narrow }: { n: Narration; narrow: boolean }) {
 
 function Banner({ n, narrow }: { n: Narration; narrow: boolean }) {
   const style: CSSProperties = {
-    position: "absolute",
-    left: 8,
-    ...(narrow ? { right: 8, bottom: 8 } : { top: 8, right: 330 }),
+    position: "relative",
     display: "flex",
     alignItems: "center",
     gap: 8,
     minWidth: 0,
     padding: narrow ? "3px 8px" : "5px 10px",
-    borderRadius: 6,
-    background: "rgba(11,15,26,0.86)",
-    border: `1px solid ${n.violation ? "#e5484d" : "#2a3560"}`,
-    boxShadow: "0 2px 0 rgba(0,0,0,0.35)",
+    background: "var(--surface)",
+    borderTop: "1px solid var(--border)",
     color: "#eef1fa",
-    font: `${narrow ? 11 : 14}px/1.25 ${PIXEL}`,
+    font: "13px/1.4 var(--font-sans), sans-serif",
     pointerEvents: "none",
   };
   return (
@@ -121,18 +108,27 @@ export default function VillageCanvas({ agents }: { agents?: AgentInfo[] }) {
   const [round, setRound] = useState(1);
   const [line, setLine] = useState<Narration | null>(null);
   const [narrow, setNarrow] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const applied = useEventStore(s => s.playbackSeq === null ? s.events.at(-1) : s.events.findLast(e => e.seq <= s.playbackSeq!));
   const seek = (r: number) => {
     setRound(r);
     import("./scene").then((m) => m.seekRound(r));
   };
 
   useEffect(() => {
-    let game: { destroy: (removeCanvas: boolean) => void } | null = null;
+    let game: { destroy: (removeCanvas: boolean) => void; scale: { getParentBounds: () => boolean; refresh: () => unknown } } | null = null;
+    let observer: ResizeObserver | null = null;
     let unsub: (() => void) | null = null;
     let dead = false;
     import("./scene").then(({ createGame, onNarrate }) => {
       if (dead || !ref.current) return;
       game = createGame(ref.current);
+      observer = new ResizeObserver(([entry]) => {
+        setNarrow(entry.contentRect.width < NARROW_PX);
+        game?.scale.getParentBounds();
+        game?.scale.refresh();
+      });
+      observer.observe(ref.current);
       unsub = onNarrate((n) => {
         setLine(n);
         if (n.round > 0) setRound(n.round); // R-buttons follow playback, not just the last seek
@@ -141,16 +137,9 @@ export default function VillageCanvas({ agents }: { agents?: AgentInfo[] }) {
     return () => {
       dead = true;
       unsub?.();
+      observer?.disconnect();
       game?.destroy(true);
     };
-  }, []);
-
-  useEffect(() => {
-    const el = boxRef.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver(([entry]) => setNarrow(entry.contentRect.width < NARROW_PX));
-    ro.observe(el);
-    return () => ro.disconnect();
   }, []);
 
   useEffect(() => {
@@ -158,27 +147,26 @@ export default function VillageCanvas({ agents }: { agents?: AgentInfo[] }) {
   }, [agents]);
 
   useEffect(() => {
-    import("./scene").then((m) => m.setSpeed(speed));
-  }, [speed]);
+    import("./scene").then((m) => m.setSpeed(paused ? 0 : speed));
+  }, [speed, paused]);
 
   return (
-    // Inline styles on purpose: works whether or not Tailwind is wired up.
-    <div ref={boxRef} style={{ position: "relative", width: "100%", aspectRatio: "16 / 9", background: "#0b0f1a" }}>
-      <div ref={ref} style={{ position: "absolute", inset: 0 }} />
-      {line ? <Banner n={line} narrow={narrow} /> : null}
-      <div style={{ position: "absolute", right: 8, top: 8, display: "flex", gap: 4, font: "12px monospace" }}>
-        {Array.from({ length: ROUNDS }, (_, i) => i + 1).map((r) => (
-          <button key={r} title={`Replay from round ${r}`} onClick={() => seek(r)} style={btn(round === r)}>
-            R{r}
-          </button>
-        ))}
-        <span style={{ width: 8 }} />
-        {[1, 2, 4].map((x) => (
-          <button key={x} onClick={() => setSpeedState(x)} style={btn(speed === x)}>
-            {x}x
-          </button>
-        ))}
+    <section aria-label="Village playback" className="min-w-0">
+      <div ref={boxRef} style={{position:"relative",width:"100%",aspectRatio:"16 / 9",background:"#0b0f1a"}}>
+        <div ref={ref} style={{position:"absolute",inset:0}} />
       </div>
-    </div>
+      {line ? <Banner n={{...line, round: applied?.round ?? 1, phase: applied?.phase ?? null}} narrow={narrow} /> : null}
+      <div className="flex min-h-12 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t bg-surface px-3 py-2 text-sm">
+        <label className="flex items-center gap-2 text-muted-foreground">Replay from
+          <select aria-label="Replay from round" value={round} onChange={e=>seek(Number(e.target.value))} className="min-h-8 rounded-md border bg-surface-raised px-2 text-foreground focus-visible:outline-2 focus-visible:outline-primary">
+            {Array.from({length:ROUNDS},(_,i)=>i+1).map(r=><option key={r} value={r}>Round {r}</option>)}
+          </select>
+        </label>
+        <div className="flex items-center gap-1" role="group" aria-label="Playback controls">
+          {[1,2,4].map(x=><button key={x} aria-label={`Playback speed ${x} times`} aria-pressed={speed===x} onClick={()=>setSpeedState(x)} className={`min-h-8 min-w-9 rounded-md px-2 tabular-nums focus-visible:outline-2 focus-visible:outline-primary ${speed===x ? "bg-surface-raised text-foreground" : "text-muted-foreground hover:text-foreground"}`}>{x}×</button>)}
+          <button aria-label={paused ? "Resume village playback" : "Pause village playback"} onClick={()=>setPaused(!paused)} className="ml-2 min-h-8 min-w-20 rounded-md border border-border-strong px-3 font-medium hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-primary">{paused ? "Resume" : "Pause"}</button>
+        </div>
+      </div>
+    </section>
   );
 }
