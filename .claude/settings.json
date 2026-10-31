@@ -1,0 +1,6 @@
+{
+  "env": {
+    "ECC_HOOK_PROFILE": "minimal",
+    "ECC_GATEGUARD": "off"
+  }
+}

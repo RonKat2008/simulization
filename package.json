@@ -1,0 +1,13 @@
+{
+  "name": "simulization",
+  "private": true,
+  "packageManager": "pnpm@12.8.1",
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "dev:sim": "pnpm --filter sim dev",
+    "mock": "pnpm --filter @simulization/shared mock",
+    "sim:local": "pnpm --filter sim sim:local",
+    "typecheck": "pnpm -r typecheck",
+    "build": "pnpm -r build"
+  }
+}
