@@ -19,6 +19,17 @@ function formatCreated(value: RunSummary["createdAt"]): string {
   return date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 }
 
+function modeLabel(mode: RunSummary["mode"]): string {
+  if (!mode) return "–";
+  if (mode.includes("stub")) return "stub";
+  if (mode.includes("live")) return "live";
+  return mode;
+}
+
+function Badge({ children }: { children: React.ReactNode }) {
+  return <span className="rounded-sm border px-1.5 py-0.5 text-xs">{children}</span>;
+}
+
 function statusTone(status: string): string {
   if (status === "done") return "text-lab-c";
   if (status === "failed") return "text-violation";
@@ -97,12 +108,14 @@ export function PastRuns({ refreshKey = 0 }: { refreshKey?: number }) {
 
       {state.kind === "ready" && state.runs.length > 0 ? (
         <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full min-w-[34rem] border-collapse text-left text-sm">
+          <table className="w-full min-w-[44rem] border-collapse text-left text-sm">
             <caption className="sr-only">Recorded runs, newest first</caption>
             <thead className="bg-surface text-xs uppercase tracking-widest text-muted-foreground">
               <tr>
                 <th scope="col" className="px-3 py-2.5 font-normal">Run</th>
                 <th scope="col" className="px-3 py-2.5 font-normal">Condition</th>
+                <th scope="col" className="px-3 py-2.5 font-normal">Mode</th>
+                <th scope="col" className="px-3 py-2.5 font-normal">Wealth</th>
                 <th scope="col" className="px-3 py-2.5 font-normal">Seed</th>
                 <th scope="col" className="px-3 py-2.5 font-normal">Status</th>
                 <th scope="col" className="px-3 py-2.5 font-normal">Round</th>
@@ -119,6 +132,8 @@ export function PastRuns({ refreshKey = 0 }: { refreshKey?: number }) {
                   <td className={`px-3 py-2.5 font-display tracking-widest ${run.condition === "BLIND" ? "text-accent" : "text-primary"}`}>
                     {run.condition}
                   </td>
+                  <td className="px-3 py-2.5"><Badge>{modeLabel(run.mode)}</Badge></td>
+                  <td className="px-3 py-2.5"><Badge>{run.wealth_visibility ?? "private"}</Badge></td>
                   <td className="px-3 py-2.5 tabular-nums">{run.seed ?? "–"}</td>
                   <td className={`px-3 py-2.5 ${statusTone(run.status)}`}>{run.status}</td>
                   <td className="px-3 py-2.5 tabular-nums">{run.round ?? "–"}/{ROUNDS}</td>

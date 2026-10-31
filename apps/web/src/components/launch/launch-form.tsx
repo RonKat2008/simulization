@@ -1,21 +1,32 @@
 "use client";
+import Link from "next/link";
 import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
+import { OptionGroup, type Option } from "./option-group";
 import {
-  CONDITIONS,
-  CreateRunResponseSchema,
   DEFAULT_SEED,
+  DEFAULT_WEALTH_VISIBILITY,
   parseSeed,
-  readErrorMessage,
   type Condition,
+  type WealthVisibility,
 } from "./schemas";
+import { startRun } from "./start-run";
 
-const CONDITION_COPY: Record<Condition, { title: string; detail: string }> = {
-  LABELED: { title: "Labeled", detail: "Each agent sees which lab built every other agent." },
-  BLIND: { title: "Blind", detail: "Agents see names only. Lab identity is withheld." },
-};
+const CONDITION_OPTIONS: readonly Option<Condition>[] = [
+  { value: "LABELED", tone: "primary", title: "LABELED", detail: "Each agent sees which lab built every other agent. Tests in-group bias when identity is salient." },
+  { value: "BLIND", tone: "accent", title: "BLIND", detail: "Agents see names only; lab identity is withheld. The control: any bias must come from behavior, not labels." },
+];
 
-type Phase = { kind: "idle" } | { kind: "pending" } | { kind: "error"; message: string };
+const WEALTH_OPTIONS: readonly Option<WealthVisibility>[] = [
+  { value: "private", tone: "primary", title: "PRIVATE", detail: "Private wealth: agents cannot see others' coins. Hierarchy has to be inferred from behavior." },
+  { value: "public", tone: "accent", title: "PUBLIC", detail: "Public wealth: every agent sees everyone's coins. Makes status and inequality directly observable." },
+];
+
+type Phase =
+  | { kind: "idle" }
+  | { kind: "pending"; what: "single" | "pair" }
+  | { kind: "error"; message: string }
+  | { kind: "pair"; labeled: string | null; blind: string | null; message?: string };
 
 export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
   const router = useRouter();
@@ -23,6 +34,7 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
   const seedHelpId = useId();
   const errorId = useId();
   const [condition, setCondition] = useState<Condition>("LABELED");
+  const [wealth, setWealth] = useState<WealthVisibility>(DEFAULT_WEALTH_VISIBILITY);
   const [seed, setSeed] = useState(String(DEFAULT_SEED));
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   const pending = phase.kind === "pending";
@@ -35,71 +47,45 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
       setPhase({ kind: "error", message: parsedSeed.message });
       return;
     }
-    setPhase({ kind: "pending" });
-    try {
-      const res = await fetch("/api/runs", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ condition, seed: parsedSeed.value }),
-      });
-      if (!res.ok) {
-        setPhase({ kind: "error", message: await readErrorMessage(res) });
-        return;
-      }
-      const parsed = CreateRunResponseSchema.safeParse(await res.json());
-      if (!parsed.success) {
-        setPhase({ kind: "error", message: "The server returned an unexpected response." });
-        return;
-      }
-      onStarted?.();
-      router.push(`/run/${encodeURIComponent(parsed.data.runId)}`);
-    } catch {
-      setPhase({ kind: "error", message: "Could not reach the server. Check that the app and simulation runtime are running." });
+    setPhase({ kind: "pending", what: "single" });
+    const result = await startRun({ condition, seed: parsedSeed.value, wealth_visibility: wealth });
+    if (!result.ok) {
+      setPhase({ kind: "error", message: result.message });
+      return;
     }
+    onStarted?.();
+    router.push(`/run/${encodeURIComponent(result.runId)}`);
+  }
+
+  async function startPair() {
+    if (pending) return;
+    const parsedSeed = parseSeed(seed);
+    if (!parsedSeed.ok) {
+      setPhase({ kind: "error", message: parsedSeed.message });
+      return;
+    }
+    setPhase({ kind: "pending", what: "pair" });
+    const base = { seed: parsedSeed.value, wealth_visibility: wealth };
+    const labeled = await startRun({ ...base, condition: "LABELED" });
+    if (!labeled.ok) {
+      setPhase({ kind: "error", message: `LABELED run failed, BLIND was not started. ${labeled.message}` });
+      return;
+    }
+    onStarted?.();
+    const blind = await startRun({ ...base, condition: "BLIND" });
+    onStarted?.();
+    setPhase({
+      kind: "pair",
+      labeled: labeled.runId,
+      blind: blind.ok ? blind.runId : null,
+      message: blind.ok ? undefined : `BLIND run failed; the LABELED run is already running. ${blind.message}`,
+    });
   }
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-6 rounded-lg border bg-surface p-5 sm:p-6" noValidate>
-      <fieldset className="flex flex-col gap-3" disabled={pending}>
-        <legend className="mb-1 text-xs uppercase tracking-widest text-muted-foreground">Condition</legend>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {CONDITIONS.map((c) => {
-            const selected = condition === c;
-            const tone = c === "BLIND" ? "accent" : "primary";
-            return (
-              <label
-                key={c}
-                className={`group relative flex cursor-pointer flex-col gap-1.5 rounded-md border p-4 transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-3 has-[:focus-visible]:outline-primary has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60 ${
-                  selected
-                    ? tone === "accent"
-                      ? "border-accent bg-accent/10"
-                      : "border-primary bg-primary/10"
-                    : "bg-surface-raised hover:border-muted-foreground/60 active:bg-background"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="condition"
-                  value={c}
-                  checked={selected}
-                  onChange={() => setCondition(c)}
-                  className="sr-only"
-                />
-                <span className="flex items-center justify-between gap-2">
-                  <span className={`font-display text-xl font-semibold tracking-widest ${tone === "accent" ? "text-accent" : "text-primary"}`}>
-                    {c}
-                  </span>
-                  <span
-                    aria-hidden="true"
-                    className={`size-3 rounded-full border ${selected ? (tone === "accent" ? "border-accent bg-accent" : "border-primary bg-primary") : "border-muted-foreground/60"}`}
-                  />
-                </span>
-                <span className="text-sm leading-relaxed text-muted-foreground">{CONDITION_COPY[c].detail}</span>
-              </label>
-            );
-          })}
-        </div>
-      </fieldset>
+      <OptionGroup legend="Condition" name="condition" options={CONDITION_OPTIONS} value={condition} onChange={setCondition} disabled={pending} />
+      <OptionGroup legend="Wealth visibility" name="wealth_visibility" options={WEALTH_OPTIONS} value={wealth} onChange={setWealth} disabled={pending} />
 
       <div className="flex flex-col gap-2">
         <label htmlFor={seedId} className="text-xs uppercase tracking-widest text-muted-foreground">
@@ -133,13 +119,24 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
         </p>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
+      {phase.kind === "pair" ? (
+        <div role="status" className="flex flex-col gap-2 rounded-md border border-primary/60 bg-primary/10 px-3 py-2.5 text-sm leading-relaxed">
+          <p className="font-semibold">Matched pair started (same seed and wealth visibility).</p>
+          <ul className="flex flex-wrap gap-x-6 gap-y-1">
+            {phase.labeled ? <li><Link href={`/run/${encodeURIComponent(phase.labeled)}`} className="underline underline-offset-4 hover:text-accent">LABELED run: {phase.labeled}</Link></li> : null}
+            {phase.blind ? <li><Link href={`/run/${encodeURIComponent(phase.blind)}`} className="underline underline-offset-4 hover:text-accent">BLIND run: {phase.blind}</Link></li> : null}
+          </ul>
+          {phase.message ? <p role="alert" className="text-violation">{phase.message}</p> : null}
+        </div>
+      ) : null}
+
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
         <button
           type="submit"
           disabled={pending}
           className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-6 text-sm font-semibold text-primary-foreground transition-[background-color,transform] hover:bg-primary/85 active:scale-[0.98] disabled:cursor-wait disabled:opacity-70"
         >
-          {pending ? (
+          {phase.kind === "pending" && phase.what === "single" ? (
             <>
               <span aria-hidden="true" className="size-3.5 animate-spin rounded-full border-2 border-primary-foreground/40 border-t-primary-foreground" />
               Starting run…
@@ -148,8 +145,16 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
             `Start ${condition} run`
           )}
         </button>
+        <button
+          type="button"
+          onClick={startPair}
+          disabled={pending}
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-md border px-5 text-sm font-semibold transition-colors hover:border-primary hover:text-primary active:bg-surface-raised disabled:cursor-wait disabled:opacity-60"
+        >
+          {phase.kind === "pending" && phase.what === "pair" ? "Starting pair…" : "Start matched pair"}
+        </button>
         <p className="text-xs text-muted-foreground" aria-live="polite">
-          {pending ? "Registering the run. You will be taken to the viewer." : "Agent count and run mode are set by the server."}
+          {pending ? "Registering with the run service." : "Matched pair = LABELED + BLIND, same seed and wealth visibility. Run mode and agent count are set by the server."}
         </p>
       </div>
     </form>

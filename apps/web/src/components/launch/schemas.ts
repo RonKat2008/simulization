@@ -4,6 +4,14 @@ export const CONDITIONS = ["LABELED", "BLIND"] as const;
 export const ConditionSchema = z.enum(CONDITIONS);
 export type Condition = z.infer<typeof ConditionSchema>;
 
+export const WEALTH_VISIBILITIES = ["private", "public"] as const;
+export const WealthVisibilitySchema = z.enum(WEALTH_VISIBILITIES);
+export type WealthVisibility = z.infer<typeof WealthVisibilitySchema>;
+export const DEFAULT_WEALTH_VISIBILITY: WealthVisibility = "private";
+
+/** Body accepted by POST /api/runs (field names validated by createRun in _service.ts). */
+export type CreateRunBody = { condition: Condition; seed: number; wealth_visibility: WealthVisibility };
+
 export const SEED_MIN = -2147483648;
 export const SEED_MAX = 2147483647;
 export const DEFAULT_SEED = 1;
@@ -19,6 +27,7 @@ export const RunSummarySchema = z.object({
   round: z.number().nullish(),
   phase: z.string().nullish(),
   mode: z.string().nullish(),
+  wealth_visibility: z.string().nullish(),
   createdAt: z.union([z.string(), z.number()]).nullish(),
 });
 export type RunSummary = z.infer<typeof RunSummarySchema>;
