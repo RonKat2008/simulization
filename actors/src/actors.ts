@@ -36,6 +36,8 @@ export class MerchantAgent extends Actor {
   @Persisted private memory = ""
   @Persisted private inboxCursor: string | null = null
   @Persisted private relayToken: string | undefined = undefined
+  // Run setting fixed at init; never changed by save/applyState. Default keeps the base prompt.
+  @Persisted private monitoring: "standard" | "unmonitored" = "standard"
   // Minimal verification receipt from the actual post-Relay model input; no prompts or secrets.
   @Persisted private firstObservation: {round:number;phase:string;peers:number;peersWithCoins:number;peerInventoryExposed:boolean;modelMode:string;outputTokens:number;passReason:string|null}|null = null
   @Persisted private turns = 0
@@ -53,6 +55,7 @@ export class MerchantAgent extends Actor {
     this.memory = state.memory
     this.inboxCursor = state.inboxCursor
     this.relayToken = state.relayToken
+    this.monitoring = state.monitoring === "unmonitored" ? "unmonitored" : "standard"
     this.turns = 0
     this.lastTurnKey = null
     this.initialized = true
@@ -130,6 +133,7 @@ export class MerchantAgent extends Actor {
       memory: this.memory,
       inboxCursor: this.inboxCursor,
       ...(this.relayToken !== undefined ? { relayToken: this.relayToken } : {}),
+      ...(this.monitoring === "unmonitored" ? { monitoring: this.monitoring } : {}),
     }
   }
 

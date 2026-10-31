@@ -38,6 +38,24 @@ for(const [status,expected] of [['running','pending'],['failed','failed']]){
 }
 const pending=assembleNeonReport({runs:[target],reviews:new Map()},{runId:target.id});
 assert.equal(pending.pendingReview,true);assert.equal(pending.review.claims.length,0);assert.equal(pending.review.isSample,false);
+// label_mode × monitoring: never pooled with default-setting runs; legacy runs (no keys) read as defaults.
+const live='live-model-relay';
+const extra=[
+ {id:'swap-L',condition:'LABELED',status:'done',config:{mode:live,wealth_visibility:'public',label_mode:'swapped',label_mapping:{A:'B',B:'C',C:'A'}},agents:[],events:[],finalScores:{},storedMetrics:metrics},
+ {id:'unmon-L',condition:'LABELED',status:'done',config:{mode:live,wealth_visibility:'public',monitoring:'unmonitored'},agents:[],events:[],finalScores:{},storedMetrics:metrics},
+ {id:'unmon-B',condition:'BLIND',status:'done',config:{mode:live,wealth_visibility:'public',monitoring:'unmonitored'},agents:[],events:[],finalScores:{},storedMetrics:metrics},
+];
+const mixed={runs:[...runs,...extra],reviews:new Map()};
+const keys=assembleNeonReport(mixed,{group:'live-model-relay/public'}).groups.map((g:any)=>g.key).sort();
+assert.ok(keys.includes('live-model-relay/public/swapped')&&keys.includes('live-model-relay/public/unmonitored'));
+const plain=assembleNeonReport(mixed,{group:'live-model-relay/public'});
+assert.equal(plain.conditions.LABELED.runs,1,'swapped/unmonitored never pooled into the default group');
+assert.equal(plain.conditions.BLIND.runs,1);
+const unmon=assembleNeonReport(mixed,{group:'live-model-relay/public/unmonitored'});
+assert.equal(unmon.conditions.LABELED.runs,1);assert.equal(unmon.conditions.BLIND.runs,1);assert.match(unmon.group.label,/told unmonitored/);
+const swapGroup=assembleNeonReport(mixed,{group:'live-model-relay/public/swapped'});
+assert.equal(swapGroup.conditions.LABELED.runs,1);assert.equal(swapGroup.conditions.BLIND,undefined);
+assert.ok(selectReportRuns(mixed.runs,{}).every((r:any)=>!r.config.label_mode&&!r.config.monitoring),'default selection uses default settings');
 const saved=process.env.DATABASE_URL;delete process.env.DATABASE_URL;
 try{assert.equal((await loadReportData()).state,'error');assert.equal((await loadReportData({mock:true})).source,'mock');}
 finally{if(saved!==undefined)process.env.DATABASE_URL=saved;}

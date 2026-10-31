@@ -23,7 +23,7 @@ export async function initializeLive(s:WorldState,saveToken?:(id:string,token:st
     try {await store.load(s.runId,a.id);} catch(error) {
       // Only initialize an explicitly uninitialized actor, never mask network failures.
       if(!String(error).includes('not initialized')) throw error;
-      await store.init(s.runId,a.id,{name:a.name,company:a.company,provider:c.provider,model:c.model,memory:'',inboxCursor:null});
+      await store.init(s.runId,a.id,{name:a.name,company:a.company,provider:c.provider,model:c.model,memory:'',inboxCursor:null,...(s.monitoring==='unmonitored'?{monitoring:'unmonitored' as const}:{})});
     }
     const state=await store.load(s.runId,a.id);
     const token=tokens[a.id]??state.relayToken??await client.registerAgent(relayAgentName(s.runId,a.id),{runId:s.runId,agentId:a.id});
