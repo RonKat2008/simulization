@@ -4,6 +4,7 @@ import * as Phaser from "phaser";
 import type { Event } from "@simulization/shared";
 import { useEventStore } from "@/store/eventStore";
 import { HEIGHT, SPOTS, WIDTH, homeSpot, jitter, type Spot } from "./spots";
+import { agentTexture } from "./looks";
 import { COMPANY_TINT, EMOTE, SCALE, SHEETS, TILE, VIOLATION_RED } from "./assets";
 
 export interface AgentInfo {
@@ -16,7 +17,6 @@ const COMPANY_COLOR: Record<string, number> = { A: COMPANY_TINT.blue, B: COMPANY
 const RED = VIOLATION_RED;
 const DUSK = 0x3a4170; // ground/prop tint at 9 PM
 const DAWN = 0xc9c3d6; // ...lifting toward 6 AM
-const BODY_FRAME = 85; // Tiny Dungeon peasant, tinted per company
 const STEP_MS = 400; // one event per tick at 1x
 const BUBBLE_MS = 2500;
 const START_COINS = 10;
@@ -186,7 +186,11 @@ class VillageScene extends Phaser.Scene {
         return true;
       case "pact_accept":
         this.say(a, e.text ?? "", false);
-        if (t) this.emote(this.mid(a, t), EMOTE.heart);
+        if (t) {
+          this.emote(this.mid(a, t), EMOTE.heart);
+          this.hop(a);
+          this.hop(t);
+        }
         return true;
       case "pact_break":
         if (t) this.emote(this.mid(a, t), EMOTE.heartBroken, 2500);
@@ -209,11 +213,13 @@ class VillageScene extends Phaser.Scene {
           await this.walk(a, { x: stall.x - 22, y: stall.y + 40 });
           this.say(a, e.text ?? "", lie);
           if (lie) this.emote({ x: a.c.x, y: a.c.y - 80 }, EMOTE.exclamation, 2500);
-          await this.wait(1600);
+          await this.hopNow(a);
+          await this.wait(1100);
         });
         this.enqueue(t, async () => {
           await this.walk(t, { x: stall.x + 22, y: stall.y + 40 });
-          await this.wait(1600);
+          await this.hopNow(t);
+          await this.wait(1100);
         });
         this.walkHome(a);
         this.walkHome(t);
@@ -226,6 +232,8 @@ class VillageScene extends Phaser.Scene {
           this.addCoins(a, -e.claim.price);
           this.addCoins(t, e.claim.price);
           this.emote({ x: t.c.x, y: t.c.y - 40 }, EMOTE.cash);
+          this.hop(a);
+          this.hop(t);
         }
         return true;
       case "work":
@@ -294,7 +302,7 @@ class VillageScene extends Phaser.Scene {
 
     const glow = this.add.circle(14, 2, 14, color, 0.25).setBlendMode(Phaser.BlendModes.ADD);
     const ring = this.add.ellipse(0, 15, 34, 12).setStrokeStyle(2, 0xffffff).setVisible(false);
-    const body = this.add.sprite(0, 0, "dungeon", BODY_FRAME).setScale(SCALE).setTint(lerpColor(color, 0xffffff, 0.3));
+    const body = this.add.sprite(0, 0, agentTexture(this, id, color)).setScale(SCALE);
     const lantern = this.add.circle(14, 2, 3, color);
     const label = this.add
       .text(0, 17, names.get(id) ?? id, { fontFamily: "monospace", fontSize: "11px", color: "#d9dde8" })
@@ -365,9 +373,11 @@ class VillageScene extends Phaser.Scene {
   private walk(a: Agent, to: Spot): Promise<void> {
     const dist = Phaser.Math.Distance.Between(a.c.x, a.c.y, to.x, to.y);
     if (dist < 2) return Promise.resolve();
-    // No walk frames in the pack: flip toward the target and bob.
+    // No walk frames in the pack: flip toward the target and waddle (tilt side to side + bob).
     a.body.setFlipX(to.x < a.c.x);
     const bob = this.tweens.add({ targets: a.body, y: -3, duration: 110, yoyo: true, repeat: -1 });
+    a.body.setAngle(-9);
+    const tilt = this.tweens.add({ targets: a.body, angle: 9, duration: 140, yoyo: true, repeat: -1, ease: "Sine.inOut" });
     return new Promise((done) =>
       this.tweens.add({
         targets: a.c,
@@ -378,11 +388,23 @@ class VillageScene extends Phaser.Scene {
         onUpdate: () => a.c.setDepth(a.c.y),
         onComplete: () => {
           bob.stop();
-          a.body.setY(0);
+          tilt.stop();
+          a.body.setY(0).setAngle(0);
           done();
         },
       }),
     );
+  }
+
+  /** Little double hop for when agents interact. Queued so it never fights a walk. */
+  private hopNow(a: Agent): Promise<void> {
+    return new Promise((done) =>
+      this.tweens.add({ targets: a.body, y: -9, duration: 120, yoyo: true, repeat: 1, ease: "Quad.out", onComplete: () => { a.body.setY(0); done(); } }),
+    );
+  }
+
+  private hop(a: Agent) {
+    this.enqueue(a, () => this.hopNow(a));
   }
 
   private wait(ms: number): Promise<void> {
