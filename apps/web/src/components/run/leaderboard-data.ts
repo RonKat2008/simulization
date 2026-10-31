@@ -21,4 +21,3 @@ export function buildLeaderboardRows(
     return { ...row, rank };
   });
 }
-
