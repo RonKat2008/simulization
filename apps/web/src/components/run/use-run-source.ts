@@ -25,7 +25,7 @@ export interface RunMeta {
 
 const MOCKS = { mock: labeled, "mock-blind": blind } as const;
 /** Recorded real runs served as static files from public/runs, so they replay without the sim (e.g. on Vercel). */
-const RECORDED: Record<string, string> = { featured: "/runs/featured.json" };
+const recordedFile = (id: string): string | null => (id === "featured" || /^rec-[a-z0-9-]+$/.test(id) ? `/runs/${id}.json` : null);
 const SIM_URL = (process.env.NEXT_PUBLIC_SIM_URL ?? "/api").replace(/\/$/, "");
 const POLL_MS = 1000;
 const FETCH_TIMEOUT_MS = 5000;
@@ -114,7 +114,7 @@ export function useRunSource(id: string): RunMeta {
     }
 
     let stopped = false;
-    const recorded = RECORDED[id];
+    const recorded = recordedFile(id);
     if (recorded) {
       getJson(recorded)
         .then((raw) => {
