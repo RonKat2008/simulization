@@ -32,3 +32,11 @@ Empty cursor and unavailable balance states exercised. Complete/partial/missing 
 Reduced motion is implemented through Motion/Phaser preference checks; native OS reduced-motion toggle, full screen-reader pass, axe/contrast audit, large-population performance and Core Web Vitals have NOT been measured. Mobile canvas labels remain small; readable inspector/leaderboard are the alternative. No claim of full accessibility conformance.
 
 Visual regression verdict: INCONCLUSIVE (no pixel-matched committed baseline). Targeted functional/visual review: PASS with stated limits. No production deployment authorized by this evidence.
+
+## Main merge recheck
+
+Shared main: 637aa0b. Screenshots merge-desktop.png and merge-mobile.png show the resolved UI with teammate header. Production build and all workspace typechecks PASS. Pure leaderboard helper separated from TSX so simulation tests typecheck normally. Agent history now checks coalition membership against all 90 engine phases. Leaderboard, activity, report UI, label-mode and monitoring regressions PASS.
+
+Rendered desktop 1440×900: paused seek R6 seq483 (Slate34coins) → R4 seq288 (Slate32coins), then forward playback to seq313 with inspector and Activity matching. `/` opens explicit Full-run research/search and focuses feed-search; Return to replay restores seq288. Mobile390×844: inspector heading27px after selection, chart throughR3 at seq288, Esc deselects, R1 seq0 clears Activity. No overflow or console errors in tested flow.
+
+The merged featured event array exactly matches shared main, including its already-committed eval-aware reclassification (641985b). No new reclassification was performed here. All596eventIDs/order and originalreport reference verified;18actualmodelidentities retained. No paidruns/actorsstarted. Earlier general accessibility/performance limits still apply.

@@ -6,6 +6,9 @@ export const SHORTCUTS: [string, string][] = [
   ["[ / ]", "step through merchants"],
   ["Tab", "move between controls"],
   ["Enter / Space", "open focused action details"],
+  ["/", "open and search the full-run log"],
+  ["j / k", "next / previous row in the full log"],
+  ["p", "expand the stated plan in the full log"],
   ["Esc", "deselect"],
   ["?", "show or hide this guide"],
 ];

@@ -23,7 +23,9 @@
     "smoke:live": "bun scripts/live-smoke.ts",
     "smoke:next": "bun scripts/next-api-smoke.ts",
     "smoke:projection": "tsx scripts/projection-smoke.ts",
-    "smoke:neon": "tsx scripts/neon-smoke.ts"
+    "smoke:neon": "tsx scripts/neon-smoke.ts",
+    "smoke:labels": "tsx scripts/label-mode-smoke.ts",
+    "smoke:monitoring": "tsx scripts/monitoring-smoke.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",

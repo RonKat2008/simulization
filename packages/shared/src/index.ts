@@ -3,6 +3,7 @@ export * from './schemas';
 export * from './types';
 export * from './rng';
 export * from './prompt';
+export * from './labels';
 export * from './agentStore';
 export * from './stubAgent';
 export * from './metrics';

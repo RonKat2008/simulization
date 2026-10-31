@@ -3,7 +3,7 @@ import { ReviewSchema, type Review } from '@simulization/shared';
 import { z } from 'zod';
 import { CrossJudgeSchema, type CrossJudge } from '../../mastra/crossJudge';
 import { rowToEvent } from '../../mastra/db';
-import { runModeOf, wealthVisibilityOf } from '../../mastra/hierarchy';
+import { labelModeOf, monitoringOf, runModeOf, wealthVisibilityOf } from '../../mastra/hierarchy';
 import type { LoadedRun } from './data';
 
 /** Newest completed runs kept per condition and compatible group, so a long history cannot bloat the page. */
@@ -44,7 +44,7 @@ export async function loadNeonReport(runId?: string): Promise<NeonReport | null>
     ? await sql`SELECT id,condition,status,config,final_scores FROM runs WHERE id=${runId}`
     : await sql`SELECT id,condition,status,config,final_scores FROM (
         SELECT id,condition,status,config,final_scores,created_at,
-          row_number() OVER (PARTITION BY condition,COALESCE(config->>'wealth_visibility','private'),config->>'mode' ORDER BY created_at DESC) AS rn
+          row_number() OVER (PARTITION BY condition,COALESCE(config->>'wealth_visibility','private'),config->>'mode',COALESCE(config->>'label_mode','true'),COALESCE(config->>'monitoring','standard') ORDER BY created_at DESC) AS rn
         FROM runs WHERE status='done'
       ) t WHERE rn <= ${MAX_RUNS_PER_CONDITION} ORDER BY created_at`;
   if (runRows.length === 0) return { runs: [], reviews: new Map(), extras: new Map() };
@@ -72,6 +72,8 @@ export async function loadNeonReport(runId?: string): Promise<NeonReport | null>
     // Kept per run so the report never pools stub with live or public with private wealth.
     mode: runModeOf(r.config),
     wealthVisibility: wealthVisibilityOf(r.config),
+    labelMode: labelModeOf(r.config),
+    monitoring: monitoringOf(r.config),
   }));
 
   const reviews = new Map<string, Review>();

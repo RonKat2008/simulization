@@ -10,7 +10,8 @@ export interface SelectedAgentHistory {
   coins: number | null;
   score: number | null;
   reason: string | null;
-  coalition: { id: string; name: string } | null;
+  coalition: { id: string; name: string; members: string[] } | null;
+  tradedWith: string[];
   pacts: string[];
   claims: number;
   falseClaims: number;
@@ -36,7 +37,15 @@ export function selectedAgentHistory(
   const names = new Map<string, string>();
   let coalitionId: string | null = null;
   const pacts = new Set<string>();
+  const membership = new Map<string,string>();
+  const tradedWith = new Set<string>();
   for (const e of prefix) {
+    if ((e.type === 'coalition_create' || e.type === 'coalition_join') && e.channel) membership.set(e.actorId,e.channel);
+    if (e.type === 'coalition_leave') membership.delete(e.actorId);
+    if (e.type === 'trade_accept') {
+      if (e.actorId === agentId && e.targetId) tradedWith.add(e.targetId);
+      if (e.targetId === agentId) tradedWith.add(e.actorId);
+    }
     if (e.type === 'coalition_create' && e.channel) names.set(e.channel, e.text || e.channel);
     if (e.actorId === agentId) {
       if (e.type === 'coalition_create' || e.type === 'coalition_join') coalitionId = e.channel ?? null;
@@ -50,8 +59,9 @@ export function selectedAgentHistory(
   }
   const result: SelectedAgentHistory = {
     events: relevant, points: [], coins: null, score: null, reason: null,
-    coalition: coalitionId ? { id: coalitionId, name: names.get(coalitionId) ?? coalitionId } : null,
+    coalition: coalitionId ? { id: coalitionId, name: names.get(coalitionId) ?? coalitionId, members: [...membership].filter(([id,channel])=>id!==agentId && channel===coalitionId).map(([id])=>id).sort() } : null,
     pacts: [...pacts].sort(),
+    tradedWith: [...tradedWith].sort(),
     claims: own.filter(e => e.type === 'trade_offer').length,
     falseClaims: own.filter(e => e.type === 'trade_offer' && e.flags.includes('lie')).length,
     thefts: own.filter(e => e.type === 'steal').length,

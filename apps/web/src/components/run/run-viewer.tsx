@@ -1,17 +1,18 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import type { Phase } from "@simulization/shared";
 import VillageCanvas from "@/game/VillageCanvas";
 import { useEventStore } from "@/store/eventStore";
 import { AgentCard } from "./agent-card";
-import { EventFeed } from "./event-feed";
-import { Roster } from "./roster";
+import { DetailedEventFeed } from "./detailed-event-feed";
+import {GameSide} from "./game-side";
+import {OPEN_LOG_EVENT,openEventLog} from "./log-nav";
 import { RunLegend } from "./run-legend";
 import { useStoredFlag } from "./run-prefs";
 import { buildRunCtx, RunProvider } from "./run-context";
 import { mergeAgents } from "./run-helpers";
 import { ErrorPanel, OfflineStrip } from "./run-states";
-import { BlindBanner, TopBar } from "./top-bar";
+import { TopBar } from "./top-bar";
 import { useRunSource } from "./use-run-source";
 import { useView } from "./view-tabs";
 import DataView from "@/components/run/views/data-view";
@@ -31,7 +32,7 @@ export function RunViewer({ id }: { id: string }) {
   const observedEvents = useMemo(() => playbackSeq === null ? events : events.filter(e => e.seq <= playbackSeq), [events, playbackSeq]);
   const storeRunId = useEventStore((s) => s.runId);
   const [view, setView] = useView();
-  const [sidebar,setSidebar] = useState<"leaderboard"|"activity">("leaderboard");
+  useLayoutEffect(() => { if (view === "game" && useEventStore.getState().playbackSeq === null) useEventStore.getState().setPlaybackSeq(0); }, [view, storeRunId]);
   useEffect(() => { if (view !== "game") useEventStore.getState().setPlaybackSeq(null); }, [view, events, storeRunId]);
 
   // Guide is collapsed to one line by default; opening it is remembered. `ready` avoids a flash before storage is read.
@@ -54,6 +55,8 @@ export function RunViewer({ id }: { id: string }) {
     [agents, ctx],
   );
 
+  const openLog=useCallback(()=>setView("research"),[setView]);
+  useEffect(()=>{window.addEventListener(OPEN_LOG_EVENT,openLog);return ()=>window.removeEventListener(OPEN_LOG_EVENT,openLog);},[openLog]);
   // Global shortcuts: Esc deselects, [ ] step through merchants, ? opens help.
   useEffect(() => {
     const onKey = (ev: KeyboardEvent) => {
@@ -65,6 +68,7 @@ export function RunViewer({ id }: { id: string }) {
         ev.preventDefault();
         setGuide(!guideDismissed);
       }
+      if(ev.key === "/") {ev.preventDefault();openEventLog(()=>{const el=document.getElementById("feed-search");el?.closest("details")?.setAttribute("open","");el?.focus();});}
       if ((ev.key === "[" || ev.key === "]") && agents.length) {
         const i = agents.findIndex((a) => a.id === st.selectedAgentId);
         const n = ev.key === "]" ? i + 1 : i - 1;
@@ -88,13 +92,12 @@ export function RunViewer({ id }: { id: string }) {
   return (
     <RunProvider value={ctx}>
       <div className="flex min-h-dvh flex-col">
-        <TopBar status={meta.status} round={round} phase={phase} mode={meta.mode} wealthVisibility={meta.wealthVisibility} isMock={meta.isMock} reportStatus={meta.reportStatus} reportRunId={meta.reportRunId} helpOpen={guideOpen} onHelp={() => setGuide(guideOpen)} />
+        <TopBar status={meta.status} round={round} phase={phase} mode={meta.mode} wealthVisibility={meta.wealthVisibility} labelMode={meta.labelMode} monitoring={meta.monitoring} seed={meta.seed} isMock={meta.isMock} reportStatus={meta.reportStatus} reportRunId={meta.reportRunId} helpOpen={guideOpen} onHelp={() => setGuide(guideOpen)} />
         {guideOpen ? <RunLegend onClose={() => setGuide(true)} /> : guide.ready ? <GuideLine onOpen={() => setGuide(false)} /> : null}
-        {ctx.blind ? <BlindBanner /> : null}
         {meta.status === "offline" ? <OfflineStrip eventCount={events.length} /> : null}
         <main className="mx-auto flex w-full max-w-[1600px] min-w-0 flex-1 flex-col gap-4 px-4 py-4 sm:px-6">
-          <AgentCard finalScores={meta.finalScores} wealthVisibility={meta.wealthVisibility} />
-          {view !== "game" ? <section className="space-y-4 rounded-lg border bg-surface p-4"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-semibold">Full-run {view} · all loaded rounds</h2><button onClick={()=>setView("game")} className="min-h-9 rounded-md border px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary">Return to replay</button></div><p className="text-sm text-muted-foreground">This overview is separate from the replay position.</p>{view === "data" ? <DataView/> : <ResearchView/>}</section> : <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_370px] lg:items-start">
+          <AgentCard finalScores={meta.finalScores} wealthVisibility={meta.wealthVisibility} labelMode={meta.labelMode} monitoring={meta.monitoring} />
+          {view !== "game" ? <section className="space-y-4 rounded-lg border bg-surface p-4"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-semibold">Full-run {view} · all loaded rounds</h2><button onClick={()=>setView("game")} className="min-h-9 rounded-md border px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary">Return to replay</button></div><p className="text-sm text-muted-foreground">This overview is separate from the replay position.</p>{view === "data" ? <DataView/> : <ResearchView/>}<DetailedEventFeed followLatest={!meta.isMock} status={meta.status}/></section> : <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_370px] lg:items-start">
             <div className="min-w-0 space-y-3">
               <div className="overflow-hidden rounded-lg border bg-surface"><VillageCanvas key={id} agents={canvasAgents}/></div>
               <StoryPanel key={id} events={observedEvents} runEnded={resultsReady}/>
@@ -103,10 +106,7 @@ export function RunViewer({ id }: { id: string }) {
                 {!meta.isMock && <a className="min-h-8 py-1 font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-primary" href={`/report?runId=${encodeURIComponent(meta.reportRunId??id)}`}>View report <span className="text-xs font-normal text-muted-foreground">· full run</span></a>}
               </section>
             </div>
-            <aside className="min-w-0 overflow-hidden rounded-lg border bg-surface lg:sticky lg:top-3">
-              <div role="tablist" aria-label="Run sidebar" className="flex border-b p-1">{(["leaderboard","activity"] as const).map((tab,i)=><button key={tab} id={`sidebar-tab-${tab}`} type="button" role="tab" aria-selected={sidebar===tab} aria-controls={`sidebar-panel-${tab}`} tabIndex={sidebar===tab?0:-1} onClick={()=>setSidebar(tab)} onKeyDown={e=>{if(["ArrowLeft","ArrowRight","Home","End"].includes(e.key)){e.preventDefault();const next=e.key==="Home"?"leaderboard":e.key==="End"?"activity":i===0?"activity":"leaderboard";setSidebar(next);document.getElementById(`sidebar-tab-${next}`)?.focus();}}} className={`min-h-10 flex-1 rounded-md px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-primary ${sidebar===tab?"bg-surface-raised text-foreground":"text-muted-foreground hover:text-foreground"}`}>{tab==="leaderboard"?"Leaderboard":"Activity"}</button>)}</div>
-              <div role="tabpanel" id={`sidebar-panel-${sidebar}`} aria-labelledby={`sidebar-tab-${sidebar}`} tabIndex={0} className="outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary">{sidebar==="leaderboard"?<Roster finalScores={meta.finalScores}/>:<EventFeed followLatest={!meta.isMock} status={meta.status}/>}</div>
-            </aside>
+            <GameSide status={meta.status} finalScores={meta.finalScores} onOpenLog={openLog}/>
           </div>}
         </main>
       </div>

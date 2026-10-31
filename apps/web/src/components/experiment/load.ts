@@ -3,6 +3,7 @@ import path from 'node:path'
 import { EventSchema, evalAwarenessRate } from '@simulization/shared'
 import { groupRuns } from '../runs/group-runs'
 import { loadRuns } from '../runs/load-manifest'
+import { settingsKey } from '../runs/settings'
 import type { RunEntry } from '../runs/types'
 import {
   METRICS,
@@ -74,6 +75,8 @@ export async function loadExperiment(): Promise<ExperimentData> {
   let roster: ExperimentData['roster'] = null
   for (const g of groups) {
     if (g.kind !== 'pair' || !g.pair.labeled || !g.pair.blind) continue
+    // The headline comparison pools only default-setting pairs (true labels, standard monitoring).
+    if (settingsKey(g.pair.labeled) !== 'true|standard' || settingsKey(g.pair.blind) !== 'true|standard') continue
     const [l, b] = await Promise.all([readRun(g.pair.labeled.slug), readRun(g.pair.blind.slug)])
     if (!l || !b) continue
     const units = { labeled: agentUnits(l), blind: agentUnits(b) }

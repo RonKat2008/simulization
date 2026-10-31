@@ -66,13 +66,32 @@ function isAcceptableAction(a: unknown): boolean {
   return true;
 }
 
+/** Action types whose counterpart goes in targetId (a dm message keeps `to`). */
+const TARGETED = new Set(["pact_propose", "pact_accept", "trade_offer", "steal"]);
+
+/**
+ * Maps common field-name synonyms to the schema's names, the same way for every provider. In JSON mode Gemini
+ * writes a trade_offer's counterpart as `recipient`; without this, every such offer was dropped.
+ */
+function withFieldAliases(act: Record<string, unknown>): Record<string, unknown> {
+  if (typeof act.type !== "string" || !TARGETED.has(act.type)) return act;
+  const out = { ...act };
+  if (out.targetId === undefined) {
+    const alias = [out.recipient, out.target, out.to, out.agentId].find((v) => typeof v === "string" && v.length > 0);
+    if (alias !== undefined) out.targetId = alias;
+  }
+  if (act.type === "trade_offer" && out.claimedQuality === undefined && out.quality !== undefined) out.claimedQuality = out.quality;
+  return out;
+}
+
 /** Light pre-validation cleanup so near-misses (long memory, long text, 3 actions) still count. */
 function normalize(raw: unknown): { value: unknown; invalid: number } {
   if (typeof raw !== "object" || raw === null) return { value: raw, invalid: 0 };
   const obj = raw as Record<string, unknown>;
   const all = Array.isArray(obj.actions) ? obj.actions : undefined;
-  const acceptable = all?.filter(isAcceptableAction);
-  const invalid = all && acceptable ? all.length - acceptable.length : 0;
+  const aliased = all?.map((a) => (typeof a === "object" && a !== null ? withFieldAliases(a as Record<string, unknown>) : a));
+  const acceptable = aliased?.filter(isAcceptableAction);
+  const invalid = aliased && acceptable ? aliased.length - acceptable.length : 0;
   const actions = acceptable ? acceptable.slice(0, MAX_ACTIONS) : obj.actions;
   const value = {
     ...obj,

@@ -9,7 +9,8 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "mock": "tsx scripts/gen-mock.ts"
+    "mock": "tsx scripts/gen-mock.ts",
+    "test:labels": "tsx --test scripts/label-favoritism.test.ts"
   },
   "dependencies": {
     "zod": "^4.6.7"

@@ -6,6 +6,7 @@ import blind from "@simulization/shared/mock/mock-run.blind.json";
 import { useEventStore } from "@/store/eventStore";
 import type { RunAgent } from "./run-helpers";
 import { contiguousCursor, terminalDrained } from "./event-progress";
+import { labelModeOf, monitoringOf } from "../runs/settings";
 
 export type RunStatus = "connecting" | "live" | "draining" | "ended" | "failed" | "offline";
 
@@ -23,9 +24,15 @@ export interface RunMeta {
   finalScores: Record<string, number> | null;
   isMock: boolean;
   wealthVisibility: "private" | "public" | null;
+  /** Identity labels shown to agents; null while unknown. Old runs without the field read as "true". */
+  labelMode: "true" | "swapped" | null;
+  /** Prompt monitoring framing; null while unknown. Old runs without the field read as "standard". */
+  monitoring: "standard" | "unmonitored" | null;
   reportStatus: string | null;
   /** Original run id for a static recorded replay's persisted report. */
   reportRunId: string | null;
+  /** RNG seed of the run, when the source reports it. */
+  seed: number | null;
 }
 
 const MOCKS = { mock: labeled, "mock-blind": blind } as const;
@@ -69,8 +76,11 @@ interface SimStatus {
   /** Last committed event seq; terminal once status is done/failed. */
   seq?: number;
   wealth_visibility?: "private" | "public";
+  label_mode?: "true" | "swapped";
+  monitoring?: "standard" | "unmonitored";
   reportStatus?: string;
   setupError?: string | null;
+  seed?: number;
 }
 
 function parseRoster(raw: unknown): RunAgent[] | null {
@@ -100,8 +110,11 @@ function mockMeta(id: string): RunMeta {
     finalScores: mock ? (mock.run.finalScores as Record<string, number>) : null,
     isMock: Boolean(mock),
     wealthVisibility: mock ? "private" : null,
+    labelMode: mock ? "true" : null,
+    monitoring: mock ? "standard" : null,
     reportStatus: null,
     reportRunId: mock ? null : id,
+    seed: mock && typeof (mock.run as { seed?: unknown }).seed === "number" ? (mock.run as { seed: number }).seed : null,
   };
 }
 
@@ -142,8 +155,11 @@ export function useRunSource(id: string): RunMeta {
             roster: parseRoster(s.agents),
             mode: s.mode ? `recorded ${s.mode}` : "recorded run",
             wealthVisibility: s.wealth_visibility ?? "private",
+            labelMode: labelModeOf(s.label_mode),
+            monitoring: monitoringOf(s.monitoring),
             reportStatus: s.reportStatus ?? null,
             reportRunId: s.id ?? null,
+            seed: typeof s.seed === "number" ? s.seed : null,
             error: null,
           }));
         })
@@ -189,7 +205,10 @@ export function useRunSource(id: string): RunMeta {
           mode: s.mode ?? m.mode,
           error: s.setupError ? "Agent setup failed. Check the simulation runtime before retrying with a new run." : null,
           wealthVisibility: s.wealth_visibility ?? m.wealthVisibility,
+          labelMode: s.label_mode ? labelModeOf(s.label_mode) : m.labelMode ?? (s.condition ? "true" : null),
+          monitoring: s.monitoring ? monitoringOf(s.monitoring) : m.monitoring ?? (s.condition ? "standard" : null),
           reportStatus: s.reportStatus ?? m.reportStatus,
+          seed: typeof s.seed === "number" ? s.seed : m.seed,
         }));
       } catch (err) {
         if (stopped) return;

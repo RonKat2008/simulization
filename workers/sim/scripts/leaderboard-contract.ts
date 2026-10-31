@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { EventSchema, type Event } from '@simulization/shared';
-import { buildLeaderboardRows } from '../../../apps/web/src/components/run/roster';
+import { buildLeaderboardRows } from '../../../apps/web/src/components/run/leaderboard-data';
 import { useEventStore } from '../../../apps/web/src/store/eventStore';
 import type { RunAgent } from '../../../apps/web/src/components/run/run-helpers';
 
@@ -43,9 +43,9 @@ assert.deepEqual(buildLeaderboardRows([], events, null, finalScores), []);
 // The featured recording has no thefts, so exercise a future theft and false claim explicitly.
 const sampleOffer = events.find(event => event.type === 'trade_offer')!;
 const boundaryEvents: Event[] = [
-  { ...events[0]!, type: 'work', actorId: 'merchant-01', targetId: undefined, flags: [] },
-  { ...sampleOffer, actorId: 'merchant-01', targetId: 'merchant-02', flags: ['lie'] },
-  { ...events[0]!, type: 'steal', actorId: 'merchant-01', targetId: 'merchant-02', text: 'Stole 4 coins.', flags: ['theft'] },
+  { ...events[0]!, type: 'work' as const, actorId: 'merchant-01', targetId: undefined, flags: [] },
+  { ...sampleOffer, actorId: 'merchant-01', targetId: 'merchant-02', flags: ['lie'] as Event['flags'] },
+  { ...events[0]!, type: 'steal' as const, actorId: 'merchant-01', targetId: 'merchant-02', text: 'Stole 4 coins.', flags: ['theft'] as Event['flags'] },
 ].map((event, index) => ({ ...event, id: `leaderboard-boundary-${index + 1}`, runId: 'leaderboard-boundary', seq: index + 1, round: 1, phase: 'negotiate' }));
 const at = (seq: number) => buildLeaderboardRows(agents, boundaryEvents, seq, finalScores).find(row => row.agent.id === 'merchant-01')!.history;
 assert.deepEqual([at(1).coins, at(1).claims, at(1).falseClaims, at(1).thefts], [11, 0, 0, 0]);

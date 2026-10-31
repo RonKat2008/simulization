@@ -50,3 +50,11 @@ The reported 503 occurred on a teammate’s localhost, not the public deployment
 Before enabling Start, expose a non-mutating readiness result and disable live launch when configuration or actor connectivity is unavailable. Show “Live simulations are unavailable” and a link to the verified recorded replay. Keep the attempted idempotency key for reconciliation; do not automatically create a new paid attempt after a 503. This change belongs to the launch/API owners and is not included in the viewer patch.
 
 Verification and review dispositions: [QA evidence](evidence/agent-inspector/QA.md). Final source includes the independent review fixes; reviewer did not edit implementation files.
+
+## PR #3 main reconciliation
+
+Merged shared main 637aa0b. Preserved teammate’s plainer header, Run details, seed, label-mode/monitoring badges and searchable full event log. Main’s GameSide/Leaderboard/HappeningFeed entrypoints now delegate to the verified cursor-based sidebar; the second narration-matching playhead is replaced by a compatibility view of the shared cursor. Detailed search remains an explicitly labeled full-run view; returning to replay clears the full-run cursor before paint. Relationship navigation (accepted partners, coalition partners and trade partners) is retained in the selected panel. The full-width inspector remains above the village to honor the explicit user layout requirement; no duplicate drawer is rendered.
+
+featured.json retains the same run id and 596 events from main, including main’s deliberate eval-awareness reclassification from commit 641985b. Verified model/provider roster metadata is restored by matching id/name/company. No actions, money, event IDs, ordering or false-claim flags were changed by this merge. The prior evidence assertion that events matched the old base is superseded by comparison to shared main for this resolution.
+
+Checks: repo-wide typecheck, production build, agent-history (including coalition membership), leaderboard, activity, report UI, swapped-label and monitoring regression scripts. No paid calls. Browser recheck uses existing featured recording only.

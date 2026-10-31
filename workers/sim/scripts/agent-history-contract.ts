@@ -19,6 +19,7 @@ for (const seed of [7, 42, 96]) {
       assert.equal(history.reason, null);
       assert.equal(history.coins, agent.coins, `seed ${seed}, seq ${state.seq}, ${agent.id}`);
       assert.equal(history.coalition?.id ?? null, agent.coalitionId);
+      assert.deepEqual(history.coalition?.members ?? [], Object.values(state.agents).filter(other=>other.id!==agent.id && agent.coalitionId && other.coalitionId===agent.coalitionId).map(other=>other.id).sort());
       assert.deepEqual(history.pacts, agent.pacts);
       assert.equal(history.score, state.finalScores?.[agent.id] ?? null);
     }

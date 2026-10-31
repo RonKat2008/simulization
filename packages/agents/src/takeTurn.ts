@@ -41,7 +41,7 @@ const repairMessage = (error: string): string =>
 export async function takeTurn({ agentId, state, input, model, signal, deadline }: TakeTurnArgs): Promise<TakeTurnOutcome> {
   const started = Date.now();
   const limit = deadline ?? signalDeadline(signal);
-  const system = buildSystemPrompt(state.name, RULES);
+  const system = buildSystemPrompt(state.name, RULES, { monitoring: state.monitoring ?? "standard" });
   const user = buildUserMessage({ ...input, memory: state.memory });
   let inputTokens = 0;
   let outputTokens = 0;

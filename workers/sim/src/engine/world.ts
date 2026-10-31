@@ -1,9 +1,11 @@
-import { COMPANIES, NAMES, NUM_AGENTS, ROUNDS, RULES, START_COINS, START_GOODS, createRng, WealthVisibilitySchema, type WealthVisibility, type AgentTurnInput, type Condition } from '@simulization/shared';
+import { COMPANIES, NAMES, NUM_AGENTS, ROUNDS, RULES, START_COINS, START_GOODS, createRng, displayedCompany, LabelModeSchema, MonitoringSchema, WealthVisibilitySchema, type LabelMode, type Monitoring, type WealthVisibility, type AgentTurnInput, type Condition } from '@simulization/shared';
 import { legalActions } from './rules';
 import type { WorldState } from './types';
-export interface WorldOptions { runId: string; seed: number; condition: Condition; agentCount?: number; epoch?: number; wealth_visibility?: WealthVisibility; }
+export interface WorldOptions { runId: string; seed: number; condition: Condition; agentCount?: number; epoch?: number; wealth_visibility?: WealthVisibility; label_mode?: LabelMode; monitoring?: Monitoring; }
 export function createWorld(o: WorldOptions): WorldState {
   const wealth_visibility=WealthVisibilitySchema.parse(o.wealth_visibility??'private');
+  const label_mode=LabelModeSchema.parse(o.label_mode??'true');
+  const monitoring=MonitoringSchema.parse(o.monitoring??'standard');
   const count = o.agentCount ?? NUM_AGENTS;
   if (!Number.isInteger(count) || count < 2 || count > NAMES.length) throw new Error('Invalid agent count');
   const rng = createRng(o.seed);
@@ -16,13 +18,13 @@ export function createWorld(o: WorldOptions): WorldState {
       inventory: Array.from({length: START_GOODS}, (_, j) => ({ goodId: `good-${i + 1}-${j + 1}`, trueQuality: rng.int(1, 10) })),
       coalitionId: null, pacts: [], skipActRound: 0, memory: '', inbox: [] };
   }
-  return { runId: o.runId, seed: o.seed, condition: o.condition, wealth_visibility, round: 1, phase: 'negotiate', status: 'running', agents, coalitions: [], offers: [], proposals: [], thefts: [], lanternFund: 0, seq: 0, epoch: o.epoch ?? 0 };
+  return { runId: o.runId, seed: o.seed, condition: o.condition, wealth_visibility, ...(label_mode!=='true'?{label_mode}:{}), ...(monitoring!=='standard'?{monitoring}:{}), round: 1, phase: 'negotiate', status: 'running', agents, coalitions: [], offers: [], proposals: [], thefts: [], lanternFund: 0, seq: 0, epoch: o.epoch ?? 0 };
 }
 export function buildTurnInput(s: WorldState, id: string): AgentTurnInput {
   const a = s.agents[id]; if (!a) throw new Error('Unknown merchant');
   return structuredClone({ self: { id, name: a.name, company: a.company, coins: a.coins, inventory: a.inventory, coalitionId: a.coalitionId, pacts: a.pacts, inStocks: a.skipActRound === s.round },
     round: s.round, phase: s.phase, ...(s.tradeStep ? {tradeStep: s.tradeStep} : {}), rules: [...RULES],
-    otherAgents: Object.values(s.agents).filter(b => b.id !== id).map(b => ({id: b.id, name: b.name, ...(s.condition === 'LABELED' ? {company: b.company} : {}), ...(s.wealth_visibility==='public'?{coins:b.coins}:{})})),
+    otherAgents: Object.values(s.agents).filter(b => b.id !== id).map(b => ({id: b.id, name: b.name, ...(s.condition === 'LABELED' ? {company: displayedCompany(b.company, s.label_mode)} : {}), ...(s.wealth_visibility==='public'?{coins:b.coins}:{})})),
     openOffers: s.offers.filter(o => o.targetId === id).map(({targetId: _, ...o}) => o), coalitions: s.coalitions, lanternFund: s.lanternFund, inbox: a.inbox.slice(-10), memory: a.memory, legalActions: legalActions(s,id) });
 }
 export function advancePhase(original: WorldState): WorldState {

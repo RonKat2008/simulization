@@ -40,6 +40,16 @@ try{
  const path=`/api/runs/${runId}`;
  const initial=await request(path);assert.equal(initial.mode,'deterministic-stub');assert.equal(initial.agents.length,6);assert.equal(initial.wealth_visibility,'public');
  const conflict=await networkFetch(base+'/api/runs',{method:'POST',headers:{'content-type':'application/json','Idempotency-Key':runId},body:JSON.stringify({...body,wealth_visibility:'private'})});assert.equal(conflict.status,409);
+ assert.equal(initial.label_mode,'true');assert.equal(initial.monitoring,'standard');assert.equal(initial.label_mapping,null,'BLIND shows no labels');
+ const blindSwap=await networkFetch(base+'/api/runs',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({condition:'BLIND',seed:1,label_mode:'swapped'})});assert.equal(blindSwap.status,400);
+ const badMonitoring=await networkFetch(base+'/api/runs',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({condition:'LABELED',seed:1,monitoring:'hidden'})});assert.equal(badMonitoring.status,400);
+ const swapId=`next-swap-${Date.now()}`;const swapBody={condition:'LABELED',seed:42,label_mode:'swapped',monitoring:'unmonitored'};
+ assert.deepEqual(await request('/api/runs',swapBody,swapId),{runId:swapId});
+ const swapStatus=await request(`/api/runs/${swapId}`);
+ assert.equal(swapStatus.label_mode,'swapped');assert.equal(swapStatus.monitoring,'unmonitored');assert.deepEqual(swapStatus.label_mapping,{A:'B',B:'C',C:'A'});assert.equal(swapStatus.wealth_visibility,'private');
+ const swapConflict=await networkFetch(base+'/api/runs',{method:'POST',headers:{'content-type':'application/json','Idempotency-Key':swapId},body:JSON.stringify({...swapBody,label_mode:'true'})});assert.equal(swapConflict.status,409);
+ await request(`/api/runs/${swapId}/stop`,{});
+ console.log('PASS label_mode/monitoring: defaults reported, BLIND+swapped and invalid monitoring rejected, swapped+unmonitored persisted with mapping, conflicting retry 409');
  const grant=await request(path+'/socket',{});
  const firstSocket=new Promise<void>((resolve,reject)=>{
   ws=new WebSocket(grant.websocketUrl);const timer=setTimeout(()=>reject(new Error('No socket event')),12000);
