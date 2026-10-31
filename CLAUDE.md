@@ -56,7 +56,7 @@ Root commands: `pnpm dev` (web), `pnpm actors:dev` (Terse actors), `pnpm mock`, 
 ## Optimizations over the original brief
 
 1. **Pure engine, thin actor.** The game rules are pure functions in `packages/engine`: `legalActions(state, agentId)` and `resolvePhase(state, actionsByAgent, rng) → { state, events }`. The `World` actor only wraps them with persistence, alarms and broadcast. `pnpm sim:local` plays a full game in Node with `MemoryAgentStore` + `StubModelClient` (no actors, network, DB or keys).
-2. **Agent stores.** `AGENT_STORE` = `terse` (MerchantAgent actors, default once deployed) | `neon` (one row per agent) | `memory` (local/stub).
+2. **Agent store.** `AGENT_STORE=terse` only (MerchantAgent actors). `MemoryAgentStore` + `StubModelClient` are for local tests. Neon is reporting storage only, never an agent store.
 3. **The scaffold ships shared building blocks:** prompt builder (Part 7), seeded RNG, stub agent (random legal actions) and config, all in packages/shared.
 4. **The mock run is schema-validated**, so C, D and E build against the exact event shape the engine will emit.
 5. **Gateway is unconfirmed.** "One model gateway" is not named yet. `AI_GATEWAY_API_KEY` is a placeholder. Person B confirms which gateway from its docs; nobody guesses its API.
@@ -97,7 +97,7 @@ Priorities: a working, demoable end-to-end loop beats features. The methodology 
 ## PART 3: Known risks (handle explicitly)
 
 1. **AgentRelay:** resolved. Our fetch-only REST client is verified live (`docs/agentrelay.md`).
-2. **Local-only demo.** Everything live runs on the demo laptop; rehearse on that exact machine, keep it plugged in, and have finished runs in Neon so the Vercel replay/report works if anything breaks. `AGENT_STORE=neon` runs agents without MerchantAgent actors if those misbehave.
+2. **Local-only demo.** Everything live runs on the demo laptop; rehearse on that exact machine, keep it plugged in, and have finished runs in Neon so the Vercel replay/report works if anything breaks.
 3. **Rate limits.** Within a phase, call agents in parallel with at most 6 at once, a 12s timeout per call and 1 retry. If it still fails, that agent passes for that turn. One agent never blocks a run.
 4. **Terse setup may take too long.** Keep the fallback script ready.
 

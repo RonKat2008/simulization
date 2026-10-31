@@ -11,8 +11,7 @@
     "smoke:stub": "pnpm --filter sim exec tsx ../../packages/agents/scripts/smoke-stub.ts"
   },
   "dependencies": {
-    "@simulization/shared": "workspace:*",
-    "@neondatabase/serverless": "^1.2.0"
+    "@simulization/shared": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^7.0.2"

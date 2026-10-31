@@ -68,5 +68,5 @@ export const RULES: readonly string[] = [
 ];
 
 /** Which AgentStore implementation to use (env AGENT_STORE). */
-export type AgentStoreKind = 'neon' | 'do' | 'terse';
+export type AgentStoreKind = 'terse';
 export const AGENT_STORE_DEFAULT: AgentStoreKind = 'terse';

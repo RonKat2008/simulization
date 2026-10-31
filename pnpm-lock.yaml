@@ -248,9 +248,6 @@ importers:
 
   packages/agents:
     dependencies:
-      '@neondatabase/serverless':
-        specifier: ^1.2.0
-        version: 1.2.0
       '@simulization/shared':
         specifier: workspace:*
         version: link:../shared

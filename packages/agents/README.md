@@ -5,7 +5,7 @@ Import everything from `src/agents` (barrel).
 ## Per run
 1. Write the run row + 18 `agents` rows (name, company, provider, model from `COMPANIES`).
 2. `const relay = createRunRelay(env)` — `null` if `AGENTRELAY_API_KEY` is unset (runs still work).
-3. `const store = createAgentStore(env)` (`AGENT_STORE=neon` default, `do` for AgentActor, `terse` for Terse Durable Actors). For DO / Terse call `store.init(runId, id, initialState)` once per agent FIRST.
+3. `const store = createAgentStore(env)` (`AGENT_STORE=terse`, the only store: MerchantAgent Terse Durable Actors). Call `store.init(runId, id, initialState)` once per agent FIRST.
 4. `const tokens = await setupRunRelay(relay, store, runId, agentIds)` — registers agents, creates + joins the public channel, then persists each token into its AgentState (`attachRelayTokens`: load → `{...state, relayToken}` → save, 6 at a time). Never throws: relay failure logs and returns `{}`. Keep `tokens` in WorldActor storage too.
    - Neon: `load` builds the initial state from the agents row; the token is saved for you.
    - DO: call `(store as DoAgentStore).init(runId, id, initialState)` once per agent first.
