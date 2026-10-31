@@ -22,7 +22,7 @@ We do **not** use Cloudflare at all. Every actor runs on **Terse Durable Actors*
 - `MerchantAgent` actor, one per agent (actorId = `${runId}.${agentId}`; ids allow only `[A-Za-z0-9._-]`): persistent memory + turns.
 - `ExperimentRunner` actor: the batch + synthesis job.
 
-The HTTP surface moves to **Next.js API routes on Vercel**. They call the actors through `DurableActorsClient` (`packages/agents`). The pure engine lives in `packages/engine`. Local: `pnpm actors:dev` (control plane on :7100, project `local`). Deployed: a hosted Terse project from the Terse team (`DURABLE_ACTORS_URL`, `DURABLE_ACTORS_PROJECT_ID`, `DURABLE_ACTORS_SECRET`). Anything below that says Cloudflare / Worker / DO / `workers/sim` / wrangler now means the Terse equivalent.
+The HTTP surface moves to **Next.js API routes on Vercel**. They call the actors through `DurableActorsClient` (`packages/agents`). The pure engine lives in `packages/engine`. **The demo runs locally** on one laptop: `pnpm demo` (= `pnpm actors:dev` + `pnpm dev`; control plane on 127.0.0.1:7100, project `local`, web on :3000). Live runs only work there. The Vercel site (https://simulization.vercel.app) reads Neon, so it serves the landing page, replays and the report card for finished runs, which is our backup if the laptop fails. Anything below that says Cloudflare / Worker / DO / `workers/sim` / wrangler now means the Terse equivalent.
 
 ## Repo map
 
@@ -97,7 +97,7 @@ Priorities: a working, demoable end-to-end loop beats features. The methodology 
 ## PART 3: Known risks (handle explicitly)
 
 1. **AgentRelay:** resolved. Our fetch-only REST client is verified live (`docs/agentrelay.md`).
-2. **Terse hosting may not be available in time.** All agent logic sits behind `AgentStore`; `AGENT_STORE=neon` runs agents without MerchantAgent actors. If no hosted Terse project, run `pnpm actors:dev` locally for the demo.
+2. **Local-only demo.** Everything live runs on the demo laptop; rehearse on that exact machine, keep it plugged in, and have finished runs in Neon so the Vercel replay/report works if anything breaks. `AGENT_STORE=neon` runs agents without MerchantAgent actors if those misbehave.
 3. **Rate limits.** Within a phase, call agents in parallel with at most 6 at once, a 12s timeout per call and 1 retry. If it still fails, that agent passes for that turn. One agent never blocks a run.
 4. **Terse setup may take too long.** Keep the fallback script ready.
 
@@ -221,7 +221,7 @@ Folders: `packages/engine`, `actors/src/world.ts`, `apps/web/src/app/api/runs` +
 - **0:45–1:30:** act + reveal, all ground-truth flags, coalition payouts, lantern fund, stocks, final scoring. *Done when:* a full 6-round, 18-agent stub game passes locally with valid events.
 - **1:30–2:30:** `World` Terse actor: create run → run row + 18 agent rows + system event in Neon; `setupRunRelay` (B); events buffered and batch-written per phase; `this.alarm.set` with a 2s gap between phases; WebSocket broadcast; LABELED vs BLIND input building; the `/api/runs*` routes. *Done when:* a stub game runs under `pnpm actors:dev` and shows in Neon.
 - **2:30–3:30:** `@Persisted` state per phase so a restarted runtime resumes; stop + batch routes; `AGENT_STORE=terse` wired to B's MerchantAgent. *Done when:* restarting `actors:dev` mid-run resumes it.
-- **3:30–4:30:** integration owner: wire in B's real agents, run the first real games, deploy actors to the hosted Terse project by 4:15.
+- **3:30–4:30:** integration owner: wire in B's real agents, run the first real games on the demo laptop by 4:15.
 - **4:30–5:00:** bug fixes only, then freeze.
 
 ### Person B: agents, models, AgentRelay, Terse (second heaviest)
@@ -246,7 +246,7 @@ Folders: `apps/web/src/app`, `apps/web/src/hud`, `apps/web/src/store`.
 - **1:00–2:00:** HUD top bar, event feed with filters, agent card with public vs private side by side, BLIND banner.
 - **2:00–3:00:** live metrics bar using the shared metric functions; launch page that starts runs; past runs list.
 - **3:00–3:45:** report card: LABELED vs BLIND charts (Recharts), per-company table, Opus claim cards with the evidence view.
-- **3:45–5:00:** Vercel deploy by 4:00, backup video of the best run by 4:30, rehearse the demo twice (D drives).
+- **3:45–5:00:** Vercel deploy (replays + report card) by 4:00, backup video of the best run by 4:30, rehearse the demo twice on the demo laptop (D drives).
 
 ### Person E: metrics, Mastra analysis, pitch (lightest)
 Folders: `packages/shared/src/metrics.ts`, `apps/web/src/mastra`, `apps/web/src/app/api/analyze`, `apps/web/src/app/api/synthesize`.
