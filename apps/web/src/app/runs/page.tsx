@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { SiteHeader } from '@/components/landing/site-header'
+import { Eyebrow } from '@/components/landing/ui'
 import { loadRuns } from '@/components/runs/load-manifest'
 import { RunsGrid } from '@/components/runs/runs-grid'
 
@@ -12,17 +13,18 @@ export default async function RunsPage() {
   return (
     <>
       <SiteHeader />
-      <main id="main" className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-4 py-12 sm:px-6 lg:py-20">
-        <div className="flex flex-col gap-4">
-          <h1 className="font-display text-4xl font-semibold leading-tight text-balance sm:text-6xl">
+      <main id="main" className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-12 px-4 pb-24 pt-14 sm:px-6 lg:pt-24">
+        <div className="flex flex-col gap-5">
+          <Eyebrow>Archive</Eyebrow>
+          <h1 className="text-title font-semibold text-balance">
             Recorded runs
           </h1>
-          <p className="max-w-xl text-base text-muted-foreground text-pretty">
+          <p className="max-w-md text-base text-muted-foreground text-pretty">
             Real games, replayed event by event. Matched seeds, labeled vs blind.
           </p>
         </div>
         {runs.length === 0 ? (
-          <p className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
+          <p className="rounded-lg border border-dashed p-8 text-sm text-muted-foreground">
             No recorded runs yet.
           </p>
         ) : (

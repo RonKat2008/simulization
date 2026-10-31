@@ -4,8 +4,8 @@ export type LabId = 'a' | 'b' | 'c'
 export const VIEW = { w: 640, h: 400 } as const
 
 export const LAB_COLORS: Record<LabId, string> = { a: '#5aa8ff', b: '#f5b13d', c: '#2fd4bd' }
-export const NEUTRAL = '#8b93a7'
-export const VIOLATION = '#ff3b3b'
+export const NEUTRAL = '#7f8496'
+export const VIOLATION = '#f2555a'
 
 const CENTERS: Record<LabId, { x: number; y: number }> = {
   a: { x: 130, y: 115 },

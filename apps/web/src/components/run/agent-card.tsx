@@ -47,12 +47,12 @@ function Pair({ e }: { e: Event }) {
       </p>
       <div className="grid gap-px bg-border sm:grid-cols-2">
         <div className="bg-surface px-3 py-1.5 text-xs">
-          <p className="mb-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">Said / did</p>
+          <p className="mb-0.5 font-mono text-[10.5px] uppercase tracking-[0.08em] text-subtle-foreground">Said / did</p>
           <p className="break-words">{e.text ?? eventVerb(e)}</p>
           {c ? <p className="mt-0.5 tabular-nums">claimed <b>Q{c.claimed}</b> for {c.price}c</p> : null}
         </div>
         <div className="bg-surface-raised px-3 py-1.5 text-xs">
-          <p className="mb-0.5 text-[10px] uppercase tracking-wider text-accent">Self-reported plan{c ? " · observer truth below" : ""}</p>
+          <p className="mb-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-accent">Self-reported plan{c ? " · observer truth below" : ""}</p>
           <p className="break-words">{e.privatePlan ?? <span className="text-muted-foreground">no plan recorded</span>}</p>
           {c && c.actual !== null ? (
             <p className={`mt-0.5 tabular-nums ${lie ? "text-violation" : ""}`}>
@@ -95,12 +95,12 @@ export function AgentCard({ finalScores, wealthVisibility }: { finalScores: Reco
   const lab = COMPANIES.find((c) => c.id === company);
 
   return (
-    <section ref={root} aria-labelledby="agent-title" className="min-w-0 rounded-lg border bg-surface">
+    <section ref={root} aria-labelledby="agent-title" className="min-w-0 overflow-hidden rounded-lg border bg-surface shadow-raised">
       <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
-        <h2 id="agent-title" className="flex min-w-0 items-center gap-2 font-display text-sm tracking-wide">
+        <h2 id="agent-title" className="flex min-w-0 items-center gap-2 text-[13px] font-semibold tracking-[-0.01em]">
           {selected && agent ? (
             <>
-              {company ? <span className={`size-2.5 shrink-0 ${COMPANY_BG[company] ?? "bg-muted-foreground"}`} aria-hidden="true" /> : null}
+              {company ? <span className={`size-2.5 shrink-0 rounded-[2px] ${COMPANY_BG[company] ?? "bg-muted-foreground"}`} aria-hidden="true" /> : null}
               <span className="truncate">{label(agent.id)}</span>
               <span className="text-xs font-normal text-muted-foreground">{lab ? lab.name : blind ? "lab hidden" : ""}</span>
             </>
@@ -109,7 +109,7 @@ export function AgentCard({ finalScores, wealthVisibility }: { finalScores: Reco
           )}
         </h2>
         {selected ? (
-          <button type="button" onClick={() => select(null)} className="shrink-0 text-xs text-muted-foreground transition-colors hover:text-accent">
+          <button type="button" onClick={() => select(null)} className="shrink-0 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-surface-raised hover:text-foreground">
             Close (Esc)
           </button>
         ) : null}
@@ -122,7 +122,7 @@ export function AgentCard({ finalScores, wealthVisibility }: { finalScores: Reco
         <>
           <div className="grid gap-px bg-border sm:grid-cols-2">
             <div className="bg-surface p-3">
-              <h3 className="mb-1 text-[11px] uppercase tracking-wider text-muted-foreground">Public identity and group</h3>
+              <h3 className="mb-1 font-mono text-[10.5px] uppercase tracking-[0.08em] text-subtle-foreground">Public identity and group</h3>
               <dl>
                 <Row k="Coalition" v={rel.coalition ?? "none"} />
                 <Row k="Messages sent" v={stats.messages} />
@@ -130,7 +130,7 @@ export function AgentCard({ finalScores, wealthVisibility }: { finalScores: Reco
               </dl>
             </div>
             <div className="bg-surface-raised p-3">
-              <h3 className="mb-1 text-[11px] uppercase tracking-wider text-accent">Ground truth (observer only)</h3>
+              <h3 className="mb-1 font-mono text-[10.5px] uppercase tracking-[0.08em] text-accent">Ground truth (observer only)</h3>
               <dl>
                 <Row k="Game score (coins + goods)" v={finalScores?.[agent.id] ?? "in play"} />
                 <Row k="Pacts accepted / violated" v={`${stats.pactsAccepted} / ${stats.pactsBroken}`} />
@@ -151,7 +151,7 @@ export function AgentCard({ finalScores, wealthVisibility }: { finalScores: Reco
           </div>
           <div className="border-t">
             <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
-              <h3 className="text-[11px] uppercase tracking-wider text-muted-foreground">
+              <h3 className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-subtle-foreground">
                 Action and self-reported plan <span className="tabular-nums">({pairs.length})</span>
               </h3>
               <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -169,7 +169,7 @@ export function AgentCard({ finalScores, wealthVisibility }: { finalScores: Reco
                   ))}
                 </ul>
                 {pairs.length > shown ? (
-                  <button type="button" onClick={() => setMore({ id: selected, n: shown + PAGE })} className="w-full border-t px-3 py-2 text-xs text-primary hover:bg-primary/10">
+                  <button type="button" onClick={() => setMore({ id: selected, n: shown + PAGE })} className="w-full border-t px-3 py-2 text-xs text-primary transition-colors hover:bg-surface-raised">
                     Show {Math.min(PAGE, pairs.length - shown)} older of {pairs.length - shown}
                   </button>
                 ) : null}

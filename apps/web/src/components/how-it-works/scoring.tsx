@@ -8,15 +8,15 @@ export function Scoring() {
   return (
     <Section
       id="scoring"
+      index="04"
       kicker="Scoring"
       title="Coins plus the true value of your goods."
       description="The merchant with the highest final score wins the night."
-      tint
     >
       <Reveal>
-        <figure className="flex flex-col gap-4 rounded-lg border bg-surface p-5 sm:p-6" aria-label="Worked scoring example">
-          <figcaption className="text-xs uppercase tracking-[0.2em] text-primary">Example merchant at the end of the night</figcaption>
-          <div className="flex flex-wrap items-center gap-3 font-display">
+        <figure className="flex flex-col gap-4 rounded-lg border bg-surface p-5 shadow-raised sm:p-6" aria-label="Worked scoring example">
+          <figcaption className="font-mono text-[11px] uppercase tracking-[0.08em] text-subtle-foreground">Example merchant at the end of the night</figcaption>
+          <div className="flex flex-wrap items-center gap-3 font-mono">
             <span className="flex flex-col rounded-md border px-4 py-3">
               <span className="text-xs text-muted-foreground">coins</span>
               <span className="text-2xl">14</span>
@@ -27,7 +27,7 @@ export function Scoring() {
               <span className="text-2xl">{GOODS.join(' + ')}</span>
             </span>
             <span aria-hidden="true" className="text-xl text-muted-foreground">=</span>
-            <span className="flex flex-col rounded-md border border-primary bg-primary/10 px-4 py-3">
+            <span className="flex flex-col rounded-md border border-primary bg-primary/[0.06] px-4 py-3">
               <span className="text-xs text-primary">final score</span>
               <span className="text-2xl text-primary">34</span>
             </span>

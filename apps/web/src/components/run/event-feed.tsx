@@ -132,9 +132,9 @@ export function EventFeed({ followLatest, status }: { followLatest: boolean; sta
   const empty = events.length === 0;
 
   return (
-    <section aria-labelledby="feed-title" className="flex min-h-0 flex-1 flex-col rounded-lg border bg-surface">
+    <section aria-labelledby="feed-title" className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border bg-surface shadow-raised">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
-        <h2 id="feed-title" className="font-display text-sm tracking-wide">
+        <h2 id="feed-title" className="text-[13px] font-semibold tracking-[-0.01em]">
           Recent actions
         </h2>
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -143,25 +143,25 @@ export function EventFeed({ followLatest, status }: { followLatest: boolean; sta
               type="button"
               aria-pressed={expandAll}
               onClick={() => setExpandAll((v) => !v)}
-              className={`rounded-sm border px-1.5 py-0.5 transition-colors hover:border-accent/60 ${expandAll ? "border-accent text-accent" : ""}`}
+              className={`rounded-md border px-2 py-0.5 transition-colors hover:bg-surface-raised hover:text-foreground ${expandAll ? "border-border-strong bg-surface-raised text-foreground" : ""}`}
             >
               {expandAll ? "Collapse" : "Expand"} all plans ({withPlans})
             </button>
           ) : null}
-          <span className="tabular-nums" aria-label={`${visible.length} of ${events.length} events shown`}>
+          <span className="font-mono text-[11px]" aria-label={`${visible.length} of ${events.length} events shown`}>
             {visible.length}
             {filtered ? ` / ${events.length}` : ""}
           </span>
         </div>
       </div>
-      <button type="button" onClick={()=>setShowAll(v=>!v)} className="min-h-9 border-b px-3 text-left text-sm text-primary">{showAll ? 'Show eight recent actions' : 'Show complete event log'}</button>
-      <details className="border-b px-3 py-2 text-sm"><summary className="cursor-pointer">Filter and search events</summary><FeedFilters /></details>
+      <button type="button" onClick={()=>setShowAll(v=>!v)} className="min-h-10 border-b px-3 text-left text-[13px] text-primary transition-colors hover:bg-surface-raised">{showAll ? 'Show eight recent actions' : 'Show complete event log'}</button>
+      <details className="border-b px-3 py-2 text-[13px]"><summary className="cursor-pointer rounded-sm text-muted-foreground transition-colors hover:text-foreground">Filter and search events</summary><FeedFilters /></details>
       <details className="border-b px-3 py-1.5 text-xs text-muted-foreground">
         <summary className="cursor-pointer select-none hover:text-foreground">Keyboard shortcuts</summary>
         <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
           {SHORTCUTS.map(([k, d]) => (
             <Fragment key={k}>
-              <dt className="font-display text-foreground">{k}</dt>
+              <dt className="font-mono text-foreground">{k}</dt>
               <dd>{d}</dd>
             </Fragment>
           ))}
@@ -191,7 +191,7 @@ export function EventFeed({ followLatest, status }: { followLatest: boolean; sta
               ) : (
                 <>
                   <p>No events match these filters.</p>
-                  <button type="button" onClick={clearFilters} className="mt-2 text-accent underline underline-offset-2">
+                  <button type="button" onClick={clearFilters} className="mt-2 text-primary underline underline-offset-4">
                     Clear filters
                   </button>
                 </>
@@ -205,7 +205,7 @@ export function EventFeed({ followLatest, status }: { followLatest: boolean; sta
                 return (
                   <Fragment key={e.seq}>
                     {newSection ? (
-                      <li role="presentation" className="sticky top-0 z-10 border-b bg-surface-raised px-3 py-1 text-[11px] uppercase tracking-wider text-muted-foreground">
+                      <li role="presentation" className="sticky top-0 z-10 border-b bg-surface-raised px-3 py-1 font-mono text-[10.5px] uppercase tracking-[0.08em] text-subtle-foreground">
                         Round {e.round} / {e.phase}
                       </li>
                     ) : null}
@@ -220,7 +220,7 @@ export function EventFeed({ followLatest, status }: { followLatest: boolean; sta
           <button
             type="button"
             onClick={jump}
-            className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-primary bg-background px-3 py-1 text-xs text-primary shadow-lg transition-colors hover:bg-primary hover:text-primary-foreground"
+            className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-border-strong bg-surface-raised px-3 py-1 text-xs text-foreground shadow-pop transition-colors hover:bg-primary hover:text-primary-foreground"
           >
             Jump to latest
           </button>

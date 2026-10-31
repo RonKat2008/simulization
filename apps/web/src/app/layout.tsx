@@ -1,11 +1,17 @@
 import type { Metadata, Viewport } from "next";
-import { JetBrains_Mono, Pixelify_Sans } from "next/font/google";
+import { Geist, JetBrains_Mono, Pixelify_Sans } from "next/font/google";
 import "./globals.css";
 
 const pixel = Pixelify_Sans({
   subsets: ["latin"],
   variable: "--font-pixel",
   weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
+
+const sans = Geist({
+  subsets: ["latin"],
+  variable: "--font-geist",
   display: "swap",
 });
 
@@ -37,13 +43,13 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#05060a",
+  themeColor: "#0b0c10",
   colorScheme: "dark",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${pixel.variable} ${body.variable} h-full bg-background antialiased`}>
+    <html lang="en" className={`${sans.variable} ${pixel.variable} ${body.variable} h-full bg-background antialiased`}>
       <body className="flex min-h-full flex-col font-sans">{children}</body>
     </html>
   );

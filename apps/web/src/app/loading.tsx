@@ -5,7 +5,7 @@ export default function Loading() {
       role="status"
       aria-live="polite"
     >
-      <span className="size-2 bg-primary motion-safe:animate-pulse" aria-hidden="true" />
+      <span className="size-2 rounded-full bg-primary motion-safe:animate-pulse" aria-hidden="true" />
       Loading…
     </main>
   )

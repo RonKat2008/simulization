@@ -20,10 +20,10 @@ const firstSentence = (t: string) => t.match(/^[\s\S]*?[.!?](\s|$)/)?.[0].trim()
 function ClaimRow({ c, onOpen }: { c: ReportClaim; onOpen: (key: string) => void }) {
   const n = c.evidence.length;
   return (
-    <li className="flex flex-col gap-2 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+    <li className="flex flex-col gap-3 py-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
       <div className="flex min-w-0 flex-col gap-1.5">
         <p className="text-sm leading-relaxed text-pretty">{c.text}</p>
-        <p className="text-[11px] text-muted-foreground">
+        <p className="font-mono text-[11px] text-muted-foreground">
           {c.condition} · {n} {n === 1 ? 'event' : 'events'}
           {c.missingIds.length > 0 && <span className="text-violation"> ({c.missingIds.length} unresolved)</span>}
         </p>
@@ -31,7 +31,7 @@ function ClaimRow({ c, onOpen }: { c: ReportClaim; onOpen: (key: string) => void
       <button
         type="button"
         onClick={() => onOpen(c.key)}
-        className="shrink-0 self-start rounded-md border px-3 py-1.5 text-xs transition-colors hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary print:hidden"
+        className="shrink-0 self-start rounded-md border border-border-strong px-3 py-1.5 text-xs font-medium transition-colors duration-150 hover:bg-surface-raised hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary print:hidden"
       >
         Evidence
       </button>
@@ -48,6 +48,7 @@ export function ClaimsSection({ review }: { review: ReportReview }) {
   return (
     <Section
       id="claims-title"
+      index="06"
       title={review.isSample ? 'Claims (placeholder, no Opus review yet)' : 'Opus review'}
       lead="Every claim cites events."
     >
@@ -55,13 +56,13 @@ export function ClaimsSection({ review }: { review: ReportReview }) {
         <p>This model-generated interpretation can be mistaken; computed measures and cited events are the evidence. The reviewer reads anonymized logs (Group 1/2/3) and explains simulator flags; it does not compute metrics. Open a claim to compare recorded statements, self-reported plans and ground truth.</p>
       </Disclosure>
       {review.isSample && (
-        <p role="note" className="rounded-md border border-dashed border-accent/60 px-3 py-2.5 text-xs leading-relaxed text-accent sm:text-sm">
+        <p role="note" className="rounded-lg border border-dashed border-accent/60 px-4 py-3 text-xs leading-relaxed text-accent sm:text-sm">
           Placeholder claims from simulator flags, not model output.
         </p>
       )}
       {!review.isSample && review.summary && (
         <div className="flex max-w-3xl flex-col gap-2">
-          <p className="text-base leading-relaxed text-pretty">{firstSentence(review.summary)}</p>
+          <p className="text-lg leading-relaxed text-pretty">{firstSentence(review.summary)}</p>
           {review.summary.length > firstSentence(review.summary).length && (
             <Disclosure summary="Full summary"><p className="whitespace-pre-line">{review.summary}</p></Disclosure>
           )}
@@ -69,14 +70,14 @@ export function ClaimsSection({ review }: { review: ReportReview }) {
       )}
 
       {groups.length === 0 && <p className="text-sm text-muted-foreground">No claims available.</p>}
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-3">
         {groups.map((g) => (
-          <details key={g.s} className="group rounded-md border bg-surface/50">
-            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-md px-4 text-sm transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary [&::-webkit-details-marker]:hidden">
-              <span>{SECTION_LABEL[g.s]} <span className="tabular-nums text-muted-foreground">· {g.claims.length}</span></span>
+          <details key={g.s} className="group rounded-lg border bg-surface transition-colors open:border-border-strong open:shadow-raised">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-4 text-sm font-medium transition-colors duration-150 hover:bg-surface-raised group-open:rounded-b-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary [&::-webkit-details-marker]:hidden">
+              <span>{SECTION_LABEL[g.s]} <span className="font-mono tabular-nums text-muted-foreground">· {g.claims.length}</span></span>
               <span aria-hidden="true" className="text-base leading-none text-muted-foreground transition-transform duration-150 ease-out group-open:rotate-45">+</span>
             </summary>
-            <ul className="divide-y divide-border/50 border-t px-4">
+            <ul className="divide-y border-t px-4">
               {g.claims.map((c) => (
                 <ClaimRow key={c.key} c={c} onOpen={setOpenKey} />
               ))}

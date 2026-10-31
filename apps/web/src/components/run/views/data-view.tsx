@@ -462,10 +462,10 @@ function buildRows(events: Event[], companies: Map<string, string>): RoundRow[] 
   return rows;
 }
 
-const TICK = { fill: "var(--muted-foreground)", fontSize: 11 };
-const AXIS_LABEL = { fill: "var(--muted-foreground)", fontSize: 11 };
+const TICK = { fill: "var(--muted-foreground)", fontSize: 11, fontFamily: "var(--font-mono)" };
+const AXIS_LABEL = { fill: "var(--subtle-foreground)", fontSize: 11, fontFamily: "var(--font-mono)" };
 const TIP = {
-  contentStyle: { background: "var(--surface-raised)", border: "1px solid var(--border)", borderRadius: 4, fontSize: 12 },
+  contentStyle: { background: "var(--surface-raised)", border: "1px solid var(--border-strong)", borderRadius: 8, fontSize: 12, boxShadow: "var(--shadow-pop)" },
   labelStyle: { color: "var(--foreground)", marginBottom: 2 },
   itemStyle: { color: "var(--foreground)", padding: 0 },
   cursor: { stroke: "var(--muted-foreground)", strokeOpacity: 0.4 },

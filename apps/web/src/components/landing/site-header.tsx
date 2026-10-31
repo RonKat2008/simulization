@@ -9,6 +9,7 @@ const REPO_URL = 'https://github.com/RonKat2008/simulization'
 const NAV = [
   { href: '/how-it-works', label: 'How it works', match: (p: string) => p.startsWith('/how-it-works') },
   { href: '/launch', label: 'Launch', match: (p: string) => p.startsWith('/launch') },
+  { href: '/experiment', label: 'Experiment', match: (p: string) => p.startsWith('/experiment') },
   { href: '/runs', label: 'Runs', match: (p: string) => p.startsWith('/run') },
   { href: '/report', label: 'Report', match: (p: string) => p.startsWith('/report') },
 ]
@@ -16,13 +17,13 @@ const NAV = [
 export function Logo() {
   return (
     <span className="flex items-center gap-2.5">
-      <span className="grid grid-cols-2 gap-0.5" aria-hidden="true">
-        <span className="size-1.5 bg-lab-a" />
-        <span className="size-1.5 bg-lab-b" />
-        <span className="size-1.5 bg-lab-c" />
-        <span className="size-1.5 bg-primary" />
+      <span className="grid grid-cols-2 gap-[3px] rounded-[5px] border border-border-strong bg-surface p-[4px]" aria-hidden="true">
+        <span className="size-[5px] rounded-[1px] bg-lab-a" />
+        <span className="size-[5px] rounded-[1px] bg-lab-b" />
+        <span className="size-[5px] rounded-[1px] bg-lab-c" />
+        <span className="size-[5px] rounded-[1px] bg-foreground/80" />
       </span>
-      <span className="font-display text-lg font-semibold tracking-wide text-foreground">
+      <span className="text-[15px] font-semibold tracking-[-0.02em] text-foreground">
         Simulization
       </span>
     </span>
@@ -30,10 +31,10 @@ export function Logo() {
 }
 
 function linkClass(active: boolean) {
-  return `inline-flex min-h-10 items-center rounded-sm border-b-2 px-1 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+  return `inline-flex h-8 items-center rounded-md px-2.5 text-[13.5px] transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
     active
-      ? 'border-primary text-foreground'
-      : 'border-transparent text-muted-foreground hover:text-foreground'
+      ? 'bg-surface-raised text-foreground'
+      : 'text-muted-foreground hover:bg-surface hover:text-foreground'
   }`
 }
 
@@ -57,13 +58,13 @@ export function SiteHeader() {
   }, [open])
 
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/75">
+    <header className="sticky top-0 z-40 border-b bg-background/85 backdrop-blur-md supports-[backdrop-filter]:bg-background/70">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         <Link href="/" aria-label="Simulization home" onClick={() => setOpen(false)} className="rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
           <Logo />
         </Link>
 
-        <nav aria-label="Primary" className="hidden items-center gap-6 md:flex">
+        <nav aria-label="Primary" className="hidden items-center gap-1 md:flex">
           {NAV.map((item) => {
             const active = item.match(pathname)
             return (
@@ -88,7 +89,7 @@ export function SiteHeader() {
           aria-controls="mobile-nav"
           onClick={() => setOpen((v) => !v)}
           aria-label={open ? 'Close menu' : 'Open menu'}
-          className="inline-flex min-h-11 min-w-16 items-center justify-center rounded-md border px-3 text-sm text-foreground transition-colors hover:border-primary hover:text-primary active:bg-surface-raised md:hidden"
+          className="inline-flex min-h-11 min-w-16 items-center justify-center rounded-md border border-border-strong px-3 text-sm text-foreground transition-colors hover:bg-surface-raised active:bg-surface-raised md:hidden"
         >
           {open ? 'Close' : 'Menu'}
         </button>
@@ -109,7 +110,7 @@ export function SiteHeader() {
                       active ? 'text-primary' : 'text-foreground'
                     }`}
                   >
-                    <span aria-hidden="true" className={`size-1.5 ${active ? 'bg-primary' : 'bg-transparent'}`} />
+                    <span aria-hidden="true" className={`size-1.5 rounded-full ${active ? 'bg-primary' : 'bg-transparent'}`} />
                     {item.label}
                   </Link>
                 </li>

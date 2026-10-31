@@ -125,12 +125,12 @@ function Pipeline({ events, metricLine }: { events: Event[]; metricLine: string 
       <ol className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(11.5rem,1fr))] gap-2">
         {stages.map((s, i) => (
           <li key={s.title} className="min-w-0 rounded-md border bg-surface-raised p-2.5">
-            <p className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+            <p className="flex items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-[0.08em] text-subtle-foreground">
               <span aria-hidden="true" className="grid size-4 place-items-center rounded-full border text-[10px] tabular-nums">{i + 1}</span>
               <span className="sr-only">Stage {i + 1}: </span>
               <span className="truncate">{s.kind}</span>
             </p>
-            <h3 className="mt-1 font-display text-sm text-primary">{s.title}</h3>
+            <h3 className="mt-1 text-sm font-semibold text-foreground">{s.title}</h3>
             <p className="mt-0.5 text-lg font-semibold leading-none tabular-nums">
               {s.headline[0]} <span className="text-[11px] font-normal text-muted-foreground">{s.headline[1]}</span>
             </p>
@@ -285,7 +285,7 @@ function toCsv(rows: Row[]): string {
 }
 
 const SELECT = "min-h-8 w-full min-w-0 rounded-sm border bg-surface-raised px-2 py-1 text-xs focus-visible:outline-2";
-const FIELD = "grid min-w-0 gap-0.5 text-[10px] uppercase tracking-wider text-muted-foreground";
+const FIELD = "grid min-w-0 gap-0.5 font-mono text-[10.5px] uppercase tracking-[0.08em] text-subtle-foreground";
 
 interface EventRowProps {
   row: Row;
@@ -345,11 +345,11 @@ const EventRow = memo(function EventRow({ row, expanded, show, colCount, json, o
           <td colSpan={colCount} className="px-3 pb-3 pt-1">
             <dl className="grid gap-x-6 gap-y-2 text-xs sm:grid-cols-2">
               <div className="min-w-0">
-                <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">Channel-scoped text</dt>
+                <dt className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-subtle-foreground">Channel-scoped text</dt>
                 <dd className="whitespace-pre-wrap break-words">{e.text || "-"}</dd>
               </div>
               <div className="min-w-0">
-                <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">Self-reported plan</dt>
+                <dt className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-subtle-foreground">Self-reported plan</dt>
                 <dd className="whitespace-pre-wrap break-words text-muted-foreground">{e.privatePlan || "-"}</dd>
               </div>
             </dl>

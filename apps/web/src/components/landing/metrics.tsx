@@ -1,10 +1,10 @@
 import { Reveal, Stagger, StaggerItem } from './reveal'
-import { SectionHeading } from './section-heading'
+import { LandingSection } from './section-heading'
 import { Disclosure } from './ui'
 
 const LAYERS = [
-  { tone: 'text-accent', title: 'Style bias', formula: 'BLIND favoritism vs 0', gloss: 'No label shown.' },
-  { tone: 'text-primary', title: 'Label bias', formula: 'LABELED − BLIND', gloss: 'Label adds this much.' },
+  { tone: 'bg-accent', title: 'Style bias', formula: 'BLIND favoritism vs 0', gloss: 'Favoritism with no label shown.' },
+  { tone: 'bg-primary', title: 'Label bias', formula: 'LABELED − BLIND', gloss: 'What the label adds on top.' },
 ]
 
 const CHIPS = ['Cooperation', 'Ethicality', 'Alliances', 'DM share', 'Deception', 'Theft', 'Pacts', 'Eval awareness']
@@ -30,7 +30,7 @@ function Chips({ items, tone }: { items: string[]; tone: string }) {
   return (
     <Stagger as="ul" className="flex flex-wrap gap-2">
       {items.map((c) => (
-        <StaggerItem as="li" key={c} className={`rounded-full border px-3 py-1.5 text-sm ${tone}`}>
+        <StaggerItem as="li" key={c} className={`inline-flex h-8 items-center rounded-md border bg-surface px-3 text-[13px] ${tone}`}>
           {c}
         </StaggerItem>
       ))}
@@ -40,29 +40,33 @@ function Chips({ items, tone }: { items: string[]; tone: string }) {
 
 export function Metrics() {
   return (
-    <section id="metrics" aria-labelledby="metrics-title" className="scroll-mt-14 border-b">
-      <div className="mx-auto flex max-w-6xl flex-col gap-10 px-4 py-20 sm:px-6 md:py-28">
-        <SectionHeading id="metrics-title" kicker="Measured" title="Two kinds of bias. One power check." />
-
-        <Stagger as="ul" className="grid gap-4 md:grid-cols-2">
+    <LandingSection
+      id="metrics"
+      titleId="metrics-title"
+      index="03"
+      kicker="Measured"
+      title="Two kinds of bias. One power check."
+    >
+        <Stagger as="ul" className="grid gap-px overflow-hidden rounded-lg border bg-border shadow-raised md:grid-cols-2">
           {LAYERS.map((l) => (
-            <StaggerItem as="li" key={l.title} lift className="flex flex-col gap-3 rounded-lg border bg-surface p-6 sm:p-8">
-              <h3 className={`font-display text-3xl font-semibold ${l.tone}`}>{l.title}</h3>
-              <code className="block w-fit max-w-full rounded-sm border bg-background px-2 py-1 text-sm text-foreground">
-                {l.formula}
-              </code>
+            <StaggerItem as="li" key={l.title} className="flex flex-col gap-5 bg-surface p-6 sm:p-7">
+              <span className="flex items-center gap-2.5">
+                <span aria-hidden="true" className={`size-2 rounded-full ${l.tone}`} />
+                <h3 className="text-xl font-semibold text-foreground">{l.title}</h3>
+              </span>
+              <code className="font-mono text-lg text-foreground">{l.formula}</code>
               <p className="text-sm text-muted-foreground">{l.gloss}</p>
             </StaggerItem>
           ))}
         </Stagger>
 
-        <div className="grid gap-8 md:grid-cols-2">
+        <div className="grid gap-8 pt-2 md:grid-cols-2">
           <Reveal className="flex flex-col gap-3">
-            <h3 className="text-xs uppercase tracking-[0.18em] text-primary">Also reported</h3>
+            <h3 className="font-mono text-[11px] uppercase tracking-[0.08em] text-subtle-foreground">Also reported</h3>
             <Chips items={CHIPS} tone="text-foreground" />
           </Reveal>
           <Reveal className="flex flex-col gap-3" delay={0.12}>
-            <h3 className="text-xs uppercase tracking-[0.18em] text-accent">Power structures</h3>
+            <h3 className="font-mono text-[11px] uppercase tracking-[0.08em] text-subtle-foreground">Power structures</h3>
             <Chips items={POWER_CHIPS} tone="text-foreground" />
           </Reveal>
         </div>
@@ -78,7 +82,6 @@ export function Metrics() {
             ))}
           </dl>
         </Disclosure>
-      </div>
-    </section>
+    </LandingSection>
   )
 }

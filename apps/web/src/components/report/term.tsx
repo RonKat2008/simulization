@@ -50,7 +50,7 @@ export function Term({ k, children, className = '' }: { k: GlossaryKey; children
         onFocus={show}
         onBlur={hide}
         onClick={() => (open ? hide() : show())}
-        className={`cursor-help rounded-sm text-left underline decoration-dotted decoration-muted-foreground/70 underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary print:no-underline ${className}`}
+        className={`cursor-help rounded-sm text-left underline decoration-dotted decoration-subtle-foreground underline-offset-4 transition-colors hover:decoration-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary print:no-underline ${className}`}
       >
         {children}
       </button>
@@ -58,7 +58,7 @@ export function Term({ k, children, className = '' }: { k: GlossaryKey; children
         role="tooltip"
         id={id}
         style={{ left: pos.left, top: pos.top, width: Math.min(TIP_WIDTH, 9999) }}
-        className={`pointer-events-none fixed z-50 max-w-[calc(100vw-1rem)] rounded-md border bg-surface-raised px-3 py-2 text-left text-[11px] font-normal normal-case leading-relaxed tracking-normal text-foreground shadow-lg ${open ? 'visible' : 'invisible'} print:hidden`}
+        className={`pointer-events-none fixed z-50 max-w-[calc(100vw-1rem)] rounded-md border border-border-strong bg-surface-raised px-3 py-2 text-left font-sans text-xs font-normal normal-case leading-relaxed tracking-normal text-foreground shadow-pop ${open ? 'visible' : 'invisible'} print:hidden`}
       >
         {GLOSSARY[k]}
       </span>

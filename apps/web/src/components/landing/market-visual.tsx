@@ -169,29 +169,34 @@ export function MarketVisual() {
   const activeStep = isStatic ? 3 : step
 
   return (
-    <div ref={wrapRef} className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div role="group" aria-label="Condition" className="inline-flex rounded-md border p-0.5 text-xs">
+    <div ref={wrapRef} className="flex flex-col gap-3">
+      <div className="overflow-hidden rounded-xl border bg-surface shadow-pop">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b px-3 py-2.5 sm:px-4">
+        <div role="group" aria-label="Condition" className="inline-flex rounded-md border bg-background p-0.5 font-mono text-[11px]">
           {(['labeled', 'blind'] as const).map((m) => (
             <button
               key={m}
               type="button"
               aria-pressed={mode === m}
               onClick={() => choose(m)}
-              className={`min-h-9 rounded-sm px-3 uppercase tracking-wider transition-colors ${
-                mode === m ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+              className={`min-h-8 rounded-[5px] px-3 uppercase tracking-[0.08em] transition-colors duration-150 ${
+                mode === m
+                  ? m === 'labeled'
+                    ? 'bg-surface-raised text-primary shadow-[inset_0_1px_0_rgb(255_255_255/0.05)]'
+                    : 'bg-surface-raised text-accent shadow-[inset_0_1px_0_rgb(255_255_255/0.05)]'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               {m}
             </button>
           ))}
         </div>
-        <p className="text-xs text-muted-foreground" aria-live="polite">
+        <p className="font-mono text-[11px] text-muted-foreground" aria-live="polite">
           {MODE_COPY[mode].sees}
         </p>
       </div>
 
-      <div className="relative overflow-hidden rounded-md border bg-surface pixel-grid">
+      <div className="relative bg-background/40">
         <svg
           ref={svgRef}
           data-mvx="pending"
@@ -225,7 +230,7 @@ export function MarketVisual() {
           {AMBIENT_EDGES.map(([a, b]) => {
             const p = node(a)
             const r = node(b)
-            return <line key={`${a}-${b}`} x1={p.x} y1={p.y} x2={r.x} y2={r.y} stroke="#8b93a7" strokeOpacity={0.16} />
+            return <line key={`${a}-${b}`} x1={p.x} y1={p.y} x2={r.x} y2={r.y} stroke="#7f8496" strokeOpacity={0.14} />
           })}
 
           <line className="mvx-seq mvx-claim-edge" x1={SELLER.x} y1={SELLER.y} x2={BUYER.x} y2={BUYER.y} stroke="#cfe0ff" strokeWidth={1.5} />
@@ -240,7 +245,7 @@ export function MarketVisual() {
               cx={n.x}
               cy={n.y}
               r={9}
-              stroke="#05060a"
+              stroke="#101217"
               strokeWidth={2}
               style={{ fill: LAB_COLORS[n.lab], transformBox: 'fill-box', transformOrigin: 'center' }}
             />
@@ -274,31 +279,32 @@ export function MarketVisual() {
           </text>
 
           <g className="mvx-seq mvx-claim">
-            <rect x={SELLER.x - 52} y={SELLER.y + 48} width={92} height={24} rx={3} fill="#0b0e16" stroke="#cfe0ff" strokeOpacity={0.6} />
+            <rect x={SELLER.x - 52} y={SELLER.y + 48} width={92} height={24} rx={3} fill="#101217" stroke="#cfe0ff" strokeOpacity={0.6} />
             <text x={SELLER.x - 6} y={SELLER.y + 64} textAnchor="middle" fontSize={13} fill="#e6eaf4">claims Q{CLAIMED}</text>
           </g>
           <g className="mvx-seq mvx-truth">
-            <rect x={REFEREE.x + 28} y={REFEREE.y - 14} width={78} height={24} rx={3} fill="#0b0e16" stroke={VIOLATION} />
+            <rect x={REFEREE.x + 28} y={REFEREE.y - 14} width={78} height={24} rx={3} fill="#101217" stroke={VIOLATION} />
             <text x={REFEREE.x + 67} y={REFEREE.y + 2} textAnchor="middle" fontSize={13} fill={VIOLATION}>true Q{TRUE_QUALITY}</text>
           </g>
           <g className="mvx-seq mvx-tag">
             <rect x={REFEREE.x - 52} y={REFEREE.y + 56} width={104} height={22} rx={3} fill={VIOLATION} />
-            <text x={REFEREE.x} y={REFEREE.y + 71} textAnchor="middle" fontSize={12} letterSpacing={1} fill="#05060a">LIE FLAGGED</text>
+            <text x={REFEREE.x} y={REFEREE.y + 71} textAnchor="middle" fontSize={12} letterSpacing={1} fill="#0b0c10">LIE FLAGGED</text>
           </g>
         </svg>
       </div>
 
-      <ol className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4" aria-label="What the animation shows">
+      <ol className="grid grid-cols-2 gap-x-3 gap-y-2 border-t px-3 py-3 font-mono text-[11px] sm:grid-cols-4 sm:px-4" aria-label="What the animation shows">
         {STEPS.map((s, i) => (
           <li
             key={s}
-            className={`flex gap-2 transition-colors ${i === activeStep ? (i >= 2 ? 'text-violation' : 'text-foreground') : 'text-muted-foreground/70'}`}
+            className={`flex gap-2 transition-colors duration-200 ${i === activeStep ? (i >= 2 ? 'text-violation' : 'text-foreground') : 'text-subtle-foreground'}`}
           >
-            <span aria-hidden="true" className="tabular-nums">{i + 1}.</span>
+            <span aria-hidden="true" className="tabular-nums opacity-60">{String(i + 1).padStart(2, '0')}</span>
             <span>{s}</span>
           </li>
         ))}
       </ol>
+      </div>
       <Disclosure summary="Agent input">
         <code className="text-foreground">{MODE_COPY[mode].json}</code>
         <p>The referee always scores by true company.</p>

@@ -24,18 +24,19 @@ export function Knowledge() {
   return (
     <Section
       id="knowledge"
+      index="03"
       kicker="Who knows what"
       title="Merchants see little. The referee sees everything."
       description="The referee is the simulator: it checks every action against ground truth, so no model has to judge."
     >
-      <Stagger as="ul" className="grid gap-4 md:grid-cols-3">
+      <Stagger as="ul" className="grid gap-4 sm:grid-cols-3">
         {COLUMNS.map((c) => (
           <StaggerItem as="li" key={c.title} className="flex flex-col gap-3 rounded-lg border bg-surface p-5">
-            <h3 className={`font-display text-lg ${c.tone}`}>{c.title}</h3>
+            <h3 className={`text-base font-semibold ${c.tone}`}>{c.title}</h3>
             <ul className="flex flex-col gap-2 text-sm text-muted-foreground">
               {c.items.map((it) => (
                 <li key={it} className="flex gap-2">
-                  <span aria-hidden="true" className="mt-2 size-1 shrink-0 bg-border" />
+                  <span aria-hidden="true" className="mt-2 size-1 shrink-0 rounded-full bg-border-strong" />
                   {it}
                 </li>
               ))}
@@ -46,20 +47,20 @@ export function Knowledge() {
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-3 rounded-lg border bg-surface p-5">
-          <h3 className="font-display text-lg">Company label</h3>
+          <h3 className="text-base font-semibold">Company label</h3>
           <div className="grid grid-cols-2 gap-3 text-sm">
-            <p className="flex flex-col gap-1 rounded-md border border-primary/50 p-3">
-              <span className="font-display text-xs tracking-widest text-primary">LABELED</span>
+            <p className="flex flex-col gap-1 rounded-md border border-primary/50 bg-primary/[0.06] p-3">
+              <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-primary">LABELED</span>
               <span className="text-muted-foreground">Merchants see each other&rsquo;s company.</span>
             </p>
-            <p className="flex flex-col gap-1 rounded-md border border-accent/50 p-3">
-              <span className="font-display text-xs tracking-widest text-accent">BLIND</span>
+            <p className="flex flex-col gap-1 rounded-md border border-accent/50 bg-accent/[0.06] p-3">
+              <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-accent">BLIND</span>
               <span className="text-muted-foreground">Names only. Company is absent.</span>
             </p>
           </div>
         </div>
         <div className="flex flex-col gap-3 rounded-lg border bg-surface p-5">
-          <h3 className="font-display text-lg">Messages</h3>
+          <h3 className="text-base font-semibold">Messages</h3>
           <p className="text-sm text-muted-foreground">Public, DM and coalition messages reach their recipients. A merchant&rsquo;s private plan reaches no one, but you can read it in the game view.</p>
         </div>
       </div>

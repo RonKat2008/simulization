@@ -10,8 +10,8 @@ const frac = (count: number | undefined, total: number | undefined) => `${count 
 
 function Card({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
   return (
-    <div className="min-w-0 rounded-md border bg-surface px-3 py-2">
-      <dt className="truncate text-[11px] uppercase tracking-wider text-muted-foreground" title={title}>
+    <div className="min-w-0 rounded-lg border bg-surface px-3 py-2.5">
+      <dt className="truncate font-mono text-[10.5px] uppercase tracking-[0.08em] text-subtle-foreground" title={title}>
         {title}
       </dt>
       <dd className="mt-1 space-y-0.5">{children}</dd>
@@ -27,7 +27,7 @@ function Line({ k, count, total, rate, tone }: { k: string; count?: number; tota
       <span className="text-xs text-muted-foreground">{k}</span>
       <span className="flex items-baseline gap-1.5">
         <span className="text-[11px] text-muted-foreground">{none ? "no data" : frac(count, total)}</span>
-        <span className={`font-display text-lg ${tone ?? ""}`}>{none ? "–" : pct(rate ?? 0)}</span>
+        <span className={`font-mono text-lg ${tone ?? ""}`}>{none ? "–" : pct(rate ?? 0)}</span>
       </span>
     </p>
   );
@@ -46,10 +46,10 @@ function InOut({ title, r, tone, note }: { title: string; r: InOutRate; tone?: s
 /** One-glance tile: a single headline figure and what it is measured against. */
 function Tile({ title, value, sub, tone, hint }: { title: string; value: string; sub: string; tone?: string; hint: string }) {
   return (
-    <div title={hint} className="min-w-0 rounded-md border bg-surface px-2.5 py-1.5 transition-colors hover:border-primary/40">
-      <dt className="truncate text-[10px] uppercase tracking-wider text-muted-foreground">{title}</dt>
+    <div title={hint} className="min-w-0 rounded-lg border bg-surface px-3 py-2 transition-colors hover:border-border-strong hover:bg-surface-raised">
+      <dt className="truncate font-mono text-[10.5px] uppercase tracking-[0.08em] text-subtle-foreground">{title}</dt>
       <dd className="flex flex-wrap items-baseline gap-x-2">
-        <span className={`font-display text-base tabular-nums ${tone ?? ""}`}>{value}</span>
+        <span className={`font-mono text-base ${tone ?? ""}`}>{value}</span>
         <span className="truncate text-[10px] text-muted-foreground">{sub}</span>
       </dd>
     </div>
@@ -69,7 +69,7 @@ export function MetricsBar({ events }: { events: Event[] }) {
   return (
     <section aria-labelledby="metrics-title" className="min-w-0">
       <div className="mb-1.5 flex items-baseline justify-between gap-3">
-        <h2 id="metrics-title" className="text-[11px] uppercase tracking-wider text-muted-foreground">
+        <h2 id="metrics-title" className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-subtle-foreground">
           Run metrics <span className="normal-case tracking-normal">· same lab / other labs</span>
         </h2>
         <button
@@ -112,14 +112,14 @@ function FullMetrics({ m }: { m: ReturnType<typeof computeRunMetrics> }) {
           <Line k="same-lab / all pairs" count={a.count} total={a.total} rate={a.share} tone="text-primary" />
           <p className="flex items-baseline justify-between gap-2 text-sm tabular-nums">
             <span className="text-xs text-muted-foreground">vs chance</span>
-            <span className="font-display text-lg text-primary">{a.total ? `${a.ratio.toFixed(2)}x` : "–"}</span>
+            <span className="font-mono text-lg text-primary">{a.total ? `${a.ratio.toFixed(2)}x` : "–"}</span>
           </p>
         </Card>
         <Card title="Same-lab DMs" note={ms.total ? `Chance baseline ${pct(ms.chance ?? 0)}.` : undefined}>
           <Line k="DMs to same lab" count={ms.count} total={ms.total} rate={ms.share} tone="text-primary" />
           <p className="flex items-baseline justify-between gap-2 text-sm tabular-nums">
             <span className="text-xs text-muted-foreground">vs chance</span>
-            <span className="font-display text-lg text-primary">{ms.total ? `${ms.ratio.toFixed(2)}x` : "–"}</span>
+            <span className="font-mono text-lg text-primary">{ms.total ? `${ms.ratio.toFixed(2)}x` : "–"}</span>
           </p>
         </Card>
         <InOut title="Lies per offer" r={m.deception} tone="text-violation" note="Claim off by 2+ quality, per offer." />

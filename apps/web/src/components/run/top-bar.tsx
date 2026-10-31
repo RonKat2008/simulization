@@ -30,7 +30,7 @@ const WEALTH_HINT: Record<WealthVisibility, string> = {
 
 function Badge({ children, tone, title }: { children: string; tone: string; title?: string }) {
   return (
-    <span title={title} className={`rounded-sm border px-2 py-0.5 text-[11px] ${tone}`}>
+    <span title={title} className={`inline-flex h-5 items-center rounded-sm border px-1.5 font-mono text-[10.5px] tracking-[0.02em] ${tone}`}>
       {children}
     </span>
   );
@@ -66,44 +66,44 @@ export function TopBar({
 
   return (
     <header className="border-b bg-background">
-      <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-4 gap-y-1.5 px-4 pb-2 pt-2.5 sm:px-6">
-        <Link href="/" className="font-display text-base font-semibold tracking-wide transition-colors hover:text-accent">
+      <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 sm:px-6">
+        <Link href="/" className="rounded-sm text-[15px] font-semibold tracking-[-0.02em] text-foreground transition-colors hover:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
           Simulization
         </Link>
-        <span className="hidden h-4 w-px bg-border sm:block" aria-hidden="true" />
+        <span className="hidden text-border-strong sm:block" aria-hidden="true">/</span>
         <h1 className="flex min-w-0 items-center gap-2 text-sm font-normal">
-          <span className="text-muted-foreground">Run</span>
-          <span className="max-w-[18ch] truncate sm:max-w-[32ch]" title={runId}>
+          <span className="sr-only">Run</span>
+          <span className="max-w-[18ch] truncate font-mono text-[13px] text-foreground sm:max-w-[32ch]" title={runId}>
             {runId}
           </span>
         </h1>
         {condition ? (
           <span
-            className={`rounded-sm border px-2 py-0.5 font-display text-[11px] tracking-widest ${
-              blind ? "border-accent/60 text-accent" : "border-primary/60 text-primary"
+            className={`inline-flex h-5 items-center rounded-sm border px-1.5 font-mono text-[10.5px] uppercase tracking-[0.08em] ${
+              blind ? "border-accent/40 bg-accent/[0.06] text-accent" : "border-primary/40 bg-primary/[0.06] text-primary"
             }`}
           >
             {condition}
           </span>
         ) : null}
         {modeInfo ? (
-          <Badge title={modeInfo.hint} tone={modeInfo.warn ? "border-violation/60 text-violation" : "border-border text-muted-foreground"}>
+          <Badge title={modeInfo.hint} tone={modeInfo.warn ? "border-violation/50 text-violation" : "border-border-strong text-muted-foreground"}>
             {modeInfo.text}
           </Badge>
         ) : null}
         {wealthVisibility ? (
-          <Badge title={WEALTH_HINT[wealthVisibility]} tone={wealthVisibility === "public" ? "border-lab-b/60 text-lab-b" : "border-border text-muted-foreground"}>
+          <Badge title={WEALTH_HINT[wealthVisibility]} tone={wealthVisibility === "public" ? "border-lab-b/50 text-lab-b" : "border-border-strong text-muted-foreground"}>
             {`wealth ${wealthVisibility}`}
           </Badge>
         ) : null}
 
         {status === "ended" && !isMock ? (
-          <Link href={`/report?runId=${encodeURIComponent(reportRunId ?? runId)}`} className="text-xs text-primary underline underline-offset-4">
+          <Link href={`/report?runId=${encodeURIComponent(reportRunId ?? runId)}`} className="rounded-sm text-xs text-primary underline decoration-primary/40 underline-offset-4 transition-colors hover:decoration-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
             {reportStatus === "done" ? "View persisted report" : reportStatus === "failed" ? "Report failed — details" : reportStatus === "not-requested" ? "View run results" : "View report status"}
           </Link>
         ) : null}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:ml-auto">
-          <p className="tabular-nums text-muted-foreground">
+          <p className="font-mono text-[11px] text-muted-foreground">
             <span className="text-foreground">{total}</span> events
           </p>
           <button
@@ -112,23 +112,26 @@ export function TopBar({
             aria-pressed={helpOpen}
             aria-keyshortcuts="?"
             title="What you're looking at, and keyboard shortcuts"
-            className={`flex items-center gap-1.5 rounded-sm border px-2 py-0.5 transition-colors hover:border-primary/60 hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary active:bg-border ${
-              helpOpen ? "border-primary/60 text-foreground" : "text-muted-foreground"
+            className={`flex h-7 items-center gap-1.5 rounded-md border px-2 transition-colors duration-150 hover:bg-surface-raised hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary active:bg-border ${
+              helpOpen ? "border-border-strong bg-surface-raised text-foreground" : "border-border text-muted-foreground"
             }`}
           >
-            <kbd className="font-display text-[11px] text-foreground">?</kbd>
+            <kbd className="inline-flex size-4 items-center justify-center rounded-[3px] border border-border-strong font-mono text-[10px] text-foreground">?</kbd>
             Guide
           </button>
-          <p role="status" className={`flex items-center gap-2 ${st.text}`}>
-            <span className={`size-2 rounded-full ${st.dot}`} aria-hidden="true" />
+          <p role="status" className={`flex items-center gap-2 font-mono text-[11px] ${st.text}`}>
+            <span className={`size-1.5 rounded-full ${st.dot}`} aria-hidden="true" />
             {st.label}
           </p>
         </div>
       </div>
-      <div className="mx-auto max-w-[1600px] px-4 py-3 text-sm leading-relaxed sm:px-6">
-        <strong>Round {round ?? '…'} of 6 · {phase ?? 'Connecting'}</strong>
-        <p className="mt-1 text-muted-foreground">{phase === 'negotiate' ? 'Merchants message each other, form coalitions and propose pacts.' : phase === 'trade' ? 'Merchants offer goods, then buyers accept or decline. Claimed quality may differ from the truth.' : phase === 'act' ? 'Each merchant chooses to work, contribute, steal or pass.' : phase === 'reveal' ? 'The referee resolves theft detection, fines and coalition rewards.' : 'Waiting for the simulation to connect.'}</p>
-        <p className="mt-1 text-xs text-muted-foreground">Goal: finish with coins plus the true value of held goods. A coalition is a shared group; an accepted pact is a two-agent promise that can be broken.</p>
+      <div className="mx-auto flex max-w-[1600px] flex-col gap-1 px-4 pb-3 pt-1 text-sm leading-relaxed sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-4 sm:px-6">
+        <strong className="font-mono text-[11px] font-normal uppercase tracking-[0.08em] text-foreground">R{round ?? '…'}<span className="text-subtle-foreground">/6</span> · {phase ?? 'Connecting'}</strong>
+        <p className="text-muted-foreground">{phase === 'negotiate' ? 'Merchants message each other, form coalitions and propose pacts.' : phase === 'trade' ? 'Merchants offer goods, then buyers accept or decline. Claimed quality may differ from the truth.' : phase === 'act' ? 'Each merchant chooses to work, contribute, steal or pass.' : phase === 'reveal' ? 'The referee resolves theft detection, fines and coalition rewards.' : 'Waiting for the simulation to connect.'}</p>
+        <details className="group text-xs text-muted-foreground sm:ml-auto">
+          <summary className="cursor-pointer list-none rounded-sm text-subtle-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary group-open:text-foreground [&::-webkit-details-marker]:hidden">Goal of the game</summary>
+          <p className="mt-1 max-w-xl">Goal: finish with coins plus the true value of held goods. A coalition is a shared group; an accepted pact is a two-agent promise that can be broken.</p>
+        </details>
       </div>
       <RoundTimeline round={round} phase={phase} ended={status === "ended"} />
     </header>
@@ -137,10 +140,10 @@ export function TopBar({
 
 export function BlindBanner() {
   return (
-    <div role="note" className="border-b border-accent/40 bg-accent/10">
-      <p className="mx-auto max-w-[1600px] px-4 py-1.5 text-xs text-accent sm:px-6">
-        <span className="font-display tracking-widest">BLIND</span>
-        <span className="mx-2 opacity-60" aria-hidden="true">/</span>
+    <div role="note" className="border-b border-accent/25 bg-accent/[0.05]">
+      <p className="mx-auto max-w-[1600px] px-4 py-1.5 text-xs text-muted-foreground sm:px-6">
+        <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-accent">Blind</span>
+        <span className="mx-2 text-subtle-foreground" aria-hidden="true">/</span>
         Labels hidden. Metrics use true companies.
       </p>
     </div>

@@ -23,5 +23,5 @@ export function ReportProgress({runId}:{runId:string}) {
    if(!stopped&&retry)timer=setTimeout(tick,5000);
   };void tick();return()=>{stopped=true;controller.abort();if(timer)clearTimeout(timer);};
  },[runId,router]);
- return <p role="status" className="text-xs text-muted-foreground">{message}</p>;
+ return <p role="status" className="font-mono text-xs text-muted-foreground">{message}</p>;
 }

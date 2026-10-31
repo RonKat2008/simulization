@@ -56,7 +56,7 @@ export function ViewTabs({ view, onChange }: { view: ViewKey; onChange: (v: View
   };
 
   return (
-    <div role="tablist" aria-label="Run view" onKeyDown={onKeyDown} className="flex gap-1 border-b">
+    <div role="tablist" aria-label="Run view" onKeyDown={onKeyDown} className="inline-flex gap-0.5 self-start rounded-lg border bg-surface p-0.5">
       {VIEWS.map((v) => {
         const on = v.key === view;
         return (
@@ -73,8 +73,10 @@ export function ViewTabs({ view, onChange }: { view: ViewKey; onChange: (v: View
             tabIndex={on ? 0 : -1}
             title={HINT[v.key]}
             onClick={() => onChange(v.key)}
-            className={`-mb-px rounded-t-sm border-b-2 px-3 py-1.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-primary active:bg-surface-raised ${
-              on ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:bg-surface-raised/60 hover:text-foreground"
+            className={`h-8 rounded-md px-3.5 text-[13px] font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-primary ${
+              on
+                ? "bg-surface-raised text-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.05),0_1px_2px_rgb(0_0_0/0.4)]"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             {v.label}

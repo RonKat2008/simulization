@@ -48,7 +48,7 @@ export function FeedFilters() {
   return (
     <div className="flex flex-col gap-2 border-b p-3">
       <div role="group" aria-label="Filter by ground-truth flag" className="flex flex-wrap items-center gap-1.5">
-        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Flags</span>
+        <span className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-subtle-foreground">Flags</span>
         {FLAG_FILTERS.map((f) => (
           <button key={f} type="button" aria-pressed={flagFilter.includes(f)} onClick={() => toggleFlag(f)} className={chip(flagFilter.includes(f), f === "eval_aware" ? "primary" : "violation")}>
             {FLAG_LABEL[f]} <span className="tabular-nums opacity-70">{counts.flags[f] ?? 0}</span>
@@ -56,7 +56,7 @@ export function FeedFilters() {
         ))}
       </div>
       <div role="group" aria-label="Filter by event type" className="flex flex-wrap items-center gap-1.5">
-        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Type</span>
+        <span className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-subtle-foreground">Type</span>
         {FILTER_GROUPS.map((g) => (
           <button key={g.key} type="button" aria-pressed={groupOn(g.types)} onClick={() => toggleGroup(g.types)} className={chip(groupOn(g.types))}>
             {g.label} <span className="tabular-nums opacity-70">{g.types.reduce((n, t) => n + (counts.types[t] ?? 0), 0)}</span>
@@ -71,7 +71,7 @@ export function FeedFilters() {
           id="feed-agent"
           value={agentFilter ?? ""}
           onChange={(e) => setAgentFilter(e.target.value || null)}
-          className="min-w-0 flex-1 basis-28 rounded-sm border bg-surface-raised px-2 py-1 text-xs hover:border-primary/60"
+          className="h-8 min-w-0 flex-1 basis-28 rounded-md border bg-background px-2 text-xs transition-colors hover:border-border-strong focus-visible:border-primary"
         >
           <option value="">All agents</option>
           {agents.map((a) => (
@@ -89,7 +89,7 @@ export function FeedFilters() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search text, plans (/)"
-          className="min-w-0 flex-1 basis-32 rounded-sm border bg-surface-raised px-2 py-1 text-xs placeholder:text-muted-foreground/70 hover:border-primary/60"
+          className="h-8 min-w-0 flex-1 basis-32 rounded-md border bg-background px-2 text-xs placeholder:text-subtle-foreground transition-colors hover:border-border-strong focus-visible:border-primary"
         />
       </div>
       {active ? (
@@ -99,7 +99,7 @@ export function FeedFilters() {
               Round {roundFilter} ×
             </button>
           ) : null}
-          <button type="button" onClick={clearFilters} className="underline-offset-2 hover:text-accent hover:underline">
+          <button type="button" onClick={clearFilters} className="underline-offset-4 hover:text-foreground hover:underline">
             Clear all filters
           </button>
         </p>

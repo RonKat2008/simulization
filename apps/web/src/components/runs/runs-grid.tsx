@@ -24,16 +24,16 @@ function PairBlock({ pair }: { pair: RunPair }) {
   return (
     <motion.li
       variants={item}
-      className="rounded-md border border-dashed p-3 sm:col-span-2 sm:p-4"
+      className="rounded-xl border border-dashed border-border-strong p-3 sm:col-span-2 sm:p-4 lg:col-span-3"
       aria-label={`Matched pair, seed ${pair.seed}, wealth ${pair.wealth}`}
     >
-      <p className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-muted-foreground">
-        <span className="tracking-wider">
-          MATCHED PAIR <span aria-hidden="true">·</span> seed {pair.seed} <span aria-hidden="true">·</span> wealth {pair.wealth}
+      <p className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-1 font-mono text-[11px] uppercase tracking-[0.08em] text-subtle-foreground">
+        <span>
+          Matched pair <span aria-hidden="true">·</span> seed {pair.seed} <span aria-hidden="true">·</span> wealth {pair.wealth}
         </span>
-        <span>Compare: same seed, labeled vs blind</span>
+        <span className="normal-case tracking-normal">Same seed, labeled vs blind</span>
       </p>
-      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {cards.map((entry) => (
           <li key={entry.slug}>
             <RunCard entry={entry} />
@@ -49,7 +49,7 @@ export function RunsGrid({ runs }: { runs: RunEntry[] }) {
   return (
     <MotionConfig reducedMotion="user">
       <motion.ul
-        className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+        className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3"
         variants={container}
         initial="hidden"
         animate="show"

@@ -27,19 +27,20 @@ export function CompanyTable({ data }: { data: ReportData }) {
   return (
     <Section
       id="company-title"
+      index="04"
       title="Per company"
     >
         <Disclosure summary="How to read this table">
-          <p>Metrics are scoped to each company's agents; in-group means their own company. Theft values in brackets measure theft frequency per act turn, adjusted for target-group availability. Equal adjusted rates indicate no observed targeting difference, not proof of random behavior. Avg score is coins plus true value of goods held.</p>
+          <p>Metrics are scoped to each company&apos;s agents; in-group means their own company. Theft values in brackets measure theft frequency per act turn, adjusted for target-group availability. Equal adjusted rates indicate no observed targeting difference, not proof of random behavior. Avg score is coins plus true value of goods held.</p>
         </Disclosure>
-        <div className="relative overflow-x-auto rounded-md border bg-surface">
+        <div className="relative overflow-x-auto rounded-lg border bg-surface shadow-raised">
           <table aria-label="Behavior metrics per company and condition" className="w-full min-w-[56rem] border-collapse text-left text-xs">
-            <thead className="text-muted-foreground">
+            <thead className="font-mono text-[11px] uppercase tracking-[0.08em] text-subtle-foreground">
               <tr className="border-b">
-                <th scope="col" className="px-3 py-2 font-normal">Company</th>
-                <th scope="col" className="px-3 py-2 font-normal">Condition</th>
+                <th scope="col" className="px-4 py-3 font-normal">Company</th>
+                <th scope="col" className="px-4 py-3 font-normal">Condition</th>
                 {HEADS.map((h, i) => (
-                  <th key={h} scope="col" className="px-3 py-2 font-normal"><Term k={HEAD_TERM[i]!}>{h}</Term></th>
+                  <th key={h} scope="col" className="px-4 py-3 font-normal"><Term k={HEAD_TERM[i]!}>{h}</Term></th>
                 ))}
               </tr>
             </thead>
@@ -49,24 +50,24 @@ export function CompanyTable({ data }: { data: ReportData }) {
                   const rep = data.conditions[cond];
                   const m = rep?.byCompany[co.id];
                   return (
-                    <tr key={`${co.id}-${cond}`} className={`${i === 0 ? 'border-t' : ''} align-top`}>
+                    <tr key={`${co.id}-${cond}`} className={`${i === 0 ? 'border-t border-border-strong' : 'border-t'} align-top transition-colors duration-150 hover:bg-surface-raised`}>
                       {i === 0 && (
-                        <th scope="rowgroup" rowSpan={2} className="px-3 py-2 text-left font-normal">
-                          <span className="flex items-center gap-2 font-medium text-sm">
+                        <th scope="rowgroup" rowSpan={2} className="px-4 py-3 text-left font-normal">
+                          <span className="flex items-center gap-2 text-sm font-semibold">
                             <span className="size-2.5 rounded-sm" style={{ background: COMPANY_VAR[co.id] }} aria-hidden="true" />
                             {co.name}
                           </span>
                         </th>
                       )}
-                      <td className="px-3 py-2">
+                      <td className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em]">
                         <span className={cond === 'LABELED' ? 'text-primary' : 'text-accent'}>{cond}</span>
                       </td>
                       {m && rep ? (
                         cells(m, rep.meanScore[co.id] ?? 0).map((c, j) => (
-                          <td key={HEADS[j]} className="px-3 py-2 tabular-nums">{c}</td>
+                          <td key={HEADS[j]} className="px-4 py-3 font-mono tabular-nums">{c}</td>
                         ))
                       ) : (
-                        <td colSpan={HEADS.length} className="px-3 py-2 text-muted-foreground">no run</td>
+                        <td colSpan={HEADS.length} className="px-4 py-3 text-muted-foreground">no run</td>
                       )}
                     </tr>
                   );

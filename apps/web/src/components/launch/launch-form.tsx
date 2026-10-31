@@ -108,10 +108,10 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
       <OptionGroup legend="Show agents’ company names" name="condition" options={CONDITION_OPTIONS} value={condition} onChange={setCondition} disabled={pending} />
       <OptionGroup legend="Show other agents’ coin balances" name="wealth_visibility" options={WEALTH_OPTIONS} value={wealth} onChange={setWealth} disabled={pending} />
 
-      <details className="rounded-md border px-4 py-3">
-        <summary className="cursor-pointer py-1 text-sm font-medium">Advanced: seed and paired comparison</summary>
+      <details className="group rounded-lg border bg-background/40 px-4 py-2 open:border-border-strong">
+        <summary className="flex min-h-10 cursor-pointer items-center rounded-md text-sm font-medium text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary group-open:text-foreground">Advanced: seed and paired comparison</summary>
       <div className="flex flex-col gap-2">
-        <label htmlFor={seedId} className="text-xs uppercase tracking-widest text-muted-foreground">
+        <label htmlFor={seedId} className="font-mono text-[11px] uppercase tracking-[0.08em] text-subtle-foreground">
           Seed
         </label>
         <input
@@ -126,7 +126,7 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
           disabled={pending}
           aria-describedby={`${seedHelpId} ${seedError ? seedErrorId : ""}`.trim()}
           aria-invalid={seedError ? true : undefined}
-          className="h-11 w-full max-w-xs rounded-md border bg-background px-3 text-base tabular-nums transition-colors hover:border-muted-foreground/60 focus-visible:border-primary focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-60 aria-[invalid=true]:border-violation"
+          className="h-11 w-full max-w-xs rounded-md border bg-surface px-3 font-mono text-base transition-colors duration-150 hover:border-border-strong focus-visible:border-primary focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-60 aria-[invalid=true]:border-violation"
         />
         {seedError ? (
           <p id={seedErrorId} role="alert" className="text-sm text-violation">
@@ -152,14 +152,14 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
           className={buttonClass("secondary")}
         >
           {phase.kind === "pending" && phase.what === "pair" ? "Starting pair…" : "Start matched pair"}
-        </button><p className="mt-2 text-xs text-muted-foreground">A matched pair starts two paid runs with the same seed and coin visibility, one with company names and one without.</p>
+        </button><p className="mb-2 mt-3 text-xs leading-relaxed text-muted-foreground">A matched pair starts two paid runs with the same seed and coin visibility, one with company names and one without.</p>
       </details>
 
       {phase.kind === "error" ? (
         <p
           id={errorId}
           role="alert"
-          className="rounded-md border border-violation/60 bg-violation/10 px-3 py-2.5 text-sm leading-relaxed text-foreground"
+          className="rounded-md border border-violation/60 bg-violation/[0.08] px-3 py-2.5 text-sm leading-relaxed text-foreground"
         >
           <span className="mr-2 font-semibold text-violation">Could not start run.</span>
           {phase.message}
@@ -167,7 +167,7 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
       ) : null}
 
       {phase.kind === "pair" ? (
-        <div role="status" className="flex flex-col gap-3 rounded-md border border-primary/60 bg-primary/10 px-4 py-3 text-sm leading-relaxed">
+        <div role="status" className="flex flex-col gap-3 rounded-md border border-primary/50 bg-primary/[0.06] px-4 py-3 text-sm leading-relaxed">
           <p className="font-semibold">{phase.blind ? "Pair started." : "LABELED started; BLIND needs retry."}</p>
           <ul className="flex flex-col gap-2 sm:flex-row">
             {phase.labeled ? <li><Link href={`/run/${encodeURIComponent(phase.labeled)}`} className={buttonClass("secondary", "w-full break-all py-2 sm:w-auto")}>LABELED</Link></li> : null}

@@ -10,7 +10,7 @@ type State =
   | { kind: "error"; message: string };
 
 const LINK =
-  "underline decoration-border decoration-2 underline-offset-4 transition-colors hover:text-accent hover:decoration-accent active:text-accent";
+  "text-foreground underline decoration-border-strong underline-offset-4 transition-colors duration-150 hover:text-primary hover:decoration-primary";
 
 function formatCreated(value: RunSummary["createdAt"]): string {
   if (value === null || value === undefined) return "–";
@@ -64,7 +64,7 @@ export function PastRuns({ refreshKey = 0 }: { refreshKey?: number }) {
   return (
     <section aria-labelledby="past-runs-heading" className="flex flex-col gap-4">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <h2 id="past-runs-heading" className="font-display text-2xl font-semibold">
+        <h2 id="past-runs-heading" className="text-lg font-semibold">
           Past runs
         </h2>
         <button
@@ -74,7 +74,7 @@ export function PastRuns({ refreshKey = 0 }: { refreshKey?: number }) {
             setNonce((n) => n + 1);
           }}
           disabled={state.kind === "loading"}
-          className="inline-flex min-h-10 items-center rounded-md border px-4 text-xs transition-colors hover:border-primary hover:text-primary active:bg-surface-raised disabled:opacity-50"
+          className="inline-flex min-h-10 items-center rounded-md border border-border-strong bg-surface px-4 text-xs text-muted-foreground transition-colors duration-150 hover:bg-surface-raised hover:text-foreground disabled:opacity-50"
         >
           {state.kind === "loading" ? "Loading…" : "Refresh"}
         </button>
@@ -100,10 +100,10 @@ export function PastRuns({ refreshKey = 0 }: { refreshKey?: number }) {
       ) : null}
 
       {state.kind === "ready" && state.runs.length > 0 ? (
-        <div className="overflow-x-auto rounded-lg border">
+        <div className="overflow-x-auto rounded-lg border bg-surface shadow-raised">
           <table className="w-full min-w-[30rem] border-collapse text-left text-sm">
             <caption className="sr-only">Recorded runs, newest first</caption>
-            <thead className="bg-surface text-xs uppercase tracking-widest text-muted-foreground">
+            <thead className="bg-surface font-mono text-[11px] uppercase tracking-[0.08em] text-subtle-foreground">
               <tr>
                 <th scope="col" className="px-3 py-2.5 font-normal">Run</th>
                 <th scope="col" className="px-3 py-2.5 font-normal">Condition</th>
@@ -120,12 +120,12 @@ export function PastRuns({ refreshKey = 0 }: { refreshKey?: number }) {
                     <span className="block truncate">{run.id}</span>
                     <span className="block text-xs text-muted-foreground">{modeLabel(run.mode)} · {run.wealth_visibility ?? "private"} wealth</span>
                   </th>
-                  <td className={`px-3 py-2.5 font-display tracking-widest ${run.condition === "BLIND" ? "text-accent" : "text-primary"}`}>
+                  <td className={`px-3 py-2.5 font-mono text-xs ${run.condition === "BLIND" ? "text-accent" : "text-primary"}`}>
                     {run.condition}
                   </td>
-                  <td className="px-3 py-2.5 tabular-nums">{run.seed ?? "–"}</td>
+                  <td className="px-3 py-2.5 font-mono text-xs">{run.seed ?? "–"}</td>
                   <td className={`px-3 py-2.5 ${statusTone(run.status)}`}>{run.status}</td>
-                  <td className="px-3 py-2.5 tabular-nums">{run.round ?? "–"}/{ROUNDS}</td>
+                  <td className="px-3 py-2.5 font-mono text-xs">{run.round ?? "–"}/{ROUNDS}</td>
                   <td className="whitespace-nowrap px-3 py-2.5">
                     <Link href={`/run/${encodeURIComponent(run.id)}`} className={LINK}>
                       viewer

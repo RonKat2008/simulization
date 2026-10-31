@@ -11,6 +11,7 @@ import { useEventStore } from "@/store/eventStore";
 import { useRun } from "./run-context";
 import { COMPANY_TEXT } from "./run-helpers";
 import { useStoredFlag } from "./run-prefs";
+import { PlainVerdict } from "./story/plain-verdict";
 
 /** Below this many choices a rate is printed with a low-n warning. */
 const LOW_N = 10;
@@ -90,7 +91,7 @@ function EventList({ ids, byId, label }: { ids: string[]; byId: Map<string, Even
             onClick={() => focusEvent(e)}
             className="flex w-full min-w-0 items-baseline gap-2 rounded-sm px-2 py-1 text-left text-xs transition-colors hover:bg-surface-raised focus-visible:bg-surface-raised"
           >
-            <span className="shrink-0 tabular-nums text-muted-foreground">#{e.seq} R{e.round}</span>
+            <span className="shrink-0 font-mono text-[11px] text-subtle-foreground">#{e.seq} R{e.round}</span>
             <span className="min-w-0 break-words">{summarize(e, label)}</span>
           </button>
         </li>
@@ -130,7 +131,7 @@ function HowFound({ definition, formula, children, blind }: { definition: ReactN
   const blindNote = blind ? " Group splits use true companies, so these lists reveal which merchants share one." : "";
   return (
     <details className="group mt-3 border-t pt-2">
-      <summary className="cursor-pointer select-none text-xs text-accent underline-offset-4 hover:underline">
+      <summary className="cursor-pointer select-none rounded-sm text-xs text-muted-foreground underline decoration-border-strong underline-offset-4 transition-colors hover:text-foreground hover:decoration-foreground">
         How this was found
       </summary>
       <div className="mt-2 flex flex-col gap-2.5 text-xs leading-relaxed">
@@ -149,9 +150,9 @@ function HowFound({ definition, formula, children, blind }: { definition: ReactN
 
 function Stat({ title, value, tone, note, children }: { title: string; value: string; tone?: string; note?: ReactNode; children?: ReactNode }) {
   return (
-    <article className="min-w-0 rounded-md border bg-surface p-3 sm:p-4">
-      <h3 className="text-[11px] uppercase tracking-wider text-muted-foreground">{title}</h3>
-      <p className={`mt-1.5 font-display text-3xl leading-none tabular-nums ${tone ?? ""}`}>{value}</p>
+    <article className="min-w-0 rounded-lg border bg-surface p-4 sm:p-5">
+      <h3 className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-subtle-foreground">{title}</h3>
+      <p className={`mt-3 font-mono text-[2rem] font-medium leading-none tracking-tight ${tone ?? ""}`}>{value}</p>
       {note ? <div className="mt-2 text-xs text-muted-foreground">{note}</div> : null}
       {children}
     </article>
@@ -181,7 +182,7 @@ function Headline({ k, v, tone, hint }: { k: string; v: string; tone?: string; h
   return (
     <div title={hint} className="flex items-baseline gap-1.5">
       <dt className="text-muted-foreground">{k}</dt>
-      <dd className={`font-display text-sm tabular-nums ${tone ?? ""}`}>{v}</dd>
+      <dd className={`font-mono text-[13px] ${tone ?? ""}`}>{v}</dd>
     </div>
   );
 }
@@ -250,10 +251,10 @@ export function RunSummary({ events, isMock, mode }: { events: Event[]; isMock: 
   const companies = Object.entries(eth.byCompany);
 
   return (
-    <section aria-labelledby="run-summary-title" className="min-w-0 rounded-lg border border-primary/40 bg-surface-raised/40">
-      <div className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 rounded-t-lg border-b bg-surface-raised/95 px-3 py-2 backdrop-blur sm:px-4">
+    <section aria-labelledby="run-summary-title" className="min-w-0 rounded-lg border border-border-strong bg-surface shadow-raised">
+      <div className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 rounded-t-lg border-b bg-surface/95 px-3 py-2.5 backdrop-blur sm:px-4">
         <div className="flex min-w-0 flex-wrap items-baseline gap-x-4 gap-y-1">
-          <h2 id="run-summary-title" className="font-display text-sm tracking-wide">
+          <h2 id="run-summary-title" className="text-[13px] font-semibold tracking-[-0.01em]">
             Results
           </h2>
           <dl className="flex flex-wrap items-baseline gap-x-4 gap-y-0.5 text-xs">
@@ -263,7 +264,7 @@ export function RunSummary({ events, isMock, mode }: { events: Event[]; isMock: 
           </dl>
         </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-          <span className="hidden sm:inline">{condition ?? "?"} · n = 1</span>
+          <span className="hidden font-mono sm:inline">{condition ?? "?"} · n = 1</span>
           {isMock || stub ? (
             <span className="rounded-sm border border-dashed border-accent/60 px-1.5 py-px text-accent">
               {isMock ? "Mock replay" : "Stub agents"}
@@ -274,11 +275,14 @@ export function RunSummary({ events, isMock, mode }: { events: Event[]; isMock: 
             aria-expanded={open}
             aria-controls="run-summary-body"
             onClick={() => detail.set(!open)}
-            className="rounded-sm border px-2 py-0.5 text-xs transition-colors hover:border-primary/60 hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary active:bg-border"
+            className="rounded-md border border-border-strong px-2 py-0.5 text-xs transition-colors hover:bg-surface-raised hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary active:bg-border"
           >
             {open ? "Hide" : "Details"}
           </button>
         </div>
+      </div>
+      <div className="border-b p-3 sm:p-4">
+        <PlainVerdict events={events} isMock={isMock} onDetails={() => detail.set(true)} />
       </div>
       <div id="run-summary-body" hidden={!open} className="flex flex-col gap-3 p-3 sm:p-4">
         <div className="grid min-w-0 grid-cols-1 items-start gap-3 md:grid-cols-3">

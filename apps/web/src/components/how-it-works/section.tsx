@@ -1,29 +1,26 @@
 import type { ReactNode } from 'react'
-import { SectionHeading } from '../landing/section-heading'
+import { LandingSection } from '../landing/section-heading'
 
-/** One explainer section: shared rhythm, heading and anchor target. */
+/** One explainer section: heading rail on the left, content on the right (same layout as home). */
 export function Section({
   id,
+  index,
   kicker,
   title,
   description,
   children,
-  tint = false,
 }: {
   id: string
+  index: string
   kicker: string
   title: string
   description?: string
   children: ReactNode
-  tint?: boolean
 }) {
   return (
-    <section id={id} aria-labelledby={`${id}-title`} className={`scroll-mt-14 border-b ${tint ? 'bg-surface/40' : ''}`}>
-      <div className="mx-auto flex max-w-6xl flex-col gap-10 px-4 py-16 sm:px-6 md:py-24">
-        <SectionHeading id={`${id}-title`} kicker={kicker} title={title} description={description} />
-        {children}
-      </div>
-    </section>
+    <LandingSection id={id} titleId={`${id}-title`} index={index} kicker={kicker} title={title} description={description}>
+      {children}
+    </LandingSection>
   )
 }
 

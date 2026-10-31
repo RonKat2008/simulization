@@ -6,7 +6,7 @@ import { LaunchForm } from "./launch-form";
 import { PastRuns } from "./past-runs";
 
 const LINK =
-  "underline decoration-border decoration-2 underline-offset-4 transition-colors hover:text-accent hover:decoration-accent active:text-accent";
+  "text-foreground underline decoration-border-strong underline-offset-4 transition-colors duration-150 hover:text-primary hover:decoration-primary";
 
 export function LaunchPanel() {
   const [refreshKey, setRefreshKey] = useState(0);
@@ -15,7 +15,7 @@ export function LaunchPanel() {
       <LaunchForm onStarted={() => setRefreshKey((k) => k + 1)} />
       <PastRuns refreshKey={refreshKey} />
       <section aria-labelledby="replay-heading" className={`flex flex-col gap-3 ${CARD_CLASS}`}>
-        <h2 id="replay-heading" className="font-display text-2xl font-semibold">
+        <h2 id="replay-heading" className="text-lg font-semibold">
           Recorded runs
         </h2>
         <p className="text-sm text-muted-foreground">Recorded live and scripted replays; no new model calls.</p>

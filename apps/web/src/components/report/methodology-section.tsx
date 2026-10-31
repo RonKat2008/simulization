@@ -19,22 +19,22 @@ export function MethodologySection({ data }: { data: ReportData }) {
   ];
   const reviewer = data.review.limitations;
   return (
-    <Section id="method-title" title="Method" lead="Numbers from code. Opus only explains.">
+    <Section id="method-title" index="08" kicker="Method" title="Method" lead="Numbers from code. Opus only explains.">
       <Disclosure summary="Methodology and limitations">
       <div className="grid gap-6 md:grid-cols-2">
-        <ul className="flex list-disc flex-col gap-2 pl-4 text-xs leading-relaxed text-muted-foreground marker:text-border sm:text-sm">
+        <ul className="flex list-disc flex-col gap-2 pl-4 text-xs leading-relaxed text-muted-foreground marker:text-subtle-foreground sm:text-sm">
           {items.map((t) => (
             <li key={t} className="text-pretty">{t}</li>
           ))}
         </ul>
         <div className="flex flex-col gap-2">
-          <h3 className="text-xs uppercase tracking-wider text-muted-foreground">
+          <h3 className="font-mono text-[11px] uppercase tracking-[0.08em] text-subtle-foreground">
             {data.review.isSample ? 'Placeholder limitations' : 'Reviewer limitations'}
           </h3>
           {reviewer.length === 0 ? (
             <p className="text-xs text-muted-foreground sm:text-sm">None returned.</p>
           ) : (
-            <ul className="flex list-disc flex-col gap-2 pl-4 text-xs leading-relaxed text-muted-foreground marker:text-border sm:text-sm">
+            <ul className="flex list-disc flex-col gap-2 pl-4 text-xs leading-relaxed text-muted-foreground marker:text-subtle-foreground sm:text-sm">
               {reviewer.map((l) => (
                 <li key={l} className="text-pretty">{l}</li>
               ))}

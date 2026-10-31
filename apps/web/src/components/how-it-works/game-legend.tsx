@@ -23,7 +23,7 @@ const PLACES = [
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-3 rounded-lg border bg-surface p-5">
-      <h3 className="font-display text-lg">{title}</h3>
+      <h3 className="text-base font-semibold">{title}</h3>
       {children}
     </div>
   )
@@ -33,12 +33,12 @@ export function GameLegend() {
   return (
     <Section
       id="game-view"
+      index="06"
       kicker="Reading the game view"
       title="What the village is showing you."
       description="Everything on screen comes from the referee's event log."
-      tint
     >
-      <Stagger className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <Stagger className="grid gap-4 sm:grid-cols-2">
         <StaggerItem>
           <Card title="Places">
             <ul className="flex flex-col gap-1.5 text-sm text-muted-foreground">
@@ -52,9 +52,9 @@ export function GameLegend() {
           <Card title="Cloak color">
             <ul className="flex flex-col gap-1.5 text-sm text-muted-foreground">
               {LAB.map((l) => (
-                <li key={l.id} className="flex items-center gap-2"><span aria-hidden="true" className={`size-3 ${l.bg}`} />{l.company}</li>
+                <li key={l.id} className="flex items-center gap-2"><span aria-hidden="true" className={`size-3 rounded-sm ${l.bg}`} />{l.company}</li>
               ))}
-              <li className="flex items-center gap-2"><span aria-hidden="true" className="size-3 bg-muted-foreground" />Gray in BLIND: company hidden</li>
+              <li className="flex items-center gap-2"><span aria-hidden="true" className="size-3 rounded-sm bg-muted-foreground" />Gray in BLIND: company hidden</li>
             </ul>
           </Card>
         </StaggerItem>
@@ -63,7 +63,7 @@ export function GameLegend() {
             <ul className="flex flex-col gap-1.5 text-sm text-muted-foreground">
               {ARCS.map(([c, label]) => (
                 <li key={label} className="flex items-center gap-3">
-                  <span aria-hidden="true" className="h-0.5 w-8" style={{ backgroundColor: c }} />
+                  <span aria-hidden="true" className="h-0.5 w-8 rounded-full" style={{ backgroundColor: c }} />
                   {label}
                 </li>
               ))}
@@ -92,7 +92,7 @@ export function GameLegend() {
       </Stagger>
       <Disclosure summary="Observer view and keyboard shortcuts">
         <p>You watch as an observer, so lies and private plans are visible to you that merchants cannot see. In BLIND runs the view hides company colors but metrics still use true companies.</p>
-        <p>Press <kbd className="rounded-sm border px-1.5 font-display text-xs text-foreground">?</kbd> in the game view for the guide and shortcuts.</p>
+        <p>Press <kbd className="rounded-sm border px-1.5 font-mono text-xs text-foreground">?</kbd> in the game view for the guide and shortcuts.</p>
       </Disclosure>
     </Section>
   )

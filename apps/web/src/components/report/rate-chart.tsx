@@ -23,7 +23,7 @@ export interface RateChartProps {
 
 const LABELED_FILL = 'var(--primary)';
 const BLIND_FILL = 'var(--accent)';
-const TICK = { fill: 'var(--muted-foreground)', fontSize: 11 };
+const TICK = { fill: 'var(--muted-foreground)', fontSize: 11, fontFamily: 'var(--font-body), ui-monospace, monospace' };
 /** Every panel uses the same fixed axis so bar heights compare across metrics. */
 const AXIS_TICKS = [0, 0.25, 0.5, 0.75, 1];
 
@@ -32,10 +32,10 @@ export function RateChart({ title, caption, rows, reference }: RateChartProps) {
   const hatch = `hatch-${uid}`;
 
   return (
-    <figure className="relative flex flex-col gap-2 rounded-md border bg-surface p-3 sm:p-4 print:break-inside-avoid">
+    <figure className="relative flex flex-col gap-3 rounded-lg border bg-surface p-4 shadow-raised transition-colors duration-150 hover:border-border-strong sm:p-5 print:break-inside-avoid">
       <figcaption className="flex flex-col gap-0.5">
-        <h3 className="text-sm font-medium">{title}</h3>
-        <p className="text-[11px] leading-snug text-muted-foreground text-pretty">{caption}</p>
+        <h3 className="text-sm font-semibold tracking-[-0.01em]">{title}</h3>
+        <p className="font-mono text-[11px] leading-snug text-muted-foreground text-pretty">{caption}</p>
       </figcaption>
 
       <div className="h-48 w-full" aria-hidden="true">
@@ -53,16 +53,16 @@ export function RateChart({ title, caption, rows, reference }: RateChartProps) {
             {reference && (
               <ReferenceLine
                 y={reference.value}
-                stroke="var(--foreground)"
+                stroke="var(--subtle-foreground)"
                 strokeDasharray="4 4"
-                label={{ value: reference.label, position: 'right', fill: 'var(--foreground)', fontSize: 10, offset: 6 }}
+                label={{ value: reference.label, position: 'right', fill: 'var(--muted-foreground)', fontSize: 10, offset: 6 }}
               />
             )}
-            <Bar dataKey="LABELED" fill={LABELED_FILL} radius={[2, 2, 0, 0]} isAnimationActive={false} minPointSize={1}>
-              <LabelList dataKey="LABELED" position="top" formatter={(v) => fmt(Number(v))} fill="var(--foreground)" fontSize={10} />
+            <Bar dataKey="LABELED" fill={LABELED_FILL} radius={[3, 3, 0, 0]} isAnimationActive={false} minPointSize={1}>
+              <LabelList dataKey="LABELED" position="top" formatter={(v) => fmt(Number(v))} fill="var(--foreground)" fontSize={10} fontFamily="var(--font-body), ui-monospace, monospace" />
             </Bar>
-            <Bar dataKey="BLIND" fill={`url(#${hatch})`} stroke={BLIND_FILL} radius={[2, 2, 0, 0]} isAnimationActive={false} minPointSize={1}>
-              <LabelList dataKey="BLIND" position="top" formatter={(v) => fmt(Number(v))} fill="var(--foreground)" fontSize={10} />
+            <Bar dataKey="BLIND" fill={`url(#${hatch})`} stroke={BLIND_FILL} radius={[3, 3, 0, 0]} isAnimationActive={false} minPointSize={1}>
+              <LabelList dataKey="BLIND" position="top" formatter={(v) => fmt(Number(v))} fill="var(--foreground)" fontSize={10} fontFamily="var(--font-body), ui-monospace, monospace" />
             </Bar>
           </BarChart>
         </ResponsiveContainer>

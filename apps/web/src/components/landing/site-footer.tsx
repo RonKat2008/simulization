@@ -10,7 +10,7 @@ export function SiteFooter() {
       <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div className="flex flex-col gap-2">
           <Logo />
-          <p>Early signals, not a study.</p>
+          <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-subtle-foreground">Early signals, not a study</p>
         </div>
         <nav aria-label="Footer">
           <ul className="flex flex-wrap gap-x-6 gap-y-0">

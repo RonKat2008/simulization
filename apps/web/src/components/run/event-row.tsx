@@ -19,9 +19,9 @@ function AgentRef({ id, company }: { id: string; company: string | undefined }) 
         select(id);
       }}
       aria-pressed={on}
-      className={`inline-flex items-center gap-1.5 rounded-sm px-1 font-display underline-offset-2 hover:underline ${on ? "bg-primary/20" : ""}`}
+      className={`inline-flex items-center gap-1.5 rounded-sm px-1 font-medium text-foreground underline-offset-4 hover:underline ${on ? "bg-primary/20" : ""}`}
     >
-      {company ? <span className={`size-2 ${COMPANY_BG[company] ?? "bg-muted-foreground/40"}`} aria-hidden="true" /> : null}
+      {company ? <span className={`size-2 rounded-[2px] ${COMPANY_BG[company] ?? "bg-muted-foreground/40"}`} aria-hidden="true" /> : null}
       {label(id)}
     </button>
   );
@@ -81,19 +81,19 @@ function EventRowImpl({ e, index, active, open, onToggle, onActivate }: Props) {
       data-row-index={index}
       tabIndex={active ? 0 : -1}
       onFocus={() => onActivate(index)}
-      className={`border-b border-border/60 px-3 py-2 text-sm outline-none focus-visible:bg-primary/10 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary ${
+      className={`border-b border-border/60 px-3 py-2.5 text-sm outline-none transition-colors hover:bg-surface-raised/50 focus-visible:bg-primary/10 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary ${
         viol ? "border-l-2 border-l-violation bg-violation/5" : "border-l-2 border-l-transparent"
       }`}
     >
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs">
-        <span className="tabular-nums text-muted-foreground" title={`event #${e.seq}`}>
+        <span className="font-mono text-[11px] text-subtle-foreground" title={`event #${e.seq}`}>
           R{e.round} {PHASE_SHORT[e.phase] ?? e.phase} #{e.seq}
         </span>
-        <span className="rounded-sm bg-surface-raised px-1.5 py-px text-[10px] uppercase tracking-wider text-muted-foreground">
+        <span className="rounded-sm bg-surface-raised px-1.5 py-px font-mono text-[10.5px] uppercase tracking-[0.08em] text-subtle-foreground">
           {e.type.replaceAll("_", " ")}
         </span>
         {e.flags.map((f) => (
-          <span key={f} className={`rounded-sm border px-1.5 py-px text-[10px] uppercase tracking-wider ${FLAG_TONE[f]}`}>
+          <span key={f} className={`rounded-sm border px-1.5 py-px font-mono text-[10px] uppercase tracking-[0.06em] ${FLAG_TONE[f]}`}>
             {FLAG_LABEL[f]}
           </span>
         ))}
@@ -122,18 +122,18 @@ function EventRowImpl({ e, index, active, open, onToggle, onActivate }: Props) {
             aria-expanded={open}
             aria-controls={planId}
             onClick={() => onToggle(e.seq)}
-            className="text-xs text-accent underline-offset-2 hover:underline"
+            className="rounded-sm text-xs text-muted-foreground underline decoration-border-strong underline-offset-4 transition-colors hover:text-foreground hover:decoration-foreground"
           >
             {open ? "Hide self-reported plan" : "Show self-reported plan"}
           </button>
           {open ? (
             <div id={planId} className="mt-1.5 grid gap-px bg-border sm:grid-cols-2">
               <div className="bg-surface p-2">
-                <p className="mb-1 text-[10px] uppercase tracking-wider text-muted-foreground">Recorded statement (channel-scoped)</p>
+                <p className="mb-1 font-mono text-[10.5px] uppercase tracking-[0.08em] text-subtle-foreground">Recorded statement (channel-scoped)</p>
                 <p className="break-words text-xs">{e.text ?? "(none: action only)"}</p>
               </div>
               <div className="bg-surface-raised p-2">
-                <p className="mb-1 text-[10px] uppercase tracking-wider text-accent">Self-reported plan · observer only</p>
+                <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.08em] text-accent">Self-reported plan · observer only</p>
                 <p className="break-words text-xs">{e.privatePlan}</p>
               </div>
             </div>

@@ -18,6 +18,8 @@ import { useRunSource } from "./use-run-source";
 import { panelId, tabId, useView, ViewTabs } from "./view-tabs";
 import DataView from "@/components/run/views/data-view";
 import ResearchView from "@/components/run/views/research-view";
+import { GuideLine } from "./story/guide-line";
+import { StoryPanel } from "./story/story-panel";
 
 const isTyping = (t: EventTarget | null) => {
   const el = t as HTMLElement | null;
@@ -30,8 +32,8 @@ export function RunViewer({ id }: { id: string }) {
   const storeRunId = useEventStore((s) => s.runId);
   const [view, setView] = useView();
 
-  // Guide is shown until dismissed; the choice is remembered. `ready` avoids a flash before storage is read.
-  const guide = useStoredFlag("guide-dismissed", false);
+  // Guide is collapsed to one line by default; opening it is remembered. `ready` avoids a flash before storage is read.
+  const guide = useStoredFlag("guide-dismissed", true);
   const { value: guideDismissed, set: setGuide } = guide;
   const guideOpen = guide.ready && !guideDismissed;
 
@@ -79,6 +81,8 @@ export function RunViewer({ id }: { id: string }) {
   const round = meta.round ?? last?.round ?? null;
   const phase: Phase | null = meta.phase ?? last?.phase ?? null;
 
+  const resultsReady = meta.status === "ended" && events.length > 0;
+
   if (storeRunId !== id) return <p role="status" className="p-6 text-sm text-muted-foreground">Loading run...</p>;
 
   if (meta.error && events.length === 0) return <ErrorPanel message={meta.error} />;
@@ -87,19 +91,29 @@ export function RunViewer({ id }: { id: string }) {
     <RunProvider value={ctx}>
       <div className="flex min-h-dvh flex-col">
         <TopBar status={meta.status} round={round} phase={phase} mode={meta.mode} wealthVisibility={meta.wealthVisibility} isMock={meta.isMock} reportStatus={meta.reportStatus} reportRunId={meta.reportRunId} helpOpen={guideOpen} onHelp={() => setGuide(guideOpen)} />
-        {guideOpen ? <RunLegend onClose={() => setGuide(true)} /> : null}
+        {guideOpen ? <RunLegend onClose={() => setGuide(true)} /> : guide.ready ? <GuideLine onOpen={() => setGuide(false)} /> : null}
         {ctx.blind ? <BlindBanner /> : null}
         {meta.status === "offline" ? <OfflineStrip eventCount={events.length} /> : null}
-        <main className="mx-auto flex w-full max-w-[1600px] min-w-0 flex-1 flex-col gap-3 px-4 py-3 sm:px-6">
-          {meta.status === "ended" && events.length > 0 ? <RunSummary events={events} isMock={meta.isMock} mode={meta.mode} /> : null}
-          <details className="rounded-md border px-3 py-2"><summary className="cursor-pointer text-sm font-medium">Behavioral measures · counts and denominators</summary><div className="mt-3"><MetricsBar events={events} /></div></details>
+        <main className="mx-auto flex w-full max-w-[1600px] min-w-0 flex-1 flex-col gap-4 px-4 py-4 sm:px-6">
           <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start">
             <div className="flex min-w-0 flex-col gap-3">
-              <ViewTabs view={view} onChange={setView} />
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <ViewTabs view={view} onChange={setView} />
+                {resultsReady ? (
+                  <a href="#run-summary-title" className="rounded-sm text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-primary">
+                    Skip to results ↓
+                  </a>
+                ) : null}
+              </div>
               <div role="tabpanel" id={panelId(view)} aria-labelledby={tabId(view)} tabIndex={0} className="min-w-0 max-w-full overflow-x-auto outline-none focus-visible:ring-1 focus-visible:ring-primary">
                 {view === "game" ? (
-                  <div className="overflow-hidden rounded-lg border bg-surface">
+                  <div className="overflow-hidden rounded-lg border bg-surface shadow-raised">
                     <VillageCanvas key={id} agents={canvasAgents} />
+                  </div>
+                ) : null}
+                {view === "game" ? (
+                  <div className="mt-3">
+                    <StoryPanel key={id} events={events} runEnded={meta.status === "ended"} />
                   </div>
                 ) : view === "data" ? (
                   <DataView />
@@ -107,6 +121,8 @@ export function RunViewer({ id }: { id: string }) {
                   <ResearchView />
                 )}
               </div>
+              {resultsReady ? <RunSummary events={events} isMock={meta.isMock} mode={meta.mode} /> : null}
+              <details className="group rounded-lg border bg-surface open:border-border-strong"><summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-4 text-[13px] text-muted-foreground transition-colors hover:bg-surface-raised hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary group-open:rounded-b-none group-open:text-foreground [&::-webkit-details-marker]:hidden"><span>Behavioral measures <span className="text-subtle-foreground">· counts and denominators</span></span><span aria-hidden="true" className="font-mono text-xs text-subtle-foreground transition-transform duration-200 group-open:rotate-45">+</span></summary><div className="border-t px-3 py-3"><MetricsBar events={events} /></div></details>
               <AgentCard finalScores={meta.finalScores} wealthVisibility={meta.wealthVisibility} />
               <Roster finalScores={meta.finalScores} />
             </div>

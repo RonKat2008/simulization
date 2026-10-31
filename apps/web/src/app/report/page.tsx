@@ -13,6 +13,7 @@ import { PowerSection } from '@/components/report/power-section';
 import { SummaryTable } from '@/components/report/summary-table';
 import { loadReportData } from '@/components/report/data';
 import { SiteHeader } from '@/components/landing/site-header';
+import { Badge, Eyebrow, buttonClass } from '@/components/landing/ui';
 
 /** Per-run reports and explicit stratum selections always read current persisted data. */
 export const dynamic = 'force-dynamic';
@@ -46,31 +47,30 @@ export default async function ReportPage({searchParams}:{searchParams:Promise<Re
       <div className="print:hidden"><SiteHeader /></div>
       <main className="flex-1">
         <header className="border-b">
-          <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-8 sm:px-6 sm:py-10 lg:px-8 print:py-4">
-            <h1 className="font-display text-2xl font-semibold leading-tight text-balance sm:text-3xl">
+          <div className="mx-auto flex max-w-6xl flex-col gap-5 px-4 pb-10 pt-14 sm:px-6 sm:pt-20 lg:px-8 print:py-4">
+            <Eyebrow>Report</Eyebrow>
+            <h1 className="max-w-3xl text-title font-semibold text-balance">
               {data.selection?.runId ? 'Run report' : 'Does the company label change behavior?'}
             </h1>
-            <p className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
-              <span
-                className={`rounded-sm border px-1.5 py-0.5 ${isMock || isStub ? 'border-dashed border-accent/60 text-accent' : 'text-foreground'}`}
-              >
+            <p className="flex flex-wrap items-center gap-x-3 gap-y-2 font-mono text-xs text-muted-foreground">
+              <Badge tone={isMock || isStub ? 'accent' : 'neutral'}>
                 {isMock ? 'Mock data (scripted stubs)' : isStub ? 'Scripted agents · Neon' : ready ? 'Completed · Neon' : 'Data: Neon'}
-              </span>
+              </Badge>
               <span className="tabular-nums">{nL} LABELED, {nB} BLIND runs</span>
               {data.selection && <span>Wealth: {data.selection.wealthVisibility} · Mode: {data.selection.mode}</span>}
             </p>
-            {data.selection?.runId && <Link className="break-all text-sm underline underline-offset-4" href={`/run/${encodeURIComponent(data.selection.runId)}`}>Run {data.selection.runId} · open replay</Link>}
-            {!data.selection?.runId && <><GroupSelector data={data} /><Link className="text-xs underline" href="/report?mock=1">Offline fixtures (scripted)</Link></>}
+            {data.selection?.runId && <Link className="break-all font-mono text-sm text-primary underline decoration-primary/40 underline-offset-4 transition-colors hover:decoration-primary" href={`/run/${encodeURIComponent(data.selection.runId)}`}>Run {data.selection.runId} · open replay</Link>}
+            {!data.selection?.runId && <><GroupSelector data={data} /><Link className="font-mono text-xs text-muted-foreground underline decoration-border-strong underline-offset-4 transition-colors hover:text-foreground" href="/report?mock=1">Offline fixtures (scripted)</Link></>}
             {data.selection?.runId && (data.pendingReview || data.state==='pending' || data.state==='empty') && <ReportProgress runId={data.selection.runId} />}
           </div>
         </header>
         {ready && <SectionNav items={single ? [{id:'outcome-title',label:'This run',stage:'Answer'}, ...NAV.filter(item=>item.id!=='headline-title')] : NAV} />}
-        {!ready && <section role="status" className="mx-auto max-w-6xl px-4 py-10 sm:px-6"><h2 className="font-display text-xl">{data.state==='error'?'Report unavailable':data.state==='failed'?'Run did not complete':data.state==='pending'?'Run in progress':'No report yet'}</h2><p className="mt-3 text-sm text-muted-foreground">{data.message}</p><Link className="mt-4 inline-block text-sm underline" href="/launch">Back to runs</Link></section>}
+        {!ready && <section role="status" className="mx-auto max-w-6xl px-4 py-16 sm:px-6"><h2 className="text-2xl font-semibold tracking-[-0.02em]">{data.state==='error'?'Report unavailable':data.state==='failed'?'Run did not complete':data.state==='pending'?'Run in progress':'No report yet'}</h2><p className="mt-3 text-sm text-muted-foreground">{data.message}</p><Link className={buttonClass('secondary', 'mt-6')} href="/launch">Back to runs</Link></section>}
         {ready && <>
-        {single && <section aria-labelledby="outcome-title" className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-          <h2 id="outcome-title" className="text-2xl font-semibold">What happened in this run</h2>
-          <p className="mt-3 text-base leading-relaxed">Across {single.mean.evalAwareness.total} recorded agent turns, the referee flagged {(single.mean.deception.inGroupCount ?? 0)+(single.mean.deception.outGroupCount ?? 0)} misdescribed offers. Recorded theft actions: {(single.mean.theft.inGroupCount ?? 0)+(single.mean.theft.outGroupCount ?? 0)}.</p>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">These are observed game behaviors, not conclusions about a provider’s ethics or bias. Game score measures coins plus held goods; the behavioral measures below answer different questions. Inspect cited events in the review before drawing conclusions.</p>
+        {single && <section aria-labelledby="outcome-title" className="mx-auto max-w-6xl border-b px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
+          <h2 id="outcome-title" className="text-title font-semibold text-balance">What happened in this run</h2>
+          <p className="mt-5 max-w-3xl text-lg leading-relaxed text-pretty">Across {single.mean.evalAwareness.total} recorded agent turns, the referee flagged {(single.mean.deception.inGroupCount ?? 0)+(single.mean.deception.outGroupCount ?? 0)} misdescribed offers. Recorded theft actions: {(single.mean.theft.inGroupCount ?? 0)+(single.mean.theft.outGroupCount ?? 0)}.</p>
+          <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted-foreground text-pretty">These are observed game behaviors, not conclusions about a provider’s ethics or bias. Game score measures coins plus held goods; the behavioral measures below answer different questions. Inspect cited events in the review before drawing conclusions.</p>
         </section>}
         {!single && <HeadlineSection data={data} />}
 

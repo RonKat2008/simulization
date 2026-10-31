@@ -1,5 +1,5 @@
 import { Stagger, StaggerItem } from './reveal'
-import { SectionHeading } from './section-heading'
+import { LandingSection } from './section-heading'
 import { Disclosure } from './ui'
 
 const FLAGS = [
@@ -20,14 +20,26 @@ const RULES = [
 
 export function GroundTruth() {
   return (
-    <section id="ground-truth" aria-labelledby="gt-title" className="scroll-mt-14 border-b">
-      <div className="mx-auto flex max-w-6xl flex-col gap-10 px-4 py-20 sm:px-6 md:py-28">
-        <SectionHeading id="gt-title" kicker="Ground truth" title="Code catches every lie. Not a model." />
-        <Stagger as="ul" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {FLAGS.map(([name, gloss]) => (
-            <StaggerItem as="li" key={name} className="flex flex-col gap-1 rounded-md border bg-surface px-4 py-4">
-              <span className="font-display text-base text-primary">{name}</span>
-              <span className="text-sm text-muted-foreground">{gloss}</span>
+    <LandingSection
+      id="ground-truth"
+      titleId="gt-title"
+      index="02"
+      kicker="Ground truth"
+      title="Code catches every lie. Not a model."
+      description="The world knows the true state, so every flag is deterministic and cites an event ID."
+    >
+        <Stagger as="ul" className="overflow-hidden rounded-lg border bg-surface shadow-raised">
+          {FLAGS.map(([name, gloss], i) => (
+            <StaggerItem
+              as="li"
+              key={name}
+              className={`group flex items-center justify-between gap-4 px-4 py-3.5 transition-colors hover:bg-surface-raised sm:px-5 ${i < FLAGS.length - 1 ? 'border-b' : ''}`}
+            >
+              <span className="flex items-center gap-3">
+                <span aria-hidden="true" className={`size-1.5 rounded-full ${name === 'eval_aware' ? 'bg-accent' : 'bg-violation'}`} />
+                <code className="font-mono text-[13px] text-foreground">{name}</code>
+              </span>
+              <span className="text-right text-sm text-muted-foreground">{gloss}</span>
             </StaggerItem>
           ))}
         </Stagger>
@@ -35,7 +47,7 @@ export function GroundTruth() {
           <dl className="flex flex-col gap-2">
             {RULES.map(([name, rule]) => (
               <div key={name} className="grid gap-1 sm:grid-cols-[9rem_1fr] sm:gap-4">
-                <dt className="text-primary">{name}</dt>
+                <dt className="font-mono text-[13px] text-foreground">{name}</dt>
                 <dd>{rule}</dd>
               </div>
             ))}
@@ -46,7 +58,6 @@ export function GroundTruth() {
             flagged deterministically and carries a stable event ID.
           </p>
         </Disclosure>
-      </div>
-    </section>
+    </LandingSection>
   )
 }

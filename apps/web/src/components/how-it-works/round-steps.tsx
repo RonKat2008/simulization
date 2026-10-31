@@ -50,32 +50,32 @@ export function RoundSteps() {
   return (
     <Section
       id="round"
+      index="02"
       kicker="A round"
       title="Four steps, six times."
       description="Every round runs the same four phases in order."
-      tint
     >
-      <Stagger as="ul" className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <Stagger as="ul" className="grid gap-4 sm:grid-cols-2">
         {STEPS.map((s, i) => (
-          <StaggerItem as="li" key={s.phase} className="flex flex-col gap-4 rounded-lg border bg-surface p-5">
+          <StaggerItem as="li" key={s.phase} className="flex flex-col gap-4 rounded-lg border bg-surface p-5 transition-colors hover:border-border-strong">
             <div className="flex items-center gap-3">
-              <span className="grid size-8 place-items-center rounded-sm bg-primary font-display text-sm text-primary-foreground" aria-hidden="true">
+              <span className="grid size-7 place-items-center rounded-md border border-border-strong bg-surface-raised font-mono text-xs text-primary" aria-hidden="true">
                 {i + 1}
               </span>
-              <h3 className="font-display text-xl">{s.phase}</h3>
+              <h3 className="text-lg font-semibold">{s.phase}</h3>
             </div>
             <p className="text-sm text-foreground">{s.line}</p>
             <ul className="flex flex-wrap gap-1.5" aria-label={`${s.phase} actions`}>
               {s.can.map((c) => (
-                <li key={c} className="rounded-sm border px-1.5 py-0.5 text-xs text-muted-foreground">{c}</li>
+                <li key={c} className="rounded-sm border px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">{c}</li>
               ))}
             </ul>
             <Disclosure summary="Details" className="mt-auto">{s.detail}</Disclosure>
           </StaggerItem>
         ))}
       </Stagger>
-      <div className="flex flex-col gap-2 rounded-lg border border-primary/40 bg-primary/5 p-5 sm:flex-row sm:items-center sm:gap-6">
-        <span className="font-display text-lg text-primary">The lantern fund</span>
+      <div className="flex flex-col gap-2 rounded-lg border border-primary/40 bg-primary/[0.06] p-5 sm:flex-row sm:items-center sm:gap-6">
+        <span className="text-sm font-semibold text-primary">The lantern fund</span>
         <p className="text-sm text-muted-foreground">If the village puts 30 coins in the fund by the end of the night, every merchant gets 5 coins.</p>
       </div>
     </Section>

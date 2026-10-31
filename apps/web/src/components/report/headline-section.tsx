@@ -11,7 +11,7 @@ const HEADLINE_KEYS = ['alliance', 'dm', 'deception-outGroup', 'theft-outGroup']
 
 const CAVEAT_STYLE = {
   mock: 'border-dashed border-accent/60 text-accent',
-  thin: 'border-border text-foreground',
+  thin: 'border-border-strong text-foreground',
   ok: 'border-border text-muted-foreground',
 } as const;
 
@@ -50,23 +50,23 @@ function CooperationHeadline({ data }: { data: ReportData }) {
     ? `Layer 2 needs both conditions in this run group (have ${L ? 'LABELED' : B ? 'BLIND' : 'neither'} only).${!B ? ' Layer 1 needs BLIND runs.' : ''}`
     : null;
   return (
-    <div className="grid gap-px overflow-hidden rounded-md border bg-border md:grid-cols-2">
-      <article className="flex min-w-0 flex-col gap-3 bg-surface p-3 sm:p-4">
-        <h3 className="text-xs text-muted-foreground"><Term k="favoritism">In-group favoritism</Term></h3>
+    <div className="grid gap-px overflow-hidden rounded-xl border bg-border shadow-pop md:grid-cols-2">
+      <article className="flex min-w-0 flex-col gap-5 bg-surface p-5 sm:p-7">
+        <h3 className="font-mono text-[11px] uppercase tracking-[0.08em] text-subtle-foreground"><Term k="favoritism">In-group favoritism</Term></h3>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="flex min-w-0 flex-col gap-1">
-            <h4 className="text-[11px] uppercase tracking-wider text-muted-foreground"><Term k="styleBias">Style bias</Term></h4>
-            <p className="font-display text-3xl leading-none tabular-nums">{style}</p>
-            <p className="text-[11px] text-muted-foreground">BLIND vs 0 · {nText(le.blind)}</p>
+            <h4 className="font-mono text-[11px] uppercase tracking-[0.08em] text-subtle-foreground"><Term k="styleBias">Style bias</Term></h4>
+            <p className="font-mono text-5xl font-medium leading-none tracking-[-0.03em] tabular-nums">{style}</p>
+            <p className="font-mono text-[11px] text-muted-foreground">BLIND vs 0 · {nText(le.blind)}</p>
           </div>
           <div className="flex min-w-0 flex-col gap-1">
-            <h4 className="text-[11px] uppercase tracking-wider text-muted-foreground"><Term k="labelBias">Label bias</Term></h4>
-            <p className="font-display text-3xl leading-none tabular-nums">{effect}</p>
-            <p className="text-[11px] text-muted-foreground">LABELED − BLIND</p>
+            <h4 className="font-mono text-[11px] uppercase tracking-[0.08em] text-subtle-foreground"><Term k="labelBias">Label bias</Term></h4>
+            <p className="font-mono text-5xl font-medium leading-none tracking-[-0.03em] tabular-nums">{effect}</p>
+            <p className="font-mono text-[11px] text-muted-foreground">LABELED − BLIND</p>
           </div>
         </div>
         {missing ? <p className="text-xs text-accent">{missing}</p> : null}
-        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs tabular-nums">
+        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1.5 font-mono text-xs tabular-nums">
           <dt className="text-primary">LABELED</dt>
           <dd className="min-w-0 break-words">{spread(le.labeled)} · {nText(le.labeled)}</dd>
           <dt className="text-accent">BLIND</dt>
@@ -87,14 +87,14 @@ function CooperationHeadline({ data }: { data: ReportData }) {
           </p>
         </Disclosure>
       </article>
-      <article className="flex min-w-0 flex-col gap-2 bg-surface p-3 sm:p-4">
-        <h3 className="text-xs text-muted-foreground"><Term k="ethicality">Ethicality</Term></h3>
-        <p className="font-display text-3xl leading-none tabular-nums sm:text-4xl">
+      <article className="flex min-w-0 flex-col gap-5 bg-surface p-5 sm:p-7">
+        <h3 className="font-mono text-[11px] uppercase tracking-[0.08em] text-subtle-foreground"><Term k="ethicality">Ethicality</Term></h3>
+        <p className="font-mono text-5xl font-medium leading-none tracking-[-0.03em] tabular-nums">
           <span className="text-primary">{L?.ethicality.pooled.overall.rate == null ? '–' : pct(L.ethicality.pooled.overall.rate)}</span>
           <span className="px-2 text-muted-foreground">/</span>
           <span className="text-accent">{B?.ethicality.pooled.overall.rate == null ? '–' : pct(B.ethicality.pooled.overall.rate)}</span>
         </p>
-        <div className="flex flex-col gap-1 text-xs">
+        <div className="flex flex-col gap-1.5 font-mono text-xs">
           <EthLine name="LABELED" c={L} />
           <EthLine name="BLIND" c={B} />
         </div>
@@ -123,23 +123,26 @@ export function HeadlineSection({ data }: { data: ReportData }) {
   return (
     <Section
       id="headline-title"
+      size="lg"
+      kicker="Answer"
+      index="01"
       title="Label effect"
       lead={<><Term k="labelEffect">LABELED minus BLIND</Term></>}
     >
       <CooperationHeadline data={data} />
-            <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-md border bg-border lg:grid-cols-4">
+            <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border lg:grid-cols-4">
         {cards.map((r) => (
-          <div key={r.key} className="flex flex-col gap-1.5 bg-surface p-3 sm:p-4">
-            <dt className="text-xs text-muted-foreground">{CARD_TERM[r.key] ? <Term k={CARD_TERM[r.key]!}>{r.label}</Term> : r.label}</dt>
-            <dd className="font-display text-2xl tabular-nums leading-none sm:text-3xl">{r.delta}</dd>
-            <dd className="flex flex-col gap-0.5 text-[11px] leading-snug text-muted-foreground tabular-nums">
+          <div key={r.key} className="flex flex-col gap-3 bg-surface p-4 transition-colors duration-150 hover:bg-surface-raised sm:p-5">
+            <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-subtle-foreground">{CARD_TERM[r.key] ? <Term k={CARD_TERM[r.key]!}>{r.label}</Term> : r.label}</dt>
+            <dd className="font-mono text-2xl font-medium tabular-nums leading-none tracking-[-0.02em] sm:text-3xl">{r.delta}</dd>
+            <dd className="flex flex-col gap-0.5 font-mono text-[11px] leading-snug text-muted-foreground tabular-nums">
               <span><span className="text-primary">L</span> {r.labeled}</span>
               <span><span className="text-accent">B</span> {r.blind}</span>
             </dd>
           </div>
         ))}
       </dl>
-      <div role={ev.level === 'ok' ? undefined : 'note'} className={`flex flex-col gap-2 rounded-md border px-3 py-2.5 text-xs sm:text-sm ${CAVEAT_STYLE[ev.level]}`}>
+      <div role={ev.level === 'ok' ? undefined : 'note'} className={`flex flex-col gap-2 rounded-lg border px-4 py-3 text-xs sm:text-sm ${CAVEAT_STYLE[ev.level]}`}>
         <p><strong className="font-medium">n = {ev.labeledRuns} LABELED, {ev.blindRuns} BLIND.</strong> {SHORT_CAVEAT[ev.level]}</p>
         <details className="text-xs text-muted-foreground">
           <summary className="inline-flex min-h-8 cursor-pointer items-center underline decoration-border underline-offset-4 hover:text-foreground">Why</summary>

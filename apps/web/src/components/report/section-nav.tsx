@@ -39,20 +39,20 @@ export function SectionNav({ items }: { items: NavItem[] }) {
   }, [items]);
 
   return (
-    <nav aria-label="Report sections" className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur print:hidden">
-      <ul className="mx-auto flex max-w-6xl items-center gap-x-1 overflow-x-auto px-4 py-1.5 text-xs sm:px-6 lg:px-8">
+    <nav aria-label="Report sections" className="sticky top-0 z-30 border-b bg-background/95 print:hidden">
+      <ul className="mx-auto flex max-w-6xl items-center gap-x-1 overflow-x-auto px-4 py-2 text-xs sm:px-6 lg:px-8">
         {items.map((it, i) => {
           const newStage = i === 0 || items[i - 1]!.stage !== it.stage;
           return (
             <li key={it.id} className="flex shrink-0 items-center gap-1">
               {newStage && (
-                <span className={`pr-1 text-[10px] uppercase tracking-wider text-muted-foreground/70 ${i > 0 ? 'border-l pl-2.5' : ''}`}>{it.stage}</span>
+                <span className={`pr-1 font-mono text-[10px] uppercase tracking-[0.08em] text-subtle-foreground ${i > 0 ? 'ml-2 border-l pl-3' : ''}`}>{it.stage}</span>
               )}
               <a
                 href={`#${it.id}`}
                 aria-current={active === it.id ? 'location' : undefined}
-                className={`rounded-sm px-2 py-1.5 transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
-                  active === it.id ? 'bg-surface-raised text-foreground' : 'text-muted-foreground'
+                className={`rounded-md px-2.5 py-1.5 transition-colors duration-150 hover:bg-surface-raised hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+                  active === it.id ? 'bg-surface-raised font-medium text-foreground' : 'text-muted-foreground'
                 }`}
               >
                 {it.label}
