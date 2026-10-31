@@ -8,15 +8,15 @@ export function GroupSelector({ data }: { data: ReportData }) {
   if (data.groups.length <= 1) {
     return (
       <p className="text-xs text-muted-foreground">
-        Run group: <span className={data.group.isStub ? 'text-accent' : 'text-foreground'}>{data.group.label}</span>
-        {data.group.isStub ? ' (not model output)' : ''}
+        <span className={data.group.isStub ? 'text-accent' : 'text-foreground'}>{data.group.label}</span>
+        {data.group.isStub ? ' · stub' : ''}
       </p>
     );
   }
   return (
     <nav aria-label="Run group" className="flex flex-col gap-1.5 print:hidden">
       <p className="text-xs text-muted-foreground">
-        Run group (never pooled across groups; n = LABELED / BLIND runs):
+        Run group · n = LABELED/BLIND
       </p>
       <ul className="flex flex-wrap gap-1.5">
         {data.groups.map((g) => {
@@ -31,7 +31,7 @@ export function GroupSelector({ data }: { data: ReportData }) {
                 } ${g.isStub ? 'border-dashed' : ''}`}
               >
                 <span>{g.label}</span>
-                {g.isStub ? <span className="text-accent">not model output</span> : null}
+                {g.isStub ? <span className="text-accent">stub</span> : null}
                 <span className="tabular-nums">
                   n={g.labeledRuns}/{g.blindRuns}
                 </span>

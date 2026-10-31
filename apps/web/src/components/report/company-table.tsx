@@ -27,7 +27,6 @@ export function CompanyTable({ data }: { data: ReportData }) {
     <Section
       id="company-title"
       title="Per company"
-      lead="Metrics scoped to each company's agents; in-group means their own company. Theft shows chance-adjusted ratios in brackets (1.00x = random targeting). Avg score is coins plus true value of goods held."
     >
         <div className="relative overflow-x-auto rounded-md border bg-surface">
           <table aria-label="Behavior metrics per company and condition" className="w-full min-w-[56rem] border-collapse text-left text-xs">
@@ -53,7 +52,7 @@ export function CompanyTable({ data }: { data: ReportData }) {
                             <span className="size-2.5 rounded-sm" style={{ background: COMPANY_VAR[co.id] }} aria-hidden="true" />
                             {co.name}
                           </span>
-                          <span className="text-muted-foreground">agents {co.id}-01 to {co.id}-06</span>
+                          
                         </th>
                       )}
                       <td className="px-3 py-2">

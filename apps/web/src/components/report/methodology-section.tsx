@@ -1,5 +1,6 @@
 import { CHANCE, COMPANIES, LIE_THRESHOLD } from '@simulization/shared';
 import { Section } from './section';
+import { Disclosure } from '@/components/landing/ui';
 import { pct } from './format';
 import type { ReportData } from './types';
 
@@ -18,7 +19,8 @@ export function MethodologySection({ data }: { data: ReportData }) {
   ];
   const reviewer = data.review.limitations;
   return (
-    <Section id="method-title" title="Methodology and limitations">
+    <Section id="method-title" title="Method" lead="Numbers from code. Opus only explains.">
+      <Disclosure summary="Methodology and limitations">
       <div className="grid gap-6 md:grid-cols-2">
         <ul className="flex list-disc flex-col gap-2 pl-4 text-xs leading-relaxed text-muted-foreground marker:text-border sm:text-sm">
           {items.map((t) => (
@@ -40,6 +42,7 @@ export function MethodologySection({ data }: { data: ReportData }) {
           )}
         </div>
       </div>
+      </Disclosure>
     </Section>
   );
 }

@@ -14,13 +14,13 @@ import {
 import { startRun } from "./start-run";
 
 const CONDITION_OPTIONS: readonly Option<Condition>[] = [
-  { value: "LABELED", tone: "primary", title: "LABELED", detail: "Each agent sees which lab built every other agent. Tests in-group bias when identity is salient." },
-  { value: "BLIND", tone: "accent", title: "BLIND", detail: "Agents see names only; lab identity is withheld. The control: any bias must come from behavior, not labels." },
+  { value: "LABELED", tone: "primary", title: "LABELED", detail: "Agents see each other's company." },
+  { value: "BLIND", tone: "accent", title: "BLIND", detail: "Names only. The control." },
 ];
 
 const WEALTH_OPTIONS: readonly Option<WealthVisibility>[] = [
-  { value: "private", tone: "primary", title: "PRIVATE", detail: "Private wealth: agents cannot see others' coins. Hierarchy has to be inferred from behavior." },
-  { value: "public", tone: "accent", title: "PUBLIC", detail: "Public wealth: every agent sees everyone's coins. Makes status and inequality directly observable." },
+  { value: "private", tone: "primary", title: "PRIVATE", detail: "Coins hidden." },
+  { value: "public", tone: "accent", title: "PUBLIC", detail: "Everyone sees coins." },
 ];
 
 type Phase =
@@ -93,7 +93,7 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
   return (
     <form onSubmit={submit} className={`flex flex-col gap-6 ${CARD_CLASS}`} noValidate aria-label="Run options">
       <OptionGroup legend="Condition" name="condition" options={CONDITION_OPTIONS} value={condition} onChange={setCondition} disabled={pending} />
-      <OptionGroup legend="Wealth visibility" name="wealth_visibility" options={WEALTH_OPTIONS} value={wealth} onChange={setWealth} disabled={pending} />
+      <OptionGroup legend="Wealth" name="wealth_visibility" options={WEALTH_OPTIONS} value={wealth} onChange={setWealth} disabled={pending} />
 
       <div className="flex flex-col gap-2">
         <label htmlFor={seedId} className="text-xs uppercase tracking-widest text-muted-foreground">
@@ -118,9 +118,12 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
             {seedError}
           </p>
         ) : null}
-        <p id={seedHelpId} className="max-w-prose text-xs leading-relaxed text-muted-foreground text-pretty">
-          Signed 32-bit integer (default {DEFAULT_SEED}). The seed fixes the world: names, goods and their hidden quality. Model outputs are not deterministic, so the same seed gives a comparable world, not identical behavior.
-        </p>
+        <details id={seedHelpId} className="max-w-prose text-xs text-muted-foreground">
+          <summary className="inline-flex min-h-8 cursor-pointer items-center underline decoration-border underline-offset-4 hover:text-foreground">About seeds</summary>
+          <p className="mt-1 leading-relaxed text-pretty">
+            Signed 32-bit integer (default {DEFAULT_SEED}). The seed fixes the world: names, goods and their hidden quality. Model outputs are not deterministic, so the same seed gives a comparable world, not identical behavior.
+          </p>
+        </details>
       </div>
 
       {phase.kind === "error" ? (
@@ -136,27 +139,24 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
 
       {phase.kind === "pair" ? (
         <div role="status" className="flex flex-col gap-3 rounded-md border border-primary/60 bg-primary/10 px-4 py-3 text-sm leading-relaxed">
-          <p className="font-semibold">Matched pair started (same seed and wealth visibility).</p>
-          <p className="text-muted-foreground">Open each run to watch it live. Compare them on the report once both finish.</p>
+          <p className="font-semibold">Pair started.</p>
           <ul className="flex flex-col gap-2 sm:flex-row">
-            {phase.labeled ? <li><Link href={`/run/${encodeURIComponent(phase.labeled)}`} className={buttonClass("secondary", "w-full break-all py-2 sm:w-auto")}>Open LABELED run</Link></li> : null}
-            {phase.blind ? <li><Link href={`/run/${encodeURIComponent(phase.blind)}`} className={buttonClass("secondary", "w-full break-all py-2 sm:w-auto")}>Open BLIND run</Link></li> : null}
+            {phase.labeled ? <li><Link href={`/run/${encodeURIComponent(phase.labeled)}`} className={buttonClass("secondary", "w-full break-all py-2 sm:w-auto")}>LABELED</Link></li> : null}
+            {phase.blind ? <li><Link href={`/run/${encodeURIComponent(phase.blind)}`} className={buttonClass("secondary", "w-full break-all py-2 sm:w-auto")}>BLIND</Link></li> : null}
           </ul>
           {phase.message ? <p role="alert" className="text-violation">{phase.message}</p> : null}
         </div>
       ) : null}
 
       <div className="flex flex-col gap-4 border-t pt-6">
-        <div className="flex flex-col gap-1.5 rounded-md border border-dashed bg-background/60 p-4 text-sm leading-relaxed text-muted-foreground">
-          <p className="text-foreground">
-            Matched pair <Badge tone="primary">recommended</Badge>
+        <details className="text-sm text-muted-foreground">
+          <summary className="inline-flex min-h-10 cursor-pointer items-center gap-2 hover:text-foreground">
+            Why a pair? <Badge tone="primary">recommended</Badge>
+          </summary>
+          <p className="text-pretty leading-relaxed">
+            One LABELED and one BLIND run, same seed and wealth visibility. The difference between them is the label effect. A single run cannot separate label bias from style recognition.
           </p>
-          <p className="text-pretty">
-            Starts one LABELED and one BLIND run with the same seed and wealth visibility. Everything
-            else is identical, so the difference between them is the label effect. A single run
-            cannot separate label bias from style recognition.
-          </p>
-        </div>
+        </details>
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
           <button
             type="button"
@@ -184,12 +184,12 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
                 Starting run…
               </>
             ) : (
-              `Start ${condition} run only`
+              `${condition} only`
             )}
           </button>
         </div>
-        <p className="text-xs leading-relaxed text-muted-foreground" aria-live="polite">
-          {pending ? "Registering with the run service." : "Run mode and agent count are set by the server."}
+        <p className="text-xs text-muted-foreground" aria-live="polite">
+          {pending ? "Starting…" : ""}
         </p>
       </div>
     </form>

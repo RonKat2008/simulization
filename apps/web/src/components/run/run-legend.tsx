@@ -29,7 +29,7 @@ export function RunLegend({ onClose }: { onClose: () => void }) {
       <div className="mx-auto flex max-w-[1600px] flex-col gap-2 px-4 py-2.5 sm:px-6">
         <div className="flex items-start justify-between gap-3">
           <h2 id="legend-title" className="font-display text-sm tracking-wide">
-            What you&apos;re looking at
+            Guide
           </h2>
           <button
             type="button"
@@ -37,29 +37,27 @@ export function RunLegend({ onClose }: { onClose: () => void }) {
             aria-label="Dismiss guide"
             className="-m-1 rounded-sm px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-surface-raised hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary active:bg-border"
           >
-            Got it ×
+            Hide ×
           </button>
         </div>
         <div className="grid gap-x-6 gap-y-2 text-xs leading-relaxed text-muted-foreground md:grid-cols-3">
           <p>
-            <span className="text-foreground">{merchants > 0 ? `${merchants} AI merchants` : "AI merchants"}</span> negotiate, trade, form pacts and
-            sometimes cheat in a village market. The timeline shows rounds and phases; the event log records everything that happened.{" "}
+            <span className="text-foreground">{merchants > 0 ? `${merchants} AI merchants` : "AI merchants"}</span> trade, pact and sometimes cheat.{" "}
             {condition ? (
               blind ? (
                 <>
-                  <span className="text-accent">BLIND</span>: agents could not see who built whom, and this page hides company names and colors too.
+                  <span className="text-accent">BLIND</span>: labels and colors hidden.
                 </>
               ) : (
                 <>
-                  <span className="text-primary">LABELED</span>: agents saw each other&apos;s lab. Colored squares mark the lab (A blue, B amber, C teal).
+                  <span className="text-primary">LABELED</span>: squares mark the lab (A blue, B amber, C teal).
                 </>
               )
             ) : null}
           </p>
           <p>
-            <Chip tone="border-violation/70 bg-violation/10 text-violation">Red</Chip> rows and chips are violations the simulator verified from ground
-            truth: a lie (claim off by 2+ quality), a theft, a broken pact or another rule break. <Chip tone="border-accent/60 text-accent">Pink</Chip>{" "}
-            marks a turn whose text mentions a test or simulation. Neither is a model&apos;s own opinion.
+            <Chip tone="border-violation/70 bg-violation/10 text-violation">Red</Chip> = violation verified by the simulator.{" "}
+            <Chip tone="border-accent/60 text-accent">Pink</Chip> = mentions a test.
           </p>
           <ul aria-label="Keyboard shortcuts" className="hidden flex-wrap content-start gap-x-3 gap-y-1.5 sm:flex">
             {SHORTCUTS.map(([k, d]) => (

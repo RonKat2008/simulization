@@ -94,7 +94,7 @@ export function MetricsBar({ events }: { events: Event[] }) {
       ) : (
         <FullMetrics m={m} />
       )}
-      {blind ? <p className="mt-1.5 text-[11px] text-muted-foreground">Observer metrics use true companies even though labels are hidden here.</p> : null}
+      {blind ? <p className="mt-1.5 text-[11px] text-muted-foreground">Metrics use true companies.</p> : null}
     </section>
   );
 }

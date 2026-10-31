@@ -11,7 +11,7 @@ const STATUS_STYLE: Record<RunStatus, { label: string; dot: string; text: string
   connecting: { label: "connecting", dot: "bg-muted-foreground animate-pulse motion-reduce:animate-none", text: "text-muted-foreground" },
   live: { label: "live", dot: "bg-lab-c animate-pulse motion-reduce:animate-none", text: "text-lab-c" },
   ended: { label: "ended", dot: "bg-muted-foreground", text: "text-muted-foreground" },
-  offline: { label: "sim unreachable, retrying", dot: "bg-violation", text: "text-violation" },
+  offline: { label: "offline, retrying", dot: "bg-violation", text: "text-violation" },
 };
 
 const MODE_LABEL: Record<string, { text: string; hint: string; warn: boolean }> = {
@@ -123,7 +123,7 @@ export function BlindBanner() {
       <p className="mx-auto max-w-[1600px] px-4 py-1.5 text-xs text-accent sm:px-6">
         <span className="font-display tracking-widest">BLIND</span>
         <span className="mx-2 opacity-60" aria-hidden="true">/</span>
-        Company labels and colors are hidden here. Metrics still use true companies.
+        Labels hidden. Metrics use true companies.
       </p>
     </div>
   );
