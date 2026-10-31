@@ -20,7 +20,7 @@ export default function DevVillage() {
   }, [which]);
 
   return (
-    <main className="mx-auto max-w-[1280px] space-y-2 p-4 font-mono text-sm text-slate-300">
+    <main className="mx-auto w-full max-w-[1280px] space-y-2 p-4 font-mono text-sm text-slate-300">
       <div className="flex gap-2">
         {(Object.keys(RUNS) as (keyof typeof RUNS)[]).map((k) => (
           <button key={k} onClick={() => setWhich(k)} className={k === which ? "underline" : ""}>

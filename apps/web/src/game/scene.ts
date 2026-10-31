@@ -39,6 +39,14 @@ export function setSpeed(x: number) {
   current.tweens.timeScale = x;
 }
 
+let seekTo = 0;
+
+/** Jump to the start of round r: replay earlier rounds instantly, animate from r on. */
+export function seekRound(r: number) {
+  seekTo = r;
+  current?.scene.restart();
+}
+
 interface Agent {
   id: string;
   idx: number; // 0..17, company-major
@@ -78,6 +86,7 @@ class VillageScene extends Phaser.Scene {
   private runId!: string | null;
   private round!: number;
   private nightables!: { setTint: (c: number) => unknown }[];
+  private instant!: boolean; // seeking: apply state, skip animation
 
   constructor() {
     super("village");
@@ -99,6 +108,7 @@ class VillageScene extends Phaser.Scene {
     this.runId = null;
     this.round = 0;
     this.nightables = [];
+    this.instant = false;
 
     this.drawMap();
     this.setNight(1);
@@ -120,6 +130,7 @@ class VillageScene extends Phaser.Scene {
   private sync(events: Event[], selected: string | null) {
     const newRun = events.length > 0 && this.runId !== null && events[0].runId !== this.runId;
     if ((events.length === 0 && this.lastSeq > 0) || newRun) {
+      seekTo = 0;
       this.scene.restart(); // reset() or a different run loaded: start clean
       return;
     }
@@ -128,8 +139,14 @@ class VillageScene extends Phaser.Scene {
       if (e.seq > this.lastSeq) {
         if (e.actorId !== "world") this.agent(e.actorId); // spawn everyone up front, idle at home
         if (e.targetId) this.agent(e.targetId);
-        this.pending.push(e);
         this.lastSeq = e.seq;
+        if (e.round >= seekTo) {
+          this.pending.push(e);
+          continue;
+        }
+        this.instant = true;
+        this.play(e);
+        this.instant = false;
       }
     }
     for (const a of this.agents.values()) a.ring.setVisible(a.id === selected);
@@ -317,10 +334,16 @@ class VillageScene extends Phaser.Scene {
 
   /** Each agent has its own queue, so agents never wait on each other. */
   private enqueue(a: Agent, fn: () => Promise<void>) {
+    if (this.instant) return;
     a.queue = a.queue.then(fn, fn);
   }
 
   private walkHome(a: Agent) {
+    if (this.instant) {
+      const h = this.homeOf(a);
+      a.c.setPosition(h.x, h.y).setDepth(h.y);
+      return;
+    }
     this.enqueue(a, () => this.walk(a, this.homeOf(a)));
   }
 
@@ -357,7 +380,7 @@ class VillageScene extends Phaser.Scene {
 
   /** Speech bubble attached to the agent (moves with it). Red outline marks a lie. */
   private say(a: Agent, text: string, red: boolean) {
-    if (!text) return;
+    if (!text || this.instant) return;
     a.bubble?.destroy();
     const short = text.length > 40 ? text.slice(0, 39) + "…" : text;
     const t = this.add
@@ -381,11 +404,13 @@ class VillageScene extends Phaser.Scene {
   }
 
   private emote(at: Spot, frame: number, ms = 1600) {
+    if (this.instant) return;
     const i = this.add.image(at.x, at.y, "emotes", frame).setScale(SCALE).setDepth(20000);
     this.tweens.add({ targets: i, y: at.y - 16, alpha: 0, delay: ms * 0.6, duration: ms * 0.4, onComplete: () => i.destroy() });
   }
 
   private float(at: Spot, text: string, color: string, ms = 1200, size = 16) {
+    if (this.instant) return;
     const t = this.add
       .text(at.x, at.y, text, { fontFamily: "monospace", fontSize: `${size}px`, color, fontStyle: "bold" })
       .setOrigin(0.5)
