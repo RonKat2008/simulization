@@ -217,6 +217,8 @@ export function theftRate(events: Event[], agents: AgentRef[], company?: string)
 }
 
 /**
+ * Legacy pair-outcome measure, retained for stored v1 compatibility. Do not attribute a partner’s
+ * violation to an individual member; behavior-v2 exposes member-responsible promises separately.
  * Pact-keeping rate: pacts never broken / pacts formed, split in-group vs out-group partner.
  * A pact is one unordered pair from a pact_accept until its break; a pair that re-forms after a
  * break is a new pact, and a repeat accept on a live pact is not. A pact_break event or a
@@ -311,7 +313,7 @@ function meanRatio(list: RatioResult[]): RatioResult {
 }
 
 function meanInOut(list: InOutRate[]): InOutRate {
-  const adjusted = list.flatMap((r) => (r.chanceAdjusted ? [r.chanceAdjusted] : []));
+  const adjusted = list.filter((r) => r.chanceAdjusted !== undefined);
   return {
     inGroup: meanWithData(list.map((r) => ({ value: r.inGroup, total: r.inGroupTotal }))),
     outGroup: meanWithData(list.map((r) => ({ value: r.outGroup, total: r.outGroupTotal }))),
@@ -321,8 +323,8 @@ function meanInOut(list: InOutRate[]): InOutRate {
     outGroupTotal: sum(list.map((r) => r.outGroupTotal)),
     ...(adjusted.length > 0 && {
       chanceAdjusted: {
-        inGroup: safeDiv(sum(adjusted.map((a) => a.inGroup)), adjusted.length),
-        outGroup: safeDiv(sum(adjusted.map((a) => a.outGroup)), adjusted.length),
+        inGroup: meanWithData(adjusted.map((r) => ({ value: r.chanceAdjusted!.inGroup, total: r.inGroupTotal }))),
+        outGroup: meanWithData(adjusted.map((r) => ({ value: r.chanceAdjusted!.outGroup, total: r.outGroupTotal }))),
       },
     }),
   };
