@@ -27,3 +27,13 @@ export function OfflineStrip({ eventCount }: { eventCount: number }) {
     </p>
   );
 }
+
+/** Live runs spend 1–3 minutes registering 18 agents for messaging before round 1; say so instead of a silent "connecting". */
+export function SetupStrip() {
+  return (
+    <p role="status" className="flex items-center gap-2 border-b border-primary/30 bg-primary/[0.06] px-4 py-2 text-xs text-foreground sm:px-6">
+      <span className="size-1.5 animate-pulse rounded-full bg-primary motion-reduce:animate-none" aria-hidden="true" />
+      Setting up 18 AI merchants (usually 1–3 minutes). The market opens as soon as the first round starts.
+    </p>
+  );
+}
