@@ -21,7 +21,7 @@ export interface RunMeta {
 }
 
 const MOCKS = { mock: labeled, "mock-blind": blind } as const;
-const SIM_URL = (process.env.NEXT_PUBLIC_SIM_URL ?? "http://localhost:8787").replace(/\/$/, "");
+const SIM_URL = (process.env.NEXT_PUBLIC_SIM_URL ?? "/api").replace(/\/$/, "");
 const POLL_MS = 1000;
 const FETCH_TIMEOUT_MS = 5000;
 const OFFLINE_AFTER_FAILS = 3;
