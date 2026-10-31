@@ -2,6 +2,7 @@
 // Imported only on the client (see VillageCanvas), never during SSR.
 import * as Phaser from "phaser";
 import type { Event } from "@simulization/shared";
+import { contiguousCursor } from "@/components/run/event-progress";
 import { useEventStore } from "@/store/eventStore";
 import { HEIGHT, SPOTS, WIDTH, homeSpot, jitter, type Spot } from "./spots";
 import { agentTexture } from "./looks";
@@ -22,15 +23,19 @@ const BUBBLE_MS = 2500;
 const START_COINS = 10;
 
 const names = new Map<string, string>();
+const companies = new Map<string, string>();
+const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const blindIds = new Set<string>(); // company "" (BLIND view): no company color, ids encode company
 const NEUTRAL = 0xaaaaaa;
 let current: VillageScene | null = null;
 
 export function setAgentNames(list: AgentInfo[] = []) {
   names.clear();
+  companies.clear();
   blindIds.clear();
   for (const a of list) {
     names.set(a.id, a.name);
+    companies.set(a.id, a.company);
     if (a.company === "") blindIds.add(a.id);
   }
   current?.relabel();
@@ -39,7 +44,7 @@ export function setAgentNames(list: AgentInfo[] = []) {
 let speed = 1;
 
 function colorOf(id: string): number {
-  return blindIds.has(id) ? NEUTRAL : (COMPANY_COLOR[id[0]] ?? NEUTRAL);
+  return blindIds.has(id) ? NEUTRAL : (COMPANY_COLOR[companies.get(id) ?? ""] ?? NEUTRAL);
 }
 
 export function setSpeed(x: number) {
@@ -144,7 +149,9 @@ class VillageScene extends Phaser.Scene {
       return;
     }
     if (events.length) this.runId = events[0].runId;
+    const through = contiguousCursor(events);
     for (const e of events) {
+      if (e.seq > through) break;
       if (e.seq > this.lastSeq) {
         if (e.actorId !== "world") this.agent(e.actorId); // spawn everyone up front, idle at home
         if (e.targetId) this.agent(e.targetId);
@@ -158,6 +165,9 @@ class VillageScene extends Phaser.Scene {
         this.instant = false;
       }
     }
+    this.game.canvas.dataset.acceptedSeq = String(this.lastSeq);
+    this.game.canvas.dataset.reducedMotion = String(reducedMotion());
+    this.game.canvas.dataset.runId = this.runId ?? "";
     for (const a of this.agents.values()) a.ring.setVisible(a.id === selected);
   }
 
@@ -371,6 +381,7 @@ class VillageScene extends Phaser.Scene {
   }
 
   private walk(a: Agent, to: Spot): Promise<void> {
+    if (reducedMotion()) { a.c.setPosition(to.x,to.y).setDepth(to.y); return Promise.resolve(); }
     const dist = Phaser.Math.Distance.Between(a.c.x, a.c.y, to.x, to.y);
     if (dist < 2) return Promise.resolve();
     // No walk frames in the pack: flip toward the target and waddle (tilt side to side + bob).
@@ -398,6 +409,7 @@ class VillageScene extends Phaser.Scene {
 
   /** Little double hop for when agents interact. Queued so it never fights a walk. */
   private hopNow(a: Agent): Promise<void> {
+    if (reducedMotion()) return Promise.resolve();
     return new Promise((done) =>
       this.tweens.add({ targets: a.body, y: -9, duration: 120, yoyo: true, repeat: 1, ease: "Quad.out", onComplete: () => { a.body.setY(0); done(); } }),
     );
@@ -441,13 +453,13 @@ class VillageScene extends Phaser.Scene {
   }
 
   private emote(at: Spot, frame: number, ms = 1600) {
-    if (this.instant) return;
+    if (this.instant || reducedMotion()) return;
     const i = this.add.image(at.x, at.y, "emotes", frame).setScale(SCALE).setDepth(20000);
     this.tweens.add({ targets: i, y: at.y - 16, alpha: 0, delay: ms * 0.6, duration: ms * 0.4, onComplete: () => i.destroy() });
   }
 
   private float(at: Spot, text: string, color: string, ms = 1200, size = 16) {
-    if (this.instant) return;
+    if (this.instant || reducedMotion()) return;
     const t = this.add
       .text(at.x, at.y, text, { fontFamily: "monospace", fontSize: `${size}px`, color, fontStyle: "bold" })
       .setOrigin(0.5)

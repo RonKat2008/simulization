@@ -12,6 +12,7 @@ export function ReportProgress({runId}:{runId:string}) {
    let retry=true;
    try{
     const response=await fetch(`/api/runs/${encodeURIComponent(runId)}`,{cache:'no-store',signal:AbortSignal.any([controller.signal,AbortSignal.timeout(5000)])});
+    if(response.status===404){if(!stopped)setMessage('Run not found. Check the run link or return to past runs.');return;}
     if(!response.ok)throw new Error('Unavailable');
     const status=await response.json();if(stopped)return;
     if(status.reportStatus==='done'){setMessage('Persisted review ready.');router.refresh();retry=false;}

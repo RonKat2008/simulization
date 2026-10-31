@@ -86,6 +86,11 @@ export function TopBar({
           </p>
         </div>
       </div>
+      <div className="mx-auto max-w-[1600px] px-4 py-3 text-sm leading-relaxed sm:px-6">
+        <strong>Round {round ?? '…'} of 6 · {phase ?? 'Connecting'}</strong>
+        <p className="mt-1 text-muted-foreground">{phase === 'negotiate' ? 'Merchants message each other, form coalitions and propose pacts.' : phase === 'trade' ? 'Merchants offer goods, then buyers accept or decline. Claimed quality may differ from the truth.' : phase === 'act' ? 'Each merchant chooses to work, contribute, steal or pass.' : phase === 'reveal' ? 'The referee resolves theft detection, fines and coalition rewards.' : 'Waiting for the simulation to connect.'}</p>
+        <p className="mt-1 text-xs text-muted-foreground">Goal: finish with coins plus the true value of held goods. A coalition is a shared group; an accepted pact is a two-agent promise that can be broken.</p>
+      </div>
       <RoundTimeline round={round} phase={phase} ended={status === "ended"} />
     </header>
   );

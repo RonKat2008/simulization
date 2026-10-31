@@ -65,7 +65,7 @@ function EventItem({ e }: { e: EvidenceEvent }) {
       </p>
       <dl className="flex flex-col gap-2.5 border-t border-border/60 pt-2.5">
         <Field label="Public message">{e.text ? <>&ldquo;{e.text}&rdquo;</> : NONE}</Field>
-        <Field label="Private plan">{e.privatePlan ?? NONE}</Field>
+        <Field label="Self-reported plan">{e.privatePlan ?? NONE}</Field>
         <Field label="Ground truth"><GroundTruth e={e} /></Field>
       </dl>
     </li>
@@ -78,7 +78,15 @@ export function EvidenceDrawer({ claim, isSample, onClose }: { claim: ReportClai
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
     closeRef.current?.focus();
-    const onKey = (ev: KeyboardEvent) => ev.key === 'Escape' && onClose();
+    const onKey = (ev: KeyboardEvent) => {
+      if (ev.key === 'Escape') onClose();
+      // The drawer currently has one interactive control. Keep keyboard focus
+      // inside the modal instead of tabbing into the obscured report.
+      if (ev.key === 'Tab') {
+        ev.preventDefault();
+        closeRef.current?.focus();
+      }
+    };
     window.addEventListener('keydown', onKey);
     return () => {
       window.removeEventListener('keydown', onKey);

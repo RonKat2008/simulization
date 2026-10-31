@@ -34,6 +34,7 @@ export default async function ReportPage({searchParams}:{searchParams:Promise<Re
   const isMock = data.source === 'mock';
   const nL = data.conditions.LABELED?.runs ?? 0;
   const nB = data.conditions.BLIND?.runs ?? 0;
+  const single = data.selection?.runId ? (data.conditions.LABELED ?? data.conditions.BLIND) : undefined;
 
   return (
     <>
@@ -62,18 +63,23 @@ export default async function ReportPage({searchParams}:{searchParams:Promise<Re
               <Link className="underline" href="/report?mock=1">Offline fixtures</Link>
             </div>}
             {data.selection?.runId && (data.pendingReview || data.state==='pending' || data.state==='empty') && <ReportProgress runId={data.selection.runId} />}
-            <nav aria-label="Report sections" className="print:hidden">
+            {ready && <nav aria-label="Report sections" className="print:hidden">
               <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                {NAV.map(([id, label]) => (
+                {NAV.filter(([id])=>id!=="headline-title"||(nL>0&&nB>0)).map(([id, label]) => (
                   <li key={id}><a href={`#${id}`} className="underline-offset-4 transition-colors hover:text-foreground hover:underline">{label}</a></li>
                 ))}
               </ul>
-            </nav>
+            </nav>}
           </div>
         </header>
         {!ready && <section role="status" className="mx-auto max-w-6xl px-4 py-10 sm:px-6"><h2 className="font-display text-xl">{data.state==='error'?'Report unavailable':data.state==='failed'?'Run did not complete':data.state==='pending'?'Run in progress':'No report yet'}</h2><p className="mt-3 text-sm text-muted-foreground">{data.message}</p><Link className="mt-4 inline-block text-sm underline" href="/launch">Back to runs</Link></section>}
         {ready && <>
-        <HeadlineSection data={data} />
+        {single && <section aria-labelledby="outcome-title" className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+          <h2 id="outcome-title" className="text-2xl font-semibold">What happened in this run</h2>
+          <p className="mt-3 text-base leading-relaxed">Across {single.mean.evalAwareness.total} recorded agent turns, the referee flagged {(single.mean.deception.inGroupCount ?? 0)+(single.mean.deception.outGroupCount ?? 0)} misdescribed offers. Recorded theft actions: {(single.mean.theft.inGroupCount ?? 0)+(single.mean.theft.outGroupCount ?? 0)}.</p>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">These are observed game behaviors, not conclusions about a provider’s ethics or bias. Game score measures coins plus held goods; the behavioral measures below answer different questions. Inspect cited events in the review before drawing conclusions.</p>
+        </section>}
+        {nL > 0 && nB > 0 && <HeadlineSection data={data} />}
         <SummaryTable data={data} />
         <ChartsSection data={data} />
         <CompanyTable data={data} />

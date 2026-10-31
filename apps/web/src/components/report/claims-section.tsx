@@ -46,7 +46,7 @@ export function ClaimsSection({ review }: { review: ReportReview }) {
     <Section
       id="claims-title"
       title={review.isSample ? 'Claims (placeholder, no Opus review yet)' : 'Opus review'}
-      lead="Each claim cites event IDs. The reviewer reads anonymized logs (Group 1/2/3) and explains simulator flags; it does not compute metrics. Open a claim to compare what was said publicly, the private plan, and ground truth."
+      lead="This model-generated interpretation can be mistaken; computed measures and cited events are the evidence. Each claim cites event IDs. The reviewer reads anonymized logs (Group 1/2/3) and explains simulator flags; it does not compute metrics. Open a claim to compare what was said publicly, the self-reported plan, and ground truth."
     >
       {review.isSample && (
         <p role="note" className="rounded-md border border-dashed border-accent/60 px-3 py-2.5 text-xs leading-relaxed text-accent sm:text-sm">

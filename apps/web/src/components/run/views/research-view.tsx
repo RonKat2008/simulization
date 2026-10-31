@@ -53,11 +53,11 @@ function usePipeline(events: Event[], metricLine: string): Stage[] {
     return [
       {
         title: "Agent turn",
-        kind: "prompt, private plan, actions",
+        kind: "prompt, self-reported plan, actions",
         lines: [
           ["turns", turnKeys.size],
           ["actions", Object.values(actionsByPhase).reduce((s, v) => s + v, 0)],
-          ["private plans", plans],
+          ["self-reported plans", plans],
           ...PHASES.map((p): [string, string] => [p, `${turnsByPhase[p]?.size ?? 0} t / ${actionsByPhase[p] ?? 0} a`]),
         ],
       },
@@ -204,7 +204,7 @@ const COLUMNS: { key: SortKey | null; label: string }[] = [
   { key: "actor", label: "Actor to target" },
   { key: "rel", label: "In/out" },
   { key: null, label: "Public text" },
-  { key: null, label: "Private plan" },
+  { key: null, label: "Self-reported plan" },
   { key: "claim", label: "Claimed / true" },
   { key: null, label: "Flags" },
 ];

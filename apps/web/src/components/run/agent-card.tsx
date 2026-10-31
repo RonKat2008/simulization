@@ -22,7 +22,7 @@ function relations(events: Event[], id: string) {
   for (const e of events) {
     const other = e.actorId === id ? e.targetId : e.targetId === id ? e.actorId : undefined;
     if (e.type === "pact_accept" && other) pacts.add(other);
-    if (e.type === "pact_break" && other) pacts.delete(other);
+    // A broken promise remains a pact in the engine; violation is counted separately.
     if (e.actorId !== id) continue;
     if (e.type === "coalition_create" || e.type === "coalition_join") coalition = e.channel ?? "coalition";
     if (e.type === "coalition_leave") coalition = null;
@@ -52,7 +52,7 @@ function Pair({ e }: { e: Event }) {
           {c ? <p className="mt-0.5 tabular-nums">claimed <b>Q{c.claimed}</b> for {c.price}c</p> : null}
         </div>
         <div className="bg-surface-raised px-3 py-1.5 text-xs">
-          <p className="mb-0.5 text-[10px] uppercase tracking-wider text-accent">Private plan{c ? " and truth" : ""}</p>
+          <p className="mb-0.5 text-[10px] uppercase tracking-wider text-accent">Self-reported plan{c ? " · observer truth below" : ""}</p>
           <p className="break-words">{e.privatePlan ?? <span className="text-muted-foreground">no plan recorded</span>}</p>
           {c && c.actual !== null ? (
             <p className={`mt-0.5 tabular-nums ${lie ? "text-violation" : ""}`}>
@@ -66,7 +66,7 @@ function Pair({ e }: { e: Event }) {
   );
 }
 
-export function AgentCard({ finalScores }: { finalScores: Record<string, number> | null }) {
+export function AgentCard({ finalScores, wealthVisibility }: { finalScores: Record<string, number> | null; wealthVisibility: "private" | "public" | null }) {
   const { agents, label, shownCompany, blind } = useRun();
   const selected = useEventStore((s) => s.selectedAgentId);
   const events = useEventStore((s) => s.events);
@@ -116,24 +116,24 @@ export function AgentCard({ finalScores }: { finalScores: Record<string, number>
       </div>
       {!selected || !stats || !rel || !agent ? (
         <p className="p-4 text-sm text-muted-foreground">
-          Select a merchant in the table, the log or on the map to compare what it said publicly with what it privately planned.
+          Select a merchant in the table, the log or on the map to compare its recorded actions with its self-reported plan and observer-only truth.
         </p>
       ) : (
         <>
           <div className="grid gap-px bg-border sm:grid-cols-2">
             <div className="bg-surface p-3">
-              <h3 className="mb-1 text-[11px] uppercase tracking-wider text-muted-foreground">Public record</h3>
+              <h3 className="mb-1 text-[11px] uppercase tracking-wider text-muted-foreground">Public identity and group</h3>
               <dl>
-                <Row k="Final score" v={finalScores?.[agent.id] ?? "in play"} />
                 <Row k="Coalition" v={rel.coalition ?? "none"} />
-                <Row k="Open pacts" v={rel.pacts.length ? rel.pacts.map(label).join(", ") : "none"} />
                 <Row k="Messages sent" v={stats.messages} />
-                <Row k="Pacts accepted / broken" v={`${stats.pactsAccepted} / ${stats.pactsBroken}`} />
+
               </dl>
             </div>
             <div className="bg-surface-raised p-3">
               <h3 className="mb-1 text-[11px] uppercase tracking-wider text-accent">Ground truth (observer only)</h3>
               <dl>
+                <Row k="Game score (coins + goods)" v={finalScores?.[agent.id] ?? "in play"} />
+                <Row k="Pacts accepted / violated" v={`${stats.pactsAccepted} / ${stats.pactsBroken}`} />
                 <Row k="Lies / offers made" v={`${stats.lies} / ${stats.offers}`} tone={stats.lies ? "text-violation" : ""} />
                 {!blind ? <Row k="Lies to same lab" v={`${stats.liesToSameCompany} / ${stats.lies}`} /> : null}
                 <Row k="Thefts" v={stats.thefts} tone={stats.thefts ? "text-violation" : ""} />
@@ -143,10 +143,16 @@ export function AgentCard({ finalScores }: { finalScores: Record<string, number>
               </dl>
             </div>
           </div>
+          <div className="border-t px-3 py-3 text-sm leading-relaxed">
+            <h3 className="font-semibold">What this agent can see</h3>
+            <p className="mt-1">Accepted pact partners: {rel.pacts.length ? rel.pacts.map(label).join(", ") : "none"}. Pacts are promises, not protection from theft.</p>
+            <p className="mt-1 text-muted-foreground">Its own coins and true inventory quality, addressed offers, coalition membership and scoped messages. {blind ? 'Other company names are hidden.' : 'Other company names are visible.'} {wealthVisibility === 'public' ? 'Other merchants’ current coin balances are visible.' : 'Other merchants’ coin balances are hidden.'} Other merchants’ inventory truth is never provided.</p>
+            <p className="mt-2 text-xs text-muted-foreground">This page is an observer record, not a complete replay of the agent’s private input. Plans are model-generated statements, not verified internal thoughts.</p>
+          </div>
           <div className="border-t">
             <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
               <h3 className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                Statement vs private plan <span className="tabular-nums">({pairs.length})</span>
+                Action and self-reported plan <span className="tabular-nums">({pairs.length})</span>
               </h3>
               <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <input type="checkbox" checked={flaggedOnly} onChange={(e) => setFlaggedOnly(e.target.checked)} />

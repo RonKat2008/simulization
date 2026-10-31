@@ -14,13 +14,13 @@ import {
 import { startRun } from "./start-run";
 
 const CONDITION_OPTIONS: readonly Option<Condition>[] = [
-  { value: "LABELED", tone: "primary", title: "LABELED", detail: "Each agent sees which lab built every other agent. Tests in-group bias when identity is salient." },
-  { value: "BLIND", tone: "accent", title: "BLIND", detail: "Agents see names only; lab identity is withheld. The control: any bias must come from behavior, not labels." },
+  { value: "LABELED", tone: "primary", title: "Yes — show company names", detail: "Agents see the company behind each merchant (LABELED)." },
+  { value: "BLIND", tone: "accent", title: "No — hide company names", detail: "Agents see merchant names but no company labels (BLIND). They may still infer identity from behavior." },
 ];
 
 const WEALTH_OPTIONS: readonly Option<WealthVisibility>[] = [
-  { value: "private", tone: "primary", title: "PRIVATE", detail: "Private wealth: agents cannot see others' coins. Hierarchy has to be inferred from behavior." },
-  { value: "public", tone: "accent", title: "PUBLIC", detail: "Public wealth: every agent sees everyone's coins. Makes status and inequality directly observable." },
+  { value: "private", tone: "primary", title: "No — keep balances private", detail: "Agents know their own coins; other merchants’ balances are omitted." },
+  { value: "public", tone: "accent", title: "Yes — show coin balances", detail: "Agents see others’ current coins, but never their true inventory quality or value." },
 ];
 
 type Phase =
@@ -95,9 +95,11 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-6 rounded-lg border bg-surface p-5 sm:p-6" noValidate>
-      <OptionGroup legend="Condition" name="condition" options={CONDITION_OPTIONS} value={condition} onChange={setCondition} disabled={pending} />
-      <OptionGroup legend="Wealth visibility" name="wealth_visibility" options={WEALTH_OPTIONS} value={wealth} onChange={setWealth} disabled={pending} />
+      <OptionGroup legend="Show agents’ company names" name="condition" options={CONDITION_OPTIONS} value={condition} onChange={setCondition} disabled={pending} />
+      <OptionGroup legend="Show other agents’ coin balances" name="wealth_visibility" options={WEALTH_OPTIONS} value={wealth} onChange={setWealth} disabled={pending} />
 
+      <details className="rounded-md border px-4 py-3">
+        <summary className="cursor-pointer py-1 text-sm font-medium">Advanced: seed and paired comparison</summary>
       <div className="flex flex-col gap-2">
         <label htmlFor={seedId} className="text-xs uppercase tracking-widest text-muted-foreground">
           Seed
@@ -118,6 +120,16 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
           Signed 32-bit integer. Use the same seed in both conditions for a paired comparison. The world is deterministic given the seed; model outputs are not.
         </p>
       </div>
+
+        <button
+          type="button"
+          onClick={startPair}
+          disabled={pending}
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-md border px-5 text-sm font-semibold transition-colors hover:border-primary hover:text-primary active:bg-surface-raised disabled:cursor-wait disabled:opacity-60"
+        >
+          {phase.kind === "pending" && phase.what === "pair" ? "Starting pair…" : "Start matched pair"}
+        </button><p className="mt-2 text-xs text-muted-foreground">A matched pair starts two paid runs with the same seed and coin visibility, one with company names and one without.</p>
+      </details>
 
       {phase.kind === "error" ? (
         <p
@@ -153,19 +165,12 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
               Starting run…
             </>
           ) : (
-            `Start ${condition} run`
+            "Start run"
           )}
         </button>
-        <button
-          type="button"
-          onClick={startPair}
-          disabled={pending}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-md border px-5 text-sm font-semibold transition-colors hover:border-primary hover:text-primary active:bg-surface-raised disabled:cursor-wait disabled:opacity-60"
-        >
-          {phase.kind === "pending" && phase.what === "pair" ? "Starting pair…" : "Start matched pair"}
-        </button>
+
         <p className="text-xs text-muted-foreground" aria-live="polite">
-          {pending ? "Registering with the run service." : "Matched pair = LABELED + BLIND, same seed and wealth visibility. Run mode and agent count are set by the server."}
+          {pending ? "Registering with the run service." : "The viewer will show whether this run uses live models or scripted agents."}
         </p>
       </div>
     </form>

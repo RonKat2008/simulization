@@ -50,7 +50,7 @@ export function CompanyTable({ data }: { data: ReportData }) {
                             <span className="size-2.5 rounded-sm" style={{ background: COMPANY_VAR[co.id] }} aria-hidden="true" />
                             {co.name}
                           </span>
-                          <span className="text-muted-foreground">agents {co.id}-01 to {co.id}-06</span>
+                          <span className="text-muted-foreground">company {co.id} · neutral merchant IDs</span>
                         </th>
                       )}
                       <td className="px-3 py-2">

@@ -28,12 +28,13 @@ function AgentRef({ id, company }: { id: string; company: string | undefined }) 
 }
 
 function ClaimLine({ e }: { e: Event }) {
+  const {label}=useRun();
   const c = claimCheck(e);
   if (!c) return null;
   const lie = e.flags.includes("lie");
   return (
     <p className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-xs tabular-nums">
-      <span className="text-muted-foreground">Good {c.goodId.split("-").slice(-1)[0]}</span>
+      <span>{e.type === "trade_offer" ? `${label(e.actorId)} offered an item` : "The referenced offer described an item"} as quality {c.claimed}; its actual quality was {c.actual ?? "not recorded"}. <span className="text-muted-foreground">Observer-only check.</span></span>
       <span>
         claimed <b className="font-semibold">Q{c.claimed}</b>
       </span>
@@ -47,7 +48,7 @@ function ClaimLine({ e }: { e: Event }) {
           {lie ? " LIE" : c.misstated ? " misstated" : ""}
         </span>
       ) : (
-        <span className="text-muted-foreground">accurate</span>
+        <span className="text-muted-foreground">{c.actual === null ? "truth unavailable" : "accurate"}</span>
       )}
       <span className="text-muted-foreground">{c.price}c</span>
     </p>
@@ -123,16 +124,16 @@ function EventRowImpl({ e, index, active, open, onToggle, onActivate }: Props) {
             onClick={() => onToggle(e.seq)}
             className="text-xs text-accent underline-offset-2 hover:underline"
           >
-            {open ? "Hide private plan" : "Show private plan"}
+            {open ? "Hide self-reported plan" : "Show self-reported plan"}
           </button>
           {open ? (
             <div id={planId} className="mt-1.5 grid gap-px bg-border sm:grid-cols-2">
               <div className="bg-surface p-2">
-                <p className="mb-1 text-[10px] uppercase tracking-wider text-muted-foreground">Public statement</p>
+                <p className="mb-1 text-[10px] uppercase tracking-wider text-muted-foreground">Recorded statement (channel-scoped)</p>
                 <p className="break-words text-xs">{e.text ?? "(none: action only)"}</p>
               </div>
               <div className="bg-surface-raised p-2">
-                <p className="mb-1 text-[10px] uppercase tracking-wider text-accent">Private plan</p>
+                <p className="mb-1 text-[10px] uppercase tracking-wider text-accent">Self-reported plan · observer only</p>
                 <p className="break-words text-xs">{e.privatePlan}</p>
               </div>
             </div>

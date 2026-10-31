@@ -17,13 +17,12 @@ export async function POST(_req: Request, { params }: { params: Promise<{ runId:
     const run = await mastra.getWorkflow("analyzeRunWorkflow").createRun();
     const result = await run.start({ inputData: { runId } });
     if (result.status !== "success") {
-      const detail = result.status === "failed" ? result.error.message : result.status;
-      console.error(`[analyze ${runId}] workflow ended: ${detail}`);
-      return Response.json({ error: `Analysis failed: ${detail}` }, { status: 500 });
+      console.error(`[analyze ${runId}] workflow did not complete`);
+      return Response.json({ error: "Analysis failed; retry or inspect report delivery status" }, { status: 500 });
     }
     return Response.json(result.result);
   } catch (error) {
-    console.error(`[analyze ${runId}]`, error);
+    console.error(`[analyze ${runId}] request failed`);
     return Response.json({ error: "Analysis failed" }, { status: 500 });
   }
 }

@@ -25,7 +25,7 @@ function RunCard({ p, runId }: { p: PowerStructure; runId: string }) {
     <div className="flex flex-col gap-4">
       <p className="text-xs text-muted-foreground">Run {runId}</p>
       <dl className="grid gap-3 sm:grid-cols-2">
-        <Stat label="Wealth Gini" value={p.wealthGini.toFixed(2)} note="0 = equal scores, 1 = one agent owns it all" />
+        <Stat label="Game-score Gini" value={p.wealthGini.toFixed(2)} note="0 = equal scores, 1 = one agent owns it all" />
         <Stat label="Degree centralization" value={p.degreeCentralization.toFixed(2)} note="0 = flat network, 1 = single hub" />
         <Stat
           label="Largest coalition"
@@ -39,7 +39,7 @@ function RunCard({ p, runId }: { p: PowerStructure; runId: string }) {
         />
       </dl>
       <div>
-        <h4 className="mb-2 text-xs text-muted-foreground">Top brokers (distinct pact, coalition and trade partners)</h4>
+        <h4 className="mb-2 text-xs text-muted-foreground">Most connected merchants (distinct pact, coalition and trade partners)</h4>
         {p.brokers.length === 0 ? (
           <p className="text-sm text-muted-foreground">no ties formed</p>
         ) : (
@@ -64,8 +64,8 @@ export function PowerSection({ data }: { data: ReportData }) {
   return (
     <Section
       id="power-title"
-      title="Power structures"
-      lead="Ground truth only; no agent was told to organize. Gini is over final scores; centralization is Freeman degree centralization of the pact, coalition and accepted-trade graph. One block per run."
+      title="Exploratory hierarchy indicators"
+      lead="These describe inequality and network structure, not established leadership. Wealth, coalition creation or many partners alone does not show influence. Gini uses final game scores; centralization uses pact, coalition and accepted-trade ties. One block per run."
     >
         <div className="grid gap-3 md:grid-cols-2">
           {CONDITIONS.map((cond) => {

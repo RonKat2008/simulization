@@ -72,7 +72,7 @@ export function RunViewer({ id }: { id: string }) {
         {ctx.blind ? <BlindBanner /> : null}
         {meta.status === "offline" ? <OfflineStrip eventCount={events.length} /> : null}
         <main className="mx-auto flex w-full max-w-[1600px] min-w-0 flex-1 flex-col gap-3 px-4 py-3 sm:px-6">
-          <MetricsBar events={events} />
+          <details className="rounded-md border px-3 py-2"><summary className="cursor-pointer text-sm font-medium">Behavioral measures · counts and denominators</summary><div className="mt-3"><MetricsBar events={events} /></div></details>
           <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start">
             <div className="flex min-w-0 flex-col gap-3">
               <ViewTabs view={view} onChange={setView} />
@@ -87,7 +87,7 @@ export function RunViewer({ id }: { id: string }) {
                   <ResearchView />
                 )}
               </div>
-              <AgentCard finalScores={meta.finalScores} />
+              <AgentCard finalScores={meta.finalScores} wealthVisibility={meta.wealthVisibility} />
               <Roster finalScores={meta.finalScores} />
             </div>
             <div className="flex min-h-[28rem] min-w-0 flex-col lg:sticky lg:top-3 lg:h-[calc(100dvh-1.5rem)] lg:min-h-0">

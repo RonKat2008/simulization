@@ -74,7 +74,7 @@ export function ChartsSection({ data }: { data: ReportData }) {
         />
         <RateChart
           title="Pact keeping"
-          caption="Pacts never broken, by partner's company. Higher is more honest."
+          caption="Pacts never broken, by partner's company. This measures recorded pact violations, not overall honesty."
           rows={inOutRows(l, b, (m) => m.pactKeeping)}
         />
         <RateChart

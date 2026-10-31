@@ -13,7 +13,7 @@ const ANNOUNCE_MAX = 3;
 const KEYS: [string, string][] = [
   ["j / k, arrows", "next / previous event"],
   ["Home / End", "first / last event"],
-  ["Enter or p", "show private plan"],
+  ["Enter or p", "show self-reported plan"],
   ["a / t", "select actor / target"],
   ["/", "search"],
   ["Esc", "deselect agent"],
@@ -35,13 +35,14 @@ export function EventFeed({ followLatest, status }: { followLatest: boolean; sta
   const [showJump, setShowJump] = useState(false);
   const [active, setActive] = useState(0);
   const [openSeqs, setOpenSeqs] = useState<ReadonlySet<number>>(new Set());
+  const [showAll, setShowAll] = useState(false);
   const [expandAll, setExpandAll] = useState(false);
   const [announce, setAnnounce] = useState("");
   const prevCount = useRef(0);
 
   const visible = useMemo(
-    () => events.filter((e) => matchesFilter(e, { types: typeFilter, flags: flagFilter, round: roundFilter, agent: agentFilter, query }, label)),
-    [events, typeFilter, flagFilter, roundFilter, agentFilter, query, label],
+    () => { const matched=events.filter((e) => matchesFilter(e, { types: typeFilter, flags: flagFilter, round: roundFilter, agent: agentFilter, query }, label)); return showAll || typeFilter.length || flagFilter.length || agentFilter || roundFilter || query ? matched : matched.filter(e=>e.type!=="system"&&e.type!=="pass").slice(-8); },
+    [events, typeFilter, flagFilter, roundFilter, agentFilter, query, label, showAll],
   );
   const activeIdx = Math.min(active, Math.max(visible.length - 1, 0));
   const filtered = visible.length !== events.length;
@@ -142,7 +143,7 @@ export function EventFeed({ followLatest, status }: { followLatest: boolean; sta
     <section aria-labelledby="feed-title" className="flex min-h-0 flex-1 flex-col rounded-lg border bg-surface">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
         <h2 id="feed-title" className="font-display text-sm tracking-wide">
-          Event log
+          Recent actions
         </h2>
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
           {withPlans > 0 ? (
@@ -161,7 +162,8 @@ export function EventFeed({ followLatest, status }: { followLatest: boolean; sta
           </span>
         </div>
       </div>
-      <FeedFilters />
+      <button type="button" onClick={()=>setShowAll(v=>!v)} className="min-h-9 border-b px-3 text-left text-sm text-primary">{showAll ? 'Show eight recent actions' : 'Show complete event log'}</button>
+      <details className="border-b px-3 py-2 text-sm"><summary className="cursor-pointer">Filter and search events</summary><FeedFilters /></details>
       <details className="border-b px-3 py-1.5 text-xs text-muted-foreground">
         <summary className="cursor-pointer select-none hover:text-foreground">Keyboard shortcuts</summary>
         <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">

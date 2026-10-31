@@ -160,7 +160,7 @@ export function selectReportRuns(runs: LoadedRun[], options: ReportOptions): Loa
 export function assembleNeonReport(neon: NeonReport, options: ReportOptions): ReportData {
   const runs=selectReportRuns(neon.runs,options);
   const first=runs[0];
-  const selection={runId:options.runId,wealthVisibility:first?.config?.wealth_visibility??options.wealthVisibility??'private',mode:first?.config?.mode??options.mode??'unknown'};
+  const selection={runId:options.runId,wealthVisibility:first?.config?.wealth_visibility??options.wealthVisibility??(first?'private':'unknown'),mode:first?.config?.mode??options.mode??'unknown'};
   if(!runs.length)return {source:'neon',state:'empty',message:options.runId?'Run not found in the reporting database yet. Open the live viewer to check initialization.':'No completed runs match this report selection.',selection,conditions:{},review:emptyReview};
   if(first?.status!=='done')return {source:'neon',state:first?.status==='failed'?'failed':'pending',message:first?.status==='failed'?'This run stopped before completion; no completed report is available.':'This run is still in progress. Its report will appear after completion.',selection,conditions:{},review:emptyReview};
   const reviewed=runs.filter(r=>neon.reviews.has(r.id));
