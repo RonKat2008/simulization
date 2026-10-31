@@ -22,7 +22,7 @@ try {
   const transport=createActorTransport({controlPlaneUrl,projectId,apiKey});
   const runs=await transport.invoke('RunDirectory','main','list',[]) as Registration[];
   for(const run of runs) {
-    try {await transport.invoke('WorldActor',run.runId,'startRun',[run.runId,run.seed,run.condition,run.mode,run.agentCount]);}
+    try {await transport.invoke('WorldActor',run.runId,'startRun',[run.runId,run.seed,run.condition,run.mode,run.agentCount,run.wealth_visibility??'private']);}
     catch {console.warn(`Run ${run.runId} could not resume; other runs remain available`);}
   }
 } catch(error) {await runtime.stop();throw error;}

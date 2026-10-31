@@ -37,6 +37,8 @@ try {
   events.forEach((e,i)=>{EventSchema.parse(e);assert.equal(e.seq,i+1);assert.equal(e.id,`world-smoke-${i+1}`);});
   assert.deepEqual(await call('world-smoke','events',events.length-2),events.slice(-2));
   assert.equal(Object.keys(final.finalScores).length,6);
+  await call('world-smoke','stop');
+  assert.deepEqual(await status('world-smoke'),final,'stop must not turn a completed run into a failure');
   console.log(`PASS Terse WorldActor: six rounds (${events.length} events), restart recovery, event cursor, final scores`);
   await call('stalled-smoke','initialize','stalled-smoke',42,'BLIND',6,false,true);
   const stalledStart = Date.now();

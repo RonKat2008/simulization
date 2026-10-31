@@ -28,6 +28,8 @@ try {
   assert.match(queries[0]!.query,/INSERT INTO runs/);
   assert.match(queries[0]!.query,/projectedSeq/);
   assert.ok(queries[0]!.params.includes('done'));
+  const metadata=queries[0]!.params.map(p=>{try{return JSON.parse(p);}catch{return null;}}).find(p=>p?.projectedSeq===result.events.length);
+  assert.equal(metadata.wealth_visibility,'private');
   const agents=JSON.parse(queries[1]!.params[0]!);
   assert.equal(agents.length,6);
   assert.ok(agents.every((a:Record<string,unknown>)=>a.provider && a.model && !('state' in a)));
@@ -41,6 +43,8 @@ try {
   fail=false;
   await projectCheckpoint(checkpoint,'deterministic-stub',sql);
   assert.deepEqual(requests[3],requests[0]);
+  await projectCheckpoint({...checkpoint,state:{...checkpoint.state,wealth_visibility:'public'}},'deterministic-stub',sql);
+  assert.ok(requests.at(-1)!.queries[0]!.params.some(p=>p.includes('\"wealth_visibility\":\"public\"')),'public policy persisted');
   const count=requests.length;
   await assert.rejects(projectCheckpoint({...checkpoint,state:{...checkpoint.state,seq:0}},'deterministic-stub',sql),/sequence mismatch/);
   await assert.rejects(projectCheckpoint({...checkpoint,events:[...checkpoint.events].reverse()},'deterministic-stub',sql),/contiguous/);

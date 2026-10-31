@@ -15,5 +15,5 @@ assert.deepEqual(useEventStore.getState().events,result.events);
 useEventStore.getState().reset();
 const output=fileURLToPath(new URL('../fixtures/',import.meta.url));await mkdir(output,{recursive:true});
 await writeFile(output+'track-a-stub.events.json',JSON.stringify(result.events,null,2)+'\n');
-await writeFile(output+'track-a-stub.metadata.json',JSON.stringify({mode:'deterministic-stub',...options,rounds:6,agents,finalScores:result.state.finalScores,metrics,limitations:['No live models or Relay network calls','Observer events contain private plans and ground truth; never agent input']},null,2)+'\n');
+await writeFile(output+'track-a-stub.metadata.json',JSON.stringify({mode:'deterministic-stub',...options,wealth_visibility:result.state.wealth_visibility??'private',rounds:6,agents,finalScores:result.state.finalScores,metrics,limitations:['No live models or Relay network calls','Observer events contain private plans and ground truth; never agent input']},null,2)+'\n');
 console.log(`PASS engine export: ${result.events.length} events; D store sorted/deduplicated exact log; E computeRunMetrics accepted actual roster`);

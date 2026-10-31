@@ -5,6 +5,7 @@
   "condition": "BLIND",
   "agentCount": 6,
   "epoch": 0,
+  "wealth_visibility": "private",
   "rounds": 6,
   "agents": [
     {

@@ -39,7 +39,7 @@ export async function projectCheckpoint(checkpoint: Checkpoint, mode: string, in
   const url = process.env.DATABASE_URL;
   if (!injectedSql && !url) throw new Error('DATABASE_URL is required for Neon projection');
   const sql = injectedSql ?? neon(url!);
-  const config = JSON.stringify({ mode, agentCount: agents.length, projectedSeq: state.seq });
+  const config = JSON.stringify({ mode, wealth_visibility: state.wealth_visibility??'private', agentCount: agents.length, projectedSeq: state.seq });
   // One HTTP request / Postgres transaction. No completed run is visible until its
   // entire event stream is visible. Failed/uncertain requests must be retried by World.
   await sql.transaction([

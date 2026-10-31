@@ -2,7 +2,7 @@
 import {createActorTransport} from 'durable-actors/backend';
 import {SocketProxy} from 'durable-actors/proxy';
 import {neon} from '@neondatabase/serverless';
-import {EventSchema} from '@simulization/shared';
+import {EventSchema,WealthVisibilitySchema} from '@simulization/shared';
 import {rowToEvent} from '@/mastra/db';
 
 export class ApiError extends Error { constructor(public status:number,message:string){super(message);} }
@@ -20,8 +20,11 @@ export async function invoke(id:string,method:string,args:unknown[]=[]):Promise<
 }
 function db(){if(!process.env.DATABASE_URL)throw new ApiError(503,'DATABASE_URL is not configured');return neon(process.env.DATABASE_URL);}
 export async function createRun(body:unknown,requestedId?:string|null){
-  const b=body as {condition?:unknown;seed?:unknown};
+  const b=body as {condition?:unknown;seed?:unknown;wealth_visibility?:unknown};
   if(!b||(b.condition!=='BLIND'&&b.condition!=='LABELED')||!Number.isInteger(b.seed)||Number(b.seed)<-2147483648||Number(b.seed)>2147483647)throw new ApiError(400,'condition and signed 32-bit integer seed are required');
+  const visibility=WealthVisibilitySchema.safeParse(b.wealth_visibility===undefined?'private':b.wealth_visibility);
+  if(!visibility.success)throw new ApiError(400,'wealth_visibility must be private or public');
+  const wealth_visibility=visibility.data;
   const mode=process.env.SIM_RUN_MODE??'live';
   if(!['live','stub'].includes(mode))throw new ApiError(503,'SIM_RUN_MODE must be live or stub');
   if(mode==='live'){
@@ -32,9 +35,9 @@ export async function createRun(body:unknown,requestedId?:string|null){
   const agentCount=mode==='stub'?6:18;
   const runId=validId(requestedId||crypto.randomUUID());
   if(runId.length>110)throw new ApiError(400,'Run ID must be at most 110 characters');
-  const registration={runId,seed:b.seed,condition:b.condition,mode,agentCount};
+  const registration={runId,seed:b.seed,condition:b.condition,mode,agentCount,wealth_visibility};
   await createActorTransport(actorOptions()).invoke('RunDirectory','main','register',[registration]);
-  await invoke(runId,'startRun',[runId,b.seed,b.condition,mode,agentCount]);
+  await invoke(runId,'startRun',[runId,b.seed,b.condition,mode,agentCount,wealth_visibility]);
   return {runId};
 }
 export async function runStatus(id:string){
@@ -47,12 +50,12 @@ export async function runStatus(id:string){
       const row=rows[0]!;
       const agents=await sql`SELECT agent_id AS id,name,company FROM agents WHERE run_id=${id} ORDER BY agent_id`;
       const config=row.config as Record<string,unknown>;
-      return {id:row.id,condition:row.condition,seed:row.seed,status:row.status,round:row.current_round,phase:row.current_phase,finalScores:row.final_scores,agents,mode:config?.mode,seq:config?.projectedSeq,projection:'synced',reportStatus:row.review_id?'done':row.status==='done'?'pending':'not-requested',source:'neon'};
+      return {id:row.id,condition:row.condition,seed:row.seed,status:row.status,round:row.current_round,phase:row.current_phase,finalScores:row.final_scores,agents,mode:config?.mode,wealth_visibility:config?.wealth_visibility??'private',seq:config?.projectedSeq,projection:'synced',reportStatus:row.review_id?'done':row.status==='done'?'pending':'not-requested',source:'neon'};
     }
-    const runs=await createActorTransport(actorOptions()).invoke('RunDirectory','main','list',[]) as {runId:string;condition:string;mode:string}[];
+    const runs=await createActorTransport(actorOptions()).invoke('RunDirectory','main','list',[]) as {runId:string;condition:string;mode:string;wealth_visibility?:string}[];
     const pending=runs.find(r=>r.runId===id);
     if(!pending)throw new ApiError(404,'Run not found');
-    return {id,condition:pending.condition,status:'running',round:1,phase:'negotiate',mode:pending.mode==='live'?'initializing-live':'deterministic-stub',seq:0,agents:[],projection:'pending',reportStatus:'not-requested'};
+    return {id,condition:pending.condition,wealth_visibility:pending.wealth_visibility??'private',status:'running',round:1,phase:'negotiate',mode:pending.mode==='live'?'initializing-live':'deterministic-stub',seq:0,agents:[],projection:'pending',reportStatus:'not-requested'};
   }
   return invoke(id,'status');
 }
@@ -77,7 +80,7 @@ export async function socket(id:string){
 export async function listRuns(){
   if(process.env.DATABASE_URL){
     const rows=await db()`SELECT id,condition,seed,status,current_round,current_phase,config,final_scores,created_at FROM runs ORDER BY created_at DESC LIMIT 100`;
-    return rows.map(r=>({id:r.id,condition:r.condition,seed:r.seed,status:r.status,round:r.current_round,phase:r.current_phase,mode:(r.config as Record<string,unknown>)?.mode,finalScores:r.final_scores,createdAt:r.created_at}));
+    return rows.map(r=>({id:r.id,condition:r.condition,seed:r.seed,status:r.status,round:r.current_round,phase:r.current_phase,mode:(r.config as Record<string,unknown>)?.mode,wealth_visibility:(r.config as Record<string,unknown>)?.wealth_visibility??'private',finalScores:r.final_scores,createdAt:r.created_at}));
   }
   if(process.env.SIM_RUN_MODE!=='stub')throw new ApiError(503,'DATABASE_URL is not configured');
   const runs=await createActorTransport(actorOptions()).invoke('RunDirectory','main','list',[]) as {runId:string}[];

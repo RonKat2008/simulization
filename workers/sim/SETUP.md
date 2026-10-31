@@ -17,7 +17,7 @@ Copy `.env.example` privately. Never commit credentials. Shell variables take pr
 - Optional `DURABLE_ACTORS_SECRET`: server-only authentication for the local control plane.
 - Optional `DURABLE_ACTORS_DATA_DIR`: durable data directory, relative to `actors/`.
 
-Live is the default (`SIM_RUN_MODE=live`). Leave `MODEL_MODE` unset. Missing live credentials reject creation; they do not select stub agents. For a credential-free rehearsal set `SIM_RUN_MODE=stub` in both processes. It uses six deterministic engine agents, explicitly reports `mode=deterministic-stub`, and does not request an Opus report. Live uses 18 agents. If Neon is configured, even stub rehearsal data is projected with its explicit provenance.
+Live is the default (`SIM_RUN_MODE=live`). Leave `MODEL_MODE` unset. Missing live credentials reject creation; they do not select stub agents. For a credential-free rehearsal set `SIM_RUN_MODE=stub` in both processes. It uses six deterministic engine agents, explicitly reports `mode=deterministic-stub`, and does not request an Opus report. Live uses 18 agents. POST /api/runs optionally accepts `wealth_visibility: "private" | "public"` (default private). Public exposes only other agents' current coin balances to their peers; inventory quality/value stays private. The setting is immutable and persisted in run metadata; it does not change observer UI visibility or game rules. If Neon is configured, even stub rehearsal data is projected with its explicit provenance.
 
 ## Launch
 
@@ -38,6 +38,7 @@ ReportJob permits three attempts with a 310-second HTTP deadline, outside World'
 ## Checks
 
 - `pnpm typecheck`
+- `pnpm --filter sim exec tsx scripts/wealth-smoke.ts`: private/public observation boundaries, historical defaults, unchanged initial state and rules.
 - `pnpm --filter sim smoke:next`: actual Next.js + consolidated Terse, six stub rounds, socket, duplicate creation, unattended restart, ordered events and E metrics. No external credentials; test processes are cleaned up.
 - `pnpm --filter sim smoke:projection`: mocked Neon transport and E row mapping.
 - `pnpm --filter sim smoke:neon`: actual Neon SQL with temporary explicitly stub data; removes only its uniquely named test run afterward.

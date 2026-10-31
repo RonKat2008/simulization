@@ -6,6 +6,8 @@ export type Phase = z.infer<typeof PhaseSchema>;
 
 export const ConditionSchema = z.enum(['LABELED', 'BLIND']);
 export type Condition = z.infer<typeof ConditionSchema>;
+export const WealthVisibilitySchema = z.enum(['private', 'public']);
+export type WealthVisibility = z.infer<typeof WealthVisibilitySchema>;
 
 export const EVENT_TYPES = [
   'message', 'coalition_create', 'coalition_join', 'coalition_leave',
@@ -117,7 +119,7 @@ export const AgentTurnInputSchema = z.object({
   tradeStep: z.enum(['offers', 'responses']).optional(),
   rules: z.array(z.string()),
   // BLIND: the `company` key is absent entirely.
-  otherAgents: z.array(z.object({ id: z.string(), name: z.string(), company: z.string().optional() })),
+  otherAgents: z.array(z.object({ id: z.string(), name: z.string(), company: z.string().optional(), coins: z.number().int().nonnegative().optional() })),
   openOffers: z.array(OfferSchema),
   coalitions: z.array(CoalitionInfoSchema),
   lanternFund: z.number(),

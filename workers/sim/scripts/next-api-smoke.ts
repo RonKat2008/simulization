@@ -34,11 +34,12 @@ try{
  web=spawn(['node',root+'/apps/web/node_modules/next/dist/bin/next','dev',root+'/apps/web','--port',String(webPort)]);await ready(web,/Ready in/);
  const invalid=await networkFetch(base+'/api/runs',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({condition:'BLIND',seed:2147483648})});assert.equal(invalid.status,400);
  const runId=`next-stub-${Date.now()}`;
- const body={condition:'BLIND',seed:42};
+ const body={condition:'BLIND',seed:42,wealth_visibility:'public'};
  assert.deepEqual(await request('/api/runs',body,runId),{runId});
  assert.deepEqual(await request('/api/runs',body,runId),{runId});
  const path=`/api/runs/${runId}`;
- const initial=await request(path);assert.equal(initial.mode,'deterministic-stub');assert.equal(initial.agents.length,6);
+ const initial=await request(path);assert.equal(initial.mode,'deterministic-stub');assert.equal(initial.agents.length,6);assert.equal(initial.wealth_visibility,'public');
+ const conflict=await networkFetch(base+'/api/runs',{method:'POST',headers:{'content-type':'application/json','Idempotency-Key':runId},body:JSON.stringify({...body,wealth_visibility:'private'})});assert.equal(conflict.status,409);
  const grant=await request(path+'/socket',{});
  const firstSocket=new Promise<void>((resolve,reject)=>{
   ws=new WebSocket(grant.websocketUrl);const timer=setTimeout(()=>reject(new Error('No socket event')),12000);
@@ -56,7 +57,8 @@ try{
   if(status.round>=2&&!reported){console.log('PASS Next.js create/status/socket + complete stub round');reported=true;}
   await new Promise(resolve=>setTimeout(resolve,2000));status=await request(path);
  }
- assert.equal(status.status,'done');assert.equal(status.reportStatus,'not-requested');
+ assert.equal(status.status,'done');assert.equal(status.reportStatus,'not-requested');assert.equal(status.wealth_visibility,'public');
+ assert.equal((await request(path+'/stop',{})).status,'done','stop must preserve completed runs');
  const events=await request(path+'/events?after=0');
  events.forEach((raw:unknown,i:number)=>{const e=EventSchema.parse(raw);assert.equal(e.seq,i+1);assert.equal(e.id,`${runId}-${i+1}`);});
  assert.deepEqual(await request(path+'/events?after=20'),events.slice(20));
