@@ -29,3 +29,9 @@ Actor-selection correction: factory defaults to terse and rejects AGENT_STORE=ne
 ## Live notification regression gate (2026-10-31)
 
 A added `pnpm --filter sim exec tsx scripts/live-inbox-contract.ts`. It uses actual engine theft/reveal input and B's `withRelayInbox` with a healthy empty mocked Relay pull; no credentials/network/model calls. At 478b8ba it FAILS: authoritative World theft notification is erased. B owns the fix; this test is intentionally a failing acceptance gate, not part of the passing engine smoke. Preserve trusted World notices, advance the Relay cursor, and avoid duplicating ordinary messages or bypassing Relay. Pact proposal delivery still requires the agreed A/B routing/merge decision separately. A has not modified B files.
+
+### 9ceeec9 integrated: targeted preservation check PASS
+
+`workers/sim/scripts/live-inbox-contract.ts` now allows B's `[referee notice] ` presentation prefix and verifies both theft notice content and pact proposer identity, plus Relay cursor advancement. Exact command: `pnpm --filter sim exec tsx scripts/live-inbox-contract.ts`. A now marks genuine engine pact/theft notices with `channel: 'referee'` (existing inbox string field; EventSchema unchanged).
+
+Remaining B follow-up, awaiting ownership reply: use trusted channel provenance (and `from:world` for legacy theft), not `text.startsWith('I propose a pact')`. The current heuristic promotes ordinary merchant chat into a referee notice. Acceptance: real tagged notices survive; ordinary public/DM chat with that prefix does not become referee; Relay messages remain bounded and cursor advances. Historical untagged pact notices need an explicit conservative legacy policy, not unrestricted text trust.

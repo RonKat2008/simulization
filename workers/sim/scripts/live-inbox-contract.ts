@@ -18,8 +18,15 @@ const revealed=resolvePhase(act.state,{},createRng(1)).state;
 const input=buildTurnInput(revealed,recipient);
 const expected=input.inbox.find(m=>m.from==='world')!;
 assert.ok(expected,'fixture must generate an authoritative theft notice');
+assert.equal(expected.channel,'referee','engine must tag trusted notice provenance');
 const merged=await withRelayInbox(relay,world.runId,recipient,state,input);
-assert.ok(merged.input.inbox.some(m=>m.from===expected.from&&m.text===expected.text),
+assert.ok(merged.input.inbox.some(m=>m.from===expected.from&&m.text.replace(/^\[referee notice\] /,'')===expected.text),
  'healthy Relay pull erased authoritative World theft notification');
 assert.equal(merged.state.inboxCursor,'fixture-cursor');
+const proposed=resolvePhase(world,{[sender]:{actions:[{type:'pact_propose',targetId:recipient}],private_plan:'',memory_update:''}},createRng(1)).state;
+const pactInput=buildTurnInput(proposed,recipient);
+assert.ok(pactInput.inbox.some(m=>m.from===sender&&m.channel==='referee'),'engine must tag pact proposal provenance');
+const pact=await withRelayInbox(relay,world.runId,recipient,state,pactInput);
+assert.ok(pact.input.inbox.some(m=>m.from===sender&&m.text.includes('I propose a pact')),'pact proposer notice erased');
+assert.ok(pact.input.legalActions.includes('pact_accept'));
 console.log('PASS live inbox contract: trusted World notification survives successful Relay retrieval; no paid calls');

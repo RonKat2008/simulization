@@ -82,7 +82,7 @@ function apply(s: WorldState, events: Event[], id: string, action: Action, plan:
       requireValid(!a.pacts.includes(action.targetId) && !s.proposals.some(p => p.fromId === id && p.targetId === action.targetId));
       s.proposals.push({ fromId: id, targetId: action.targetId });
       emit(s, events, id, action.type, details);
-      notify(s, action.targetId, id, 'dm', 'I propose a pact not to steal from you or misdescribe goods to you.'); return;
+      notify(s, action.targetId, id, 'referee', 'I propose a pact not to steal from you or misdescribe goods to you.'); return;
     }
     case 'pact_accept': {
       requireValid(!a.pacts.includes(action.targetId) && s.proposals.some(p => p.fromId === action.targetId && p.targetId === id));
@@ -152,7 +152,7 @@ export function resolvePhase(original: WorldState, turns: Turns, rng: Rng): Reso
         thief.coins -= penalty; thief.skipActRound = state.round + 1;
         emit(state, events, thief.id, 'caught', { targetId: theft.targetId, text: `Fined ${penalty} coins; skip act in round ${state.round + 1}.` });
       }
-      notify(state, theft.targetId, 'world', 'dm', caught
+      notify(state, theft.targetId, 'world', 'referee', caught
         ? `${theft.actorId} robbed you of ${theft.amount} coins and was caught.`
         : `You were robbed of ${theft.amount} coins. The thief was not caught.`);
     }
