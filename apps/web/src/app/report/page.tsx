@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { ChartsSection } from '@/components/report/charts-section';
 import { ClaimsSection } from '@/components/report/claims-section';
 import { CompanyTable } from '@/components/report/company-table';
+import { PowerSection } from '@/components/report/power-section';
 import { loadReportData } from '@/components/report/data';
 import { SiteHeader } from '@/components/landing/site-header';
 
@@ -37,6 +38,7 @@ export default async function ReportPage() {
         </section>
         <ChartsSection data={data} />
         <CompanyTable data={data} />
+        <PowerSection data={data} />
         <ClaimsSection review={data.review} />
       </main>
     </>

@@ -1,4 +1,4 @@
-import type { Condition, Flag, RunMetrics } from '@simulization/shared';
+import type { Condition, Flag, PowerStructure, RunMetrics } from '@simulization/shared';
 
 export type ReportSource = 'mock' | 'neon';
 
@@ -50,6 +50,8 @@ export interface ConditionReport {
   byCompany: Record<string, RunMetrics>;
   /** Mean final score per company letter. */
   meanScore: Record<string, number>;
+  /** Power-structure metrics, one entry per run (aligned with runIds). */
+  power: PowerStructure[];
 }
 
 export interface ReportData {

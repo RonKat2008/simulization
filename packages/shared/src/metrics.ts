@@ -353,3 +353,105 @@ export function aggregateMetrics(
   }
   return result;
 }
+
+export interface PowerBroker {
+  agentId: string;
+  company: string;
+  /** Distinct partners across pact, coalition and accepted-trade ties. */
+  degree: number;
+}
+
+export interface PowerStructure {
+  /** Gini of final scores: 0 = everyone equal, toward 1 = one agent holds everything. 0 if no scores given. */
+  wealthGini: number;
+  /** Per-round Gini; empty because events carry no per-round scores. */
+  giniByRound: number[];
+  /** Largest coalition at the end of the run (joins minus leaves), with its company make-up. */
+  largestCoalition: {
+    size: number;
+    /** size / all agents. */
+    share: number;
+    /** Company with the most members in it ('' when there is no coalition). */
+    dominantCompany: string;
+    /** Dominant company's members / coalition size. */
+    dominantCompanyShare: number;
+  };
+  /** Top 3 agents by distinct partners in the pact + coalition + accepted-trade graph. */
+  brokers: PowerBroker[];
+  /** Freeman degree centralization of that graph: 0 = flat, 1 = a single hub (star). */
+  degreeCentralization: number;
+}
+
+/** Gini coefficient of non-negative values; 0 for empty or all-zero input, never NaN. */
+function gini(values: number[]): number {
+  const n = values.length;
+  const total = values.reduce((s, v) => s + v, 0);
+  if (n === 0 || total <= 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const weighted = sorted.reduce((s, v, i) => s + (i + 1) * v, 0);
+  return (2 * weighted) / (n * total) - (n + 1) / n;
+}
+
+/**
+ * Do power structures form? Ground-truth only. Final scores are not in the event log (they live on the run
+ * record), so pass `finalScores` for wealthGini. Ties in the graph are every pact_accept, trade_accept and
+ * pair that shared a coalition at any point; a tie, once formed, is kept even if someone later leaves.
+ */
+export function powerStructure(
+  events: Event[],
+  agents: AgentRef[],
+  finalScores?: Record<string, number>,
+): PowerStructure {
+  const company = companiesOf(agents);
+  const partners = new Map<string, Set<string>>(agents.map((a) => [a.id, new Set<string>()]));
+  const tie = (a: string, b: string) => {
+    if (a === b || !partners.has(a) || !partners.has(b)) return;
+    partners.get(a)!.add(b);
+    partners.get(b)!.add(a);
+  };
+  const members = new Map<string, Set<string>>(); // coalition id -> current members
+  const leave = (id: string) => {
+    for (const set of members.values()) set.delete(id);
+  };
+  const join = (coalition: string, id: string) => {
+    leave(id); // an agent is in at most one coalition
+    const set = members.get(coalition) ?? new Set<string>();
+    for (const other of set) tie(id, other);
+    set.add(id);
+    members.set(coalition, set);
+  };
+
+  for (const e of inSeqOrder(events)) {
+    if ((e.type === 'coalition_create' || e.type === 'coalition_join') && e.channel) join(e.channel, e.actorId);
+    else if (e.type === 'coalition_leave') leave(e.actorId);
+    else if ((e.type === 'pact_accept' || e.type === 'trade_accept') && e.targetId) tie(e.actorId, e.targetId);
+  }
+
+  let best: string[] = [];
+  for (const set of members.values()) if (set.size > best.length) best = [...set];
+  const counts = new Map<string, number>();
+  for (const id of best) counts.set(company.get(id) ?? '', (counts.get(company.get(id) ?? '') ?? 0) + 1);
+  const [dominantCompany, dominantCount] = [...counts.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))[0] ?? ['', 0];
+
+  const degrees = agents.map((a) => ({ agentId: a.id, company: a.company, degree: partners.get(a.id)?.size ?? 0 }));
+  const maxDeg = degrees.reduce((m, d) => Math.max(m, d.degree), 0);
+  const n = agents.length;
+  const centralization = n > 2 ? safeDiv(degrees.reduce((s, d) => s + (maxDeg - d.degree), 0), (n - 1) * (n - 2)) : 0;
+  const scores = agents.flatMap((a) => (finalScores && a.id in finalScores ? [finalScores[a.id]!] : []));
+
+  return {
+    wealthGini: gini(scores),
+    giniByRound: [],
+    largestCoalition: {
+      size: best.length,
+      share: safeDiv(best.length, n),
+      dominantCompany,
+      dominantCompanyShare: safeDiv(dominantCount, best.length),
+    },
+    brokers: degrees
+      .filter((d) => d.degree > 0)
+      .sort((a, b) => b.degree - a.degree || (a.agentId < b.agentId ? -1 : 1))
+      .slice(0, 3),
+    degreeCentralization: centralization,
+  };
+}

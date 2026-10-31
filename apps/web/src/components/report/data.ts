@@ -4,6 +4,7 @@ import {
   aggregateMetrics,
   computeCompanyMetrics,
   computeRunMetrics,
+  powerStructure,
   type Condition,
   type Event,
   type RunMetrics,
@@ -61,6 +62,7 @@ function conditionReport(condition: Condition, runs: LoadedRun[]): ConditionRepo
     mean: agg(perRun.map((p) => p.metrics)),
     byCompany,
     meanScore,
+    power: runs.map((r) => powerStructure(r.events, r.agents, r.finalScores)),
   };
 }
 

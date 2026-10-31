@@ -48,7 +48,7 @@ export function SiteHeader() {
         </Link>
         <Link
           href="/launch"
-          className="rounded-md border border-primary/50 px-3 py-1.5 text-sm text-primary transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground"
+          className="whitespace-nowrap rounded-md border border-primary/50 px-3 py-1.5 text-sm text-primary transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground"
         >
           Launch a run
         </Link>
