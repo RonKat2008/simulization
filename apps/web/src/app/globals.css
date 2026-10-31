@@ -1,13 +1,250 @@
 @import "tailwindcss";
 
 :root {
+  /* Legacy night tokens (other routes may use these) */
   --night: #0b0d1a;
   --night-2: #151933;
   --lantern: #ffb454;
   --moon: #e6e9ff;
+
+  /* Landing brand palette: near-black, electric blue, a little pink */
+  --background: #05060a;
+  --surface: #0b0e16;
+  --surface-raised: #10141f;
+  --foreground: #e6eaf4;
+  --muted-foreground: #8b93a7;
+  --border: #1a2030;
+  --primary: #2f7fff;
+  --primary-foreground: #03050a;
+  --accent: #ff6fb3;
+  --violation: #ff3b3b;
+  --lab-a: #5aa8ff;
+  --lab-b: #f5b13d;
+  --lab-c: #2fd4bd;
+  --radius: 0.375rem;
 }
 
-body {
-  background: var(--night);
-  color: var(--moon);
+@theme inline {
+  --font-sans: var(--font-body), ui-monospace, monospace;
+  --font-mono: var(--font-body), ui-monospace, monospace;
+  --font-display: var(--font-pixel), var(--font-body), monospace;
+
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-foreground: var(--foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-violation: var(--violation);
+  --color-lab-a: var(--lab-a);
+  --color-lab-b: var(--lab-b);
+  --color-lab-c: var(--lab-c);
+
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    scroll-behavior: smooth;
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--primary) 45%, transparent);
+    color: var(--foreground);
+  }
+  :focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+  }
+}
+
+@utility pixel-grid {
+  background-image: radial-gradient(
+    color-mix(in oklab, var(--primary) 22%, transparent) 1px,
+    transparent 1px
+  );
+  background-size: 16px 16px;
+}
+
+@utility glow-accent {
+  text-shadow: 0 0 18px color-mix(in oklab, var(--accent) 55%, transparent);
+}
+
+/* Market visual */
+.mv-packet {
+  stroke-dasharray: 6 200;
+  stroke-dashoffset: 6;
+  animation: mv-packet 3.6s linear infinite;
+}
+
+@keyframes mv-packet {
+  0% {
+    stroke-dashoffset: 6;
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  92% {
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: -100;
+    opacity: 0;
+  }
+}
+
+.mv-bob {
+  transform-box: fill-box;
+  animation: mv-bob 2.4s steps(1, end) infinite;
+}
+
+@keyframes mv-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+.mv-alert {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mv-alert 10s ease-out infinite;
+}
+
+@keyframes mv-alert {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  3% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+  6% {
+    transform: scale(1);
+  }
+  16% {
+    opacity: 1;
+  }
+  22%,
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+.mv-ring {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mv-ring 10s ease-out infinite;
+}
+
+@keyframes mv-ring {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  2% {
+    opacity: 0.9;
+  }
+  14%,
+  100% {
+    opacity: 0;
+    transform: scale(2.6);
+  }
+}
+
+.mv-edge-alert {
+  opacity: 0;
+  animation: mv-edge-alert 10s ease-out infinite;
+}
+
+@keyframes mv-edge-alert {
+  0% {
+    opacity: 0;
+  }
+  2% {
+    opacity: 0.9;
+  }
+  16% {
+    opacity: 0.6;
+  }
+  22%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.mv-flicker {
+  animation: mv-flicker 5s steps(1, end) infinite;
+}
+
+@keyframes mv-flicker {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  46% {
+    opacity: 0.55;
+  }
+  48% {
+    opacity: 1;
+  }
+  71% {
+    opacity: 0.7;
+  }
+  72% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+  }
+  .mv-packet,
+  .mv-bob,
+  .mv-ring,
+  .mv-flicker {
+    animation: none !important;
+  }
+  .mv-packet,
+  .mv-ring {
+    opacity: 0;
+  }
+  .mv-alert,
+  .mv-edge-alert {
+    animation: none !important;
+    opacity: 0;
+  }
+  .mv-static-alert {
+    opacity: 1;
+  }
+}
+
+/* Kenney pixel sprites inside the market visual */
+.mv-sprite {
+  image-rendering: pixelated;
 }
