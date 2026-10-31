@@ -14,6 +14,7 @@ let sheet: ImageData | null = null;
 
 /** Texture key for this agent's look (created once, reused across scene restarts). */
 export function agentTexture(scene: Phaser.Scene, id: string, companyColor: number): string {
+  // Keyed by color too: the same id can be shown LABELED (company outfit) and BLIND (neutral) in one session.
   const tex = `look-${id}-${companyColor.toString(16)}`;
   if (scene.textures.exists(tex)) return tex;
   if (!sheet) {

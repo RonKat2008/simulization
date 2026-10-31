@@ -1,12 +1,21 @@
 // Owner: C. Phaser village: draws the map and plays the ordered Event[] from the event store.
 // Imported only on the client (see VillageCanvas), never during SSR.
+//
+// Readability pass (Escapists-style "see who is doing what"):
+// - one event at a time, each held for a per-type beat (narrate.ts) instead of a fixed 400ms tick,
+// - icon + ≤3-word action bubble over the actor, a gold spotlight under them, an arc to the target,
+// - a "now happening" sentence emitted to VillageCanvas (DOM banner) and a title card per phase,
+// - name labels with a dark backing that dodge each other,
+// - BLIND-safe colors/looks/positions, and prefers-reduced-motion (no walking, hops or arcs).
 import * as Phaser from "phaser";
 import type { Event } from "@simulization/shared";
 import { contiguousCursor } from "@/components/run/event-progress";
 import { useEventStore } from "@/store/eventStore";
 import { HEIGHT, SPOTS, WIDTH, homeSpot, jitter, type Spot } from "./spots";
 import { agentTexture } from "./looks";
-import { COMPANY_TINT, EMOTE, SCALE, SHEETS, TILE, VIOLATION_RED } from "./assets";
+import { COMPANY_TINT, EMOTE, SCALE, SHEETS, TILE } from "./assets";
+import { describe, LINK_COLOR, PHASE_LABEL, type Beat, type Narration } from "./narrate";
+import { drawArc, lieBubble, makeBubble, phaseCard, PIXEL_FONT, prefersReducedMotion, resolvePixelFont, type Arc } from "./fx";
 
 export interface AgentInfo {
   id: string;
@@ -15,37 +24,70 @@ export interface AgentInfo {
 }
 
 const COMPANY_COLOR: Record<string, number> = { A: COMPANY_TINT.blue, B: COMPANY_TINT.amber, C: COMPANY_TINT.teal };
-const RED = VIOLATION_RED;
 const DUSK = 0x3a4170; // ground/prop tint at 9 PM
 const DAWN = 0xc9c3d6; // ...lifting toward 6 AM
-const STEP_MS = 400; // one event per tick at 1x
-const BUBBLE_MS = 2500;
+const IDLE_MS = 250; // poll interval while waiting for live events
+const PHASE_CARD_MS = 1300; // pause on the "ROUND 2 · TRADE" card before the phase's first action
+const LIE_REVEAL_MS = 800; // claim shown alone, then the referee's verdict
+const BUBBLE_MS = 2600; // a bubble outlives its beat a little so the previous action stays readable (dimmed)
 const START_COINS = 10;
+const LABEL_DY = 17; // default name-label offset below the sprite's feet
+const LABEL_LAYOUT_MS = 100;
+const LABEL_DEPTH = 9000; // labels sit above every sprite (and arcs), below bubbles (10000+)
+
+const PHASE_HINT: Record<string, string> = {
+  negotiate: "Merchants talk, make pacts and form coalitions",
+  trade: "Offers go out; the referee checks every claimed quality",
+  act: "Each merchant works, feeds the lantern, or steals",
+  reveal: "Thieves may be caught; rewards are paid",
+};
 
 const names = new Map<string, string>();
-const companies = new Map<string, string>();
-const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-const blindIds = new Set<string>(); // company "" (BLIND view): no company color, ids encode company
+const companies = new Map<string, string>(); // id -> company letter from the agents prop ("" in BLIND)
+const blindIds = new Set<string>(); // company "" (BLIND view): no company color, ids may encode company
+const slots = new Map<string, number>(); // id -> home slot 0..17
 const NEUTRAL = 0xaaaaaa;
 let current: VillageScene | null = null;
+const register = (s: VillageScene | null) => {
+  current = s;
+};
+
+const hashId = (id: string) => {
+  let h = 0;
+  for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return h;
+};
+const COMPANY_ID = /^([A-C])-(\d+)$/;
 
 export function setAgentNames(list: AgentInfo[] = []) {
   names.clear();
   companies.clear();
   blindIds.clear();
+  slots.clear();
   for (const a of list) {
     names.set(a.id, a.name);
     companies.set(a.id, a.company);
     if (a.company === "") blindIds.add(a.id);
+  }
+  // Home slots. LABELED runs with "A-01"-style ids keep C's company-major ring. Otherwise use roster
+  // order, and in BLIND a hash shuffle so neighbours on the ring never hint at a shared company.
+  const companyMajor = list.length > 0 && blindIds.size === 0 && list.every((a) => COMPANY_ID.test(a.id));
+  if (!companyMajor) {
+    const order = blindIds.size ? [...list].sort((p, q) => hashId(p.id) - hashId(q.id) || p.id.localeCompare(q.id)) : list;
+    order.forEach((a, i) => slots.set(a.id, i % 18));
   }
   current?.relabel();
 }
 
 let speed = 1;
 
+/** Company color for outfit/lantern. BLIND, or any agent we have no roster entry for, is neutral. */
 function colorOf(id: string): number {
-  return blindIds.has(id) ? NEUTRAL : (COMPANY_COLOR[companies.get(id) ?? ""] ?? NEUTRAL);
+  if (blindIds.has(id)) return NEUTRAL;
+  return COMPANY_COLOR[companies.get(id) ?? ""] ?? NEUTRAL;
 }
+
+const nameOf = (id: string) => names.get(id) ?? id;
 
 export function setSpeed(x: number) {
   speed = x;
@@ -62,9 +104,27 @@ export function seekRound(r: number) {
   current?.scene.restart();
 }
 
+// ---- "now happening" channel to the React banner -----------------------------------
+const listeners = new Set<(n: Narration) => void>();
+let lastNarration: Narration = { round: 0, phase: null, sentence: "Waiting for the market to open…", icon: null, violation: false };
+
+/** Subscribe to the banner text; called immediately with the latest line. Returns an unsubscribe. */
+export function onNarrate(cb: (n: Narration) => void): () => void {
+  listeners.add(cb);
+  cb(lastNarration);
+  return () => listeners.delete(cb);
+}
+
+function narrate(n: Narration) {
+  lastNarration = n;
+  for (const cb of listeners) cb(n);
+}
+
 interface Agent {
   id: string;
-  idx: number; // 0..17, company-major
+  idx: number; // home slot 0..17
+  /** Label offset from the agent, chosen by layoutLabels(); the label itself lives outside the container. */
+  labelAt: { dx: number; dy: number };
   c: Phaser.GameObjects.Container;
   label: Phaser.GameObjects.Text;
   body: Phaser.GameObjects.Sprite;
@@ -84,13 +144,13 @@ function lerpColor(a: number, b: number, t: number): number {
   return Phaser.Display.Color.GetColor(c.r, c.g, c.b);
 }
 
-/** "B-04" → 9. Unknown shapes fall back to a hash so they still get a spot. */
+/** Home slot: roster-based when known (see setAgentNames), else "B-04" → 9, else a hash. */
 function indexOf(id: string): number {
-  const m = /^([A-C])-(\d+)$/.exec(id);
+  const s = slots.get(id);
+  if (s !== undefined) return s;
+  const m = COMPANY_ID.exec(id);
   if (m) return (m[1].charCodeAt(0) - 65) * 6 + ((Number(m[2]) - 1) % 6);
-  let h = 0;
-  for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return h % 18;
+  return hashId(id) % 18;
 }
 
 class VillageScene extends Phaser.Scene {
@@ -102,6 +162,16 @@ class VillageScene extends Phaser.Scene {
   private round!: number;
   private nightables!: { setTint: (c: number) => unknown }[];
   private instant!: boolean; // seeking: apply state, skip animation
+  private reduced!: boolean; // prefers-reduced-motion: no walking/hops/arcs, bubbles + banner stay
+  private phaseKey!: string; // "round:phase" of the last played event, to detect phase starts
+  private arcs!: Arc[];
+  private focus!: Agent | null; // current actor (spotlight)
+  private focusTarget!: Agent | null;
+  private spot!: Phaser.GameObjects.Ellipse;
+  private spotTarget!: Phaser.GameObjects.Ellipse;
+  private lastBubble?: Phaser.GameObjects.Container;
+  private labelClock!: number;
+  private clock!: number; // scene ms scaled by playback speed (time.now is not), drives arc lifetimes
 
   constructor() {
     super("village");
@@ -113,7 +183,7 @@ class VillageScene extends Phaser.Scene {
   }
 
   create() {
-    current = this;
+    register(this);
     setSpeed(speed); // survives scene restarts and remounts
     this.agents = new Map();
     this.tents = new Map();
@@ -123,20 +193,65 @@ class VillageScene extends Phaser.Scene {
     this.round = 0;
     this.nightables = [];
     this.instant = false;
+    this.reduced = prefersReducedMotion();
+    this.phaseKey = "";
+    this.arcs = [];
+    this.focus = null;
+    this.focusTarget = null;
+    this.lastBubble = undefined;
+    this.labelClock = 0;
+    this.clock = 0;
+    narrate({ ...lastNarration, sentence: seekTo > 1 ? `Skipping ahead to round ${seekTo}…` : "Waiting for the market to open…", icon: null, violation: false });
 
     this.drawMap();
     this.setNight(1);
+    // Spotlight under the current actor (warm, additive) and a thin ring under its target.
+    this.spot = this.add.ellipse(0, 0, 56, 22, 0xffd98a, 0.6).setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
+    this.spotTarget = this.add.ellipse(0, 0, 44, 16).setStrokeStyle(2, 0xffd98a, 0.75).setVisible(false);
+    if (!this.reduced) this.tweens.add({ targets: this.spot, alpha: 0.3, duration: 520, yoyo: true, repeat: -1, ease: "Sine.inOut" });
     this.relabel();
-    this.time.addEvent({ delay: STEP_MS, loop: true, callback: () => this.tick() });
+    void resolvePixelFont().then(() => this.sys.isActive() && this.relabel());
+    this.schedule(IDLE_MS);
+
+    const motion = typeof window !== "undefined" ? window.matchMedia?.("(prefers-reduced-motion: reduce)") : undefined;
+    const onMotion = () => (this.reduced = prefersReducedMotion());
+    motion?.addEventListener?.("change", onMotion);
 
     const unsub = useEventStore.subscribe((s) => this.sync(s.events, s.selectedAgentId));
     const s = useEventStore.getState();
     this.sync(s.events, s.selectedAgentId);
-    this.events.once("shutdown", unsub);
-    this.events.once("destroy", () => {
+    const cleanup = () => {
       unsub();
-      if (current === this) current = null;
+      motion?.removeEventListener?.("change", onMotion);
+    };
+    this.events.once("shutdown", cleanup);
+    this.events.once("destroy", () => {
+      cleanup();
+      if (current === this) register(null);
     });
+  }
+
+  update(time: number, delta: number) {
+    // Spotlight follows the actor; arcs follow both ends while they walk.
+    const f = this.focus;
+    this.spot.setVisible(!!f);
+    if (f) this.spot.setPosition(f.c.x, f.c.y + 14).setDepth(f.c.depth - 0.5);
+    const t = this.focusTarget;
+    this.spotTarget.setVisible(!!t);
+    if (t) this.spotTarget.setPosition(t.c.x, t.c.y + 14).setDepth(t.c.depth - 0.5);
+    for (const a of this.agents.values()) {
+      a.label.setPosition(Math.round(a.c.x + a.labelAt.dx), Math.round(a.c.y + a.labelAt.dy));
+      a.label.setAlpha(a.c.alpha);
+    }
+    this.clock += delta * this.time.timeScale;
+    const now = this.clock;
+    this.arcs = this.arcs.filter((a) => drawArc(a, now) || (a.g.destroy(), false));
+    this.labelClock += delta;
+    if (this.labelClock >= LABEL_LAYOUT_MS) {
+      this.labelClock = 0;
+      this.layoutLabels();
+    }
+    void time;
   }
 
   // ---- store → pending queue -------------------------------------------------
@@ -162,94 +277,118 @@ class VillageScene extends Phaser.Scene {
         }
         this.instant = true;
         this.play(e);
+        this.phaseKey = `${e.round}:${e.phase}`;
         this.instant = false;
       }
     }
     this.game.canvas.dataset.acceptedSeq = String(this.lastSeq);
-    this.game.canvas.dataset.reducedMotion = String(reducedMotion());
+    this.game.canvas.dataset.reducedMotion = String(prefersReducedMotion());
     this.game.canvas.dataset.runId = this.runId ?? "";
     for (const a of this.agents.values()) a.ring.setVisible(a.id === selected);
   }
 
+  private schedule(ms: number) {
+    this.time.delayedCall(ms, () => this.tick());
+  }
+
+  /**
+   * One action at a time: play the next visible event, then wait for its beat before the next.
+   * Uses scene time, so the 1x/2x/4x speed control (time.timeScale) applies automatically.
+   */
   private tick() {
-    // Skip events with no visual so the clock only spends time on visible ones.
     while (this.pending.length) {
       const e = this.pending.shift()!;
-      if (this.play(e)) break;
+      const lead = this.enterPhase(e);
+      if (lead > 0) {
+        this.time.delayedCall(lead, () => this.schedule(Math.max(50, this.play(e))));
+        return;
+      }
+      const ms = this.play(e);
+      if (ms > 0) return this.schedule(ms);
     }
+    this.schedule(IDLE_MS);
+  }
+
+  /** On the first event of a new phase, show a title card and pause briefly. Returns the pause in ms. */
+  private enterPhase(e: Event): number {
+    const key = `${e.round}:${e.phase}`;
+    if (key === this.phaseKey) return 0;
+    this.phaseKey = key;
+    if (e.round < 1) return 0;
+    if (e.round !== this.round) this.setNight(e.round);
+    const label = PHASE_LABEL[e.phase];
+    phaseCard(this, `ROUND ${e.round} · ${label.toUpperCase()}`, PHASE_HINT[e.phase] ?? "", this.reduced, PHASE_CARD_MS);
+    this.setFocus(null, null);
+    narrate({ round: e.round, phase: e.phase, sentence: PHASE_HINT[e.phase] ?? `${label} begins`, icon: null, violation: false });
+    return PHASE_CARD_MS;
   }
 
   // ---- event → visual ----------------------------------------------------------
 
-  /** Returns true if the event produced something visible. */
-  private play(e: Event): boolean {
+  /** Applies the event's state + motion, shows its bubble/arc/banner. Returns how long to dwell (0 = nothing visible). */
+  private play(e: Event): number {
     this.releaseStocks(e);
     if (e.round !== this.round) this.setNight(e.round);
-    if (e.actorId === "world") return false;
+    const beat = describe(e, nameOf);
+    if (e.actorId === "world") {
+      if (!beat || this.instant) return 0;
+      this.setFocus(null, null);
+      narrate({ round: e.round, phase: e.phase, sentence: beat.sentence, icon: null, violation: false });
+      return beat.ms;
+    }
     const a = this.agent(e.actorId);
     const t = e.targetId ? this.agent(e.targetId) : null;
 
     switch (e.type) {
-      case "message":
-      case "pact_propose":
-        this.say(a, e.text ?? "", false);
-        return true;
       case "pact_accept":
-        this.say(a, e.text ?? "", false);
         if (t) {
           this.emote(this.mid(a, t), EMOTE.heart);
           this.hop(a);
           this.hop(t);
         }
-        return true;
+        break;
       case "pact_break":
         if (t) this.emote(this.mid(a, t), EMOTE.heartBroken, 2500);
-        return true;
+        break;
       case "coalition_create":
       case "coalition_join":
         a.coalition = e.channel ?? null;
-        if (e.type === "coalition_create" && e.text) this.say(a, e.text, false);
         this.walkHome(a);
-        return true;
+        break;
       case "coalition_leave":
         a.coalition = null;
         this.walkHome(a);
-        return true;
+        break;
       case "trade_offer": {
-        if (!t) return false;
-        const lie = e.flags.includes("lie");
+        if (!t) return 0;
         const stall = SPOTS.stalls[a.idx % 6];
         this.enqueue(a, async () => {
           await this.walk(a, { x: stall.x - 22, y: stall.y + 40 });
-          this.say(a, e.text ?? "", lie);
-          if (lie) this.emote({ x: a.c.x, y: a.c.y - 80 }, EMOTE.exclamation, 2500);
           await this.hopNow(a);
-          await this.wait(1100);
+          await this.wait(900);
         });
         this.enqueue(t, async () => {
           await this.walk(t, { x: stall.x + 22, y: stall.y + 40 });
           await this.hopNow(t);
-          await this.wait(1100);
+          await this.wait(900);
         });
         this.walkHome(a);
         this.walkHome(t);
-        return true;
+        break;
       }
       case "trade_accept":
-      case "trade_decline":
-        this.say(a, e.text ?? (e.type === "trade_accept" ? "Deal." : "No deal."), false);
-        if (e.type === "trade_accept" && e.claim && t) {
+        if (e.claim && t) {
           this.addCoins(a, -e.claim.price);
           this.addCoins(t, e.claim.price);
           this.emote({ x: t.c.x, y: t.c.y - 40 }, EMOTE.cash);
           this.hop(a);
           this.hop(t);
         }
-        return true;
+        break;
       case "work":
         this.addCoins(a, 1);
-        this.float({ x: a.c.x, y: a.c.y - 40 }, "+1", "#9be38a");
-        return true;
+        this.float({ x: a.c.x + 18, y: a.c.y - 30 }, "+1", "#9be38a");
+        break;
       case "contribute":
         this.addCoins(a, -1);
         this.enqueue(a, async () => {
@@ -257,9 +396,9 @@ class VillageScene extends Phaser.Scene {
           this.float({ x: SPOTS.shrine.x, y: SPOTS.shrine.y - 50 }, "+1", "#ffd36b");
         });
         this.walkHome(a);
-        return true;
+        break;
       case "steal":
-        if (!t) return false;
+        if (!t) return 0;
         this.addCoins(a, 4);
         this.addCoins(t, -4);
         this.enqueue(a, async () => {
@@ -270,16 +409,49 @@ class VillageScene extends Phaser.Scene {
           a.c.setAlpha(1);
         });
         this.walkHome(a);
-        return true;
+        break;
       case "caught":
         this.addCoins(a, -6);
         a.stockedRound = e.round;
-        this.say(a, "Caught!", true);
-        this.walkHome(a);
-        return true;
-      default: // pass, system
-        return false;
+        this.emote({ x: a.c.x, y: a.c.y - 70 }, EMOTE.exclamation, 2200);
+        this.walkHome(a); // home is now the stocks
+        break;
+      default: // message, pact_propose, trade_decline, pass, ...: bubble only (or nothing)
+        break;
     }
+    if (!beat || this.instant) return 0;
+    this.show(e, a, t, beat);
+    return beat.ms;
+  }
+
+  /** The readable part: spotlight, bubble, relationship arc, banner line. */
+  private show(e: Event, a: Agent, t: Agent | null, beat: Beat) {
+    this.setFocus(a, t);
+    if (beat.icon || beat.label) {
+      const b = this.bubble(a, beat);
+      if (beat.lie) {
+        const { claimed, truth, sentence } = beat.lie;
+        this.time.delayedCall(LIE_REVEAL_MS, () => {
+          if (a.bubble !== b) return;
+          const nb = lieBubble(this, claimed, truth, a.c.x);
+          this.attachBubble(a, nb);
+          this.emote({ x: a.c.x, y: a.c.y - 78 }, EMOTE.exclamation, 1800);
+          narrate({ round: e.round, phase: e.phase, sentence, icon: { sheet: "emotes", frame: EMOTE.exclamation }, violation: true });
+        });
+      }
+    }
+    if (beat.link && t && !this.reduced) {
+      const g = this.add.graphics().setDepth(5000); // over sprites, under bubbles
+      this.arcs.push({ g, from: () => a.c, to: () => t.c, color: LINK_COLOR[beat.link], born: this.clock, life: Math.max(1100, beat.ms + 300) });
+    }
+    narrate({ round: e.round, phase: e.phase, sentence: beat.sentence, icon: beat.icon, violation: beat.violation && !beat.lie });
+  }
+
+  private setFocus(a: Agent | null, t: Agent | null) {
+    const old = [this.focus, this.focusTarget];
+    this.focus = a;
+    this.focusTarget = t && t !== a ? t : null;
+    for (const x of [...old, this.focus, this.focusTarget]) if (x) this.styleLabel(x);
   }
 
   /** Darkness lifts a step per round, 9 PM → 6 AM. */
@@ -314,28 +486,74 @@ class VillageScene extends Phaser.Scene {
     const ring = this.add.ellipse(0, 15, 34, 12).setStrokeStyle(2, 0xffffff).setVisible(false);
     const body = this.add.sprite(0, 0, agentTexture(this, id, color)).setScale(SCALE);
     const lantern = this.add.circle(14, 2, 3, color);
+    // Name plate: pixel font on a dark backing so it reads on grass, dirt and at night.
     const label = this.add
-      .text(0, 17, names.get(id) ?? id, { fontFamily: "monospace", fontSize: "11px", color: "#d9dde8" })
-      .setOrigin(0.5, 0);
+      .text(home.x, home.y + LABEL_DY, nameOf(id), {
+        fontFamily: PIXEL_FONT, fontSize: "15px", color: "#eef1fa",
+        backgroundColor: "rgba(8,10,18,0.78)", padding: { x: 4, y: 1 },
+      })
+      .setOrigin(0.5, 0)
+      .setDepth(LABEL_DEPTH);
 
-    const c = this.add.container(home.x, home.y, [glow, ring, body, lantern, label]);
+    const c = this.add.container(home.x, home.y, [glow, ring, body, lantern]);
     c.setSize(32, 40).setInteractive({ useHandCursor: true }).setDepth(home.y);
     c.on("pointerdown", () => useEventStore.getState().select(id));
 
-    a = { id, idx, c, label, body, lantern, glow, ring, queue: Promise.resolve(), coins: START_COINS, coalition: null, stockedRound: null };
+    a = { id, idx, labelAt: { dx: 0, dy: LABEL_DY }, c, label, body, lantern, glow, ring, queue: Promise.resolve(), coins: START_COINS, coalition: null, stockedRound: null };
     this.agents.set(id, a);
     this.updateLanterns();
     return a;
   }
 
+  /** Re-applies names, colors, looks and home slots (roster can arrive after agents spawned). */
   relabel() {
     for (const id of names.keys()) this.agent(id);
     for (const a of this.agents.values()) {
-      a.label.setText(names.get(a.id) ?? a.id);
+      a.label.setText(nameOf(a.id)).setFontFamily(PIXEL_FONT);
       const color = colorOf(a.id);
+      // Look texture is keyed by color, so a BLIND view never reuses a company-colored outfit.
+      a.body.setTexture(agentTexture(this, a.id, color));
       a.body.setTint(lerpColor(color, 0xffffff, 0.3));
       a.lantern.setFillStyle(color);
       a.glow.setFillStyle(color, 0.25);
+      const idx = indexOf(a.id);
+      if (idx !== a.idx) {
+        a.idx = idx;
+        const h = this.homeOf(a);
+        a.c.setPosition(h.x, h.y).setDepth(this.depthOf(a));
+      }
+    }
+  }
+
+  private styleLabel(a: Agent) {
+    const on = a === this.focus || a === this.focusTarget;
+    a.label.setColor(a === this.focus ? "#ffe08a" : on ? "#fff4cf" : "#eef1fa");
+  }
+
+  /**
+   * Greedy de-overlap: actor/target first, then top-to-bottom. Each label takes the first slot
+   * (below, right, left, further below) that doesn't hit another label or a sprite.
+   */
+  private layoutLabels() {
+    type R = { x0: number; x1: number; y0: number; y1: number };
+    const hit = (p: R, q: R) => p.x0 < q.x1 && q.x0 < p.x1 && p.y0 < q.y1 && q.y0 < p.y1;
+    const list = [...this.agents.values()];
+    const placed: R[] = list.map((a) => ({ x0: a.c.x - 12, x1: a.c.x + 12, y0: a.c.y - 16, y1: a.c.y + 15 }));
+    const rank = (a: Agent) => (a === this.focus ? 0 : a === this.focusTarget ? 1 : 2);
+    list.sort((p, q) => rank(p) - rank(q) || p.c.y - q.c.y);
+    for (const a of list) {
+      const w = a.label.width;
+      const h = a.label.height;
+      const side = w / 2 + 16;
+      const slotsTried = [
+        { dx: 0, dy: LABEL_DY }, { dx: side, dy: -h / 2 }, { dx: -side, dy: -h / 2 }, { dx: 0, dy: LABEL_DY + h + 1 },
+      ];
+      const rect = (o: { dx: number; dy: number }): R => ({
+        x0: a.c.x + o.dx - w / 2, x1: a.c.x + o.dx + w / 2, y0: a.c.y + o.dy, y1: a.c.y + o.dy + h,
+      });
+      const at = slotsTried.find((o) => !placed.some((p) => hit(p, rect(o)))) ?? slotsTried[0];
+      a.labelAt = at;
+      placed.push(rect(at));
     }
   }
 
@@ -365,6 +583,11 @@ class VillageScene extends Phaser.Scene {
 
   // ---- animation helpers ---------------------------------------------------------
 
+  /** Agents with a bubble draw above everyone so the bubble is never hidden. */
+  private depthOf(a: Agent): number {
+    return a.bubble ? 10000 + a.c.y : a.c.y;
+  }
+
   /** Each agent has its own queue, so agents never wait on each other. */
   private enqueue(a: Agent, fn: () => Promise<void>) {
     if (this.instant) return;
@@ -374,16 +597,21 @@ class VillageScene extends Phaser.Scene {
   private walkHome(a: Agent) {
     if (this.instant) {
       const h = this.homeOf(a);
-      a.c.setPosition(h.x, h.y).setDepth(h.y);
+      a.c.setPosition(h.x, h.y).setDepth(this.depthOf(a));
       return;
     }
     this.enqueue(a, () => this.walk(a, this.homeOf(a)));
   }
 
   private walk(a: Agent, to: Spot): Promise<void> {
-    if (reducedMotion()) { a.c.setPosition(to.x,to.y).setDepth(to.y); return Promise.resolve(); }
     const dist = Phaser.Math.Distance.Between(a.c.x, a.c.y, to.x, to.y);
     if (dist < 2) return Promise.resolve();
+    if (this.reduced) {
+      // Reduced motion: no walking, just appear at the destination.
+      a.c.setPosition(to.x, to.y);
+      a.c.setDepth(this.depthOf(a));
+      return Promise.resolve();
+    }
     // No walk frames in the pack: flip toward the target and waddle (tilt side to side + bob).
     a.body.setFlipX(to.x < a.c.x);
     const bob = this.tweens.add({ targets: a.body, y: -3, duration: 110, yoyo: true, repeat: -1 });
@@ -396,7 +624,7 @@ class VillageScene extends Phaser.Scene {
         y: to.y,
         duration: Math.min(1200, 250 + dist * 1.5),
         ease: "Sine.inOut",
-        onUpdate: () => a.c.setDepth(a.c.y),
+        onUpdate: () => a.c.setDepth(this.depthOf(a)),
         onComplete: () => {
           bob.stop();
           tilt.stop();
@@ -409,7 +637,7 @@ class VillageScene extends Phaser.Scene {
 
   /** Little double hop for when agents interact. Queued so it never fights a walk. */
   private hopNow(a: Agent): Promise<void> {
-    if (reducedMotion()) return Promise.resolve();
+    if (this.reduced) return Promise.resolve();
     return new Promise((done) =>
       this.tweens.add({ targets: a.body, y: -9, duration: 120, yoyo: true, repeat: 1, ease: "Quad.out", onComplete: () => { a.body.setY(0); done(); } }),
     );
@@ -427,44 +655,55 @@ class VillageScene extends Phaser.Scene {
     return { x: (a.c.x + b.c.x) / 2, y: (a.c.y + b.c.y) / 2 - 20 };
   }
 
-  /** Speech bubble attached to the agent (moves with it). Red outline marks a lie. */
-  private say(a: Agent, text: string, red: boolean) {
-    if (!text || this.instant) return;
+  /** Action bubble attached to the agent (moves with it). The previous action's bubble dims. */
+  private bubble(a: Agent, beat: Beat): Phaser.GameObjects.Container {
+    // A lying offer looks honest at first; the red verdict replaces it after LIE_REVEAL_MS.
+    const b = makeBubble(this, { icon: beat.icon, label: beat.label, violation: beat.violation && !beat.lie, worldX: a.c.x });
+    this.attachBubble(a, b);
+    if (!this.reduced) {
+      b.setScale(0.6);
+      this.tweens.add({ targets: b, scale: 1, duration: 140, ease: "Back.out" });
+    }
+    return b;
+  }
+
+  private attachBubble(a: Agent, b: Phaser.GameObjects.Container) {
+    if (this.lastBubble && this.lastBubble !== a.bubble && this.lastBubble.active) this.lastBubble.setAlpha(0.55);
     a.bubble?.destroy();
-    const short = text.length > 40 ? text.slice(0, 39) + "…" : text;
-    const t = this.add
-      .text(0, 0, short, { fontFamily: "monospace", fontSize: "11px", color: "#11131a", wordWrap: { width: 150 } })
-      .setOrigin(0.5, 1);
-    const w = t.width + 12;
-    const h = t.height + 8;
-    const g = this.add.graphics();
-    g.fillStyle(0xf3efe2, 0.95).fillRoundedRect(-w / 2, -h - 4, w, h, 5);
-    g.lineStyle(red ? 3 : 1, red ? RED : 0x555555).strokeRoundedRect(-w / 2, -h - 4, w, h, 5);
-    t.setY(-8);
-    const b = this.add.container(0, -28, [g, t]);
     a.c.add(b);
-    a.c.setDepth(10000 + a.c.y); // bubbles on top
+    // An older bubble that would sit under the new one is removed, so the current action is never covered.
+    const nb = b.getBounds();
+    for (const o of this.agents.values()) {
+      if (o === a || !o.bubble) continue;
+      if (Phaser.Geom.Intersects.RectangleToRectangle(nb, o.bubble.getBounds())) {
+        o.bubble.destroy();
+        o.bubble = undefined;
+        o.c.setDepth(this.depthOf(o));
+      }
+    }
     a.bubble = b;
+    this.lastBubble = b;
+    a.c.setDepth(this.depthOf(a));
     this.time.delayedCall(BUBBLE_MS, () => {
       if (a.bubble === b) a.bubble = undefined;
       b.destroy();
-      a.c.setDepth(a.c.y);
+      a.c.setDepth(this.depthOf(a));
     });
   }
 
   private emote(at: Spot, frame: number, ms = 1600) {
-    if (this.instant || reducedMotion()) return;
+    if (this.instant) return;
     const i = this.add.image(at.x, at.y, "emotes", frame).setScale(SCALE).setDepth(20000);
-    this.tweens.add({ targets: i, y: at.y - 16, alpha: 0, delay: ms * 0.6, duration: ms * 0.4, onComplete: () => i.destroy() });
+    this.tweens.add({ targets: i, y: this.reduced ? at.y : at.y - 16, alpha: 0, delay: ms * 0.6, duration: ms * 0.4, onComplete: () => i.destroy() });
   }
 
-  private float(at: Spot, text: string, color: string, ms = 1200, size = 16) {
-    if (this.instant || reducedMotion()) return;
+  private float(at: Spot, text: string, color: string, ms = 1200, size = 18) {
+    if (this.instant) return;
     const t = this.add
-      .text(at.x, at.y, text, { fontFamily: "monospace", fontSize: `${size}px`, color, fontStyle: "bold" })
+      .text(at.x, at.y, text, { fontFamily: PIXEL_FONT, fontSize: `${size}px`, color, fontStyle: "bold", stroke: "#0b0f1a", strokeThickness: 4 })
       .setOrigin(0.5)
       .setDepth(20000);
-    this.tweens.add({ targets: t, y: at.y - 24, alpha: 0, duration: ms, ease: "Quad.in", onComplete: () => t.destroy() });
+    this.tweens.add({ targets: t, y: this.reduced ? at.y : at.y - 24, alpha: 0, duration: ms, ease: "Quad.in", onComplete: () => t.destroy() });
   }
 
   // ---- map -------------------------------------------------------------------------
@@ -528,7 +767,7 @@ class VillageScene extends Phaser.Scene {
 }
 
 export function createGame(parent: HTMLElement): Phaser.Game {
-  return new Phaser.Game({
+  const game = new Phaser.Game({
     type: Phaser.AUTO,
     parent,
     width: WIDTH,
@@ -538,4 +777,23 @@ export function createGame(parent: HTMLElement): Phaser.Game {
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
     scene: [VillageScene],
   });
+  // pixelArt makes the browser scale the canvas with nearest-neighbour. Below 1280px wide that drops
+  // pixel rows and makes text ragged, so let the browser smooth the downscale; keep it crisp at >= 1x.
+  const crispness = () => {
+    const w = game.canvas?.getBoundingClientRect().width ?? WIDTH;
+    if (game.canvas) game.canvas.style.imageRendering = w < WIDTH - 1 ? "auto" : "pixelated";
+  };
+  const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => {
+    // FIT uses cached parent bounds; refresh alone keeps the mobile size.
+    game.scale.getParentBounds();
+    game.scale.refresh();
+    crispness();
+  }) : null;
+  game.events.once("ready", () => {
+    crispness();
+    ro?.observe(parent);
+    game.scale.on("resize", crispness);
+  });
+  game.events.once("destroy", () => ro?.disconnect());
+  return game;
 }
