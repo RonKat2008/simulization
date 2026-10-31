@@ -1,0 +1,33 @@
+import assert from 'node:assert/strict';
+import {mkdtemp,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {fileURLToPath} from 'node:url';
+import {startLocalActors} from 'durable-actors/dev';
+import {DurableActorsClient,TerseAgentStore} from '../src/agents/terseStore';
+import {createWorld,buildTurnInput} from '../src/engine/world';
+import {agentIdFromRelayName,relayAgentName,turnKey,isOlderTurnKey} from '@simulization/agents';
+const dataDir=await mkdtemp(tmpdir()+'/sim-adapter-');
+const actorProject=fileURLToPath(new URL('../../../actors',import.meta.url));
+const vendor=Bun.spawn(['node','scripts/vendor.mjs'],{cwd:actorProject,stdout:'ignore',stderr:'inherit'});assert.equal(await vendor.exited,0);
+process.env.MODEL_MODE='stub';delete process.env.AI_GATEWAY_API_KEY;delete process.env.AGENTRELAY_API_KEY;
+let rt=await startLocalActors({project:actorProject,entrypoint:'src/actors.ts',dataDir,quiet:true});
+const store=()=>new TerseAgentStore(new DurableActorsClient({baseUrl:rt.connection.controlPlaneUrl,projectId:rt.connection.projectId}));
+try {
+ const s=createWorld({runId:'adapter',seed:42,condition:'BLIND',agentCount:6});const id=Object.keys(s.agents).sort()[0]!;const input=buildTurnInput(s,id);
+ await store().init(s.runId,id,{name:input.self.name,company:input.self.company,provider:'stub',model:'stub',memory:'',inboxCursor:null});
+ const first=await store().takeTurn(s.runId,id,input,undefined,'stable-turn',Date.now()+10000);
+ const before=await store().load(s.runId,id);
+ const duplicate=await store().takeTurn(s.runId,id,{...input,legalActions:['work'],memory:'must not overwrite'},undefined,'stable-turn',Date.now()+10000);
+ assert.deepEqual(duplicate,first);assert.deepEqual(await store().load(s.runId,id),before);
+ await rt.stop();rt=await startLocalActors({project:actorProject,entrypoint:'src/actors.ts',dataDir,quiet:true});
+ assert.deepEqual(await store().takeTurn(s.runId,id,input,undefined,'stable-turn',Date.now()+10000),first);
+ assert.deepEqual(await store().load(s.runId,id),before);
+ const expired={...input,round:2};await store().takeTurn(s.runId,id,expired,undefined,'expired',Date.now()-1);
+ assert.deepEqual(await store().load(s.runId,id),before,'expired remote turn saved state');
+ const controller=new AbortController();controller.abort();await assert.rejects(store().takeTurn(s.runId,id,expired,controller.signal,'cancelled',Date.now()+1000));
+ assert.deepEqual(await store().load(s.runId,id),before);
+ assert.notEqual(turnKey({...input,phase:'trade',tradeStep:'offers'}),turnKey({...input,phase:'trade',tradeStep:'responses'}));
+ assert.ok(isOlderTurnKey('1:trade:offers','1:trade:responses'));
+ assert.equal(agentIdFromRelayName('adapter',relayAgentName('adapter',id)),id);
+ console.log('PASS B Terse adapter with explicit stub model: duplicate cache across restart, expired/cancelled turn cannot save, trade-step identity, opaque Relay ID roundtrip');
+}finally{await rt.stop();await rm(dataDir,{recursive:true,force:true});}

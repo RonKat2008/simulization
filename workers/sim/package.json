@@ -4,27 +4,32 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "dev": "bun run scripts/dev.ts",
     "typecheck": "tsc --noEmit",
     "sim:local": "tsx scripts/sim-local.ts",
-    "models": "tsx scripts/models.ts",
-    "spike:gateway": "tsx scripts/gateway-spike.ts",
-    "spike:relay": "tsx scripts/relay-spike.ts",
-    "relay:e2e": "tsx scripts/relay-e2e.ts",
-    "validity": "tsx scripts/validity.ts",
-    "types": "wrangler types",
-    "smoke:terse": "tsx scripts/smoke-terse-store.ts",
-    "smoke": "tsx scripts/smoke-turns.ts && tsx scripts/smoke-relay-names.ts && tsx scripts/smoke-terse-store.ts"
+    "models": "tsx ../../packages/agents/scripts/models.ts",
+    "spike:gateway": "tsx ../../packages/agents/scripts/gateway-spike.ts",
+    "spike:relay": "tsx ../../packages/agents/scripts/relay-spike.ts",
+    "relay:e2e": "tsx ../../packages/agents/scripts/relay-e2e.ts",
+    "validity": "tsx ../../packages/agents/scripts/validity.ts",
+    "smoke:terse": "bun scripts/terse-probe.ts",
+    "smoke": "tsx scripts/smoke.ts",
+    "dev:actors": "bun x durable-actors dev",
+    "smoke:world": "bun scripts/world-smoke.ts",
+    "smoke:http": "bun scripts/http-smoke.ts",
+    "smoke:unattended": "bun scripts/unattended-smoke.ts",
+    "smoke:adapter": "bun scripts/adapter-smoke.ts",
+    "export:stub": "tsx scripts/export-stub.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",
     "@simulization/shared": "workspace:*",
-    "@simulization/agents": "workspace:*"
+    "@simulization/agents": "workspace:*",
+    "durable-actors": "0.14.6"
   },
   "devDependencies": {
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
-    "wrangler": "^4.156.0"
+    "@types/bun": "^1.4.4"
   }
 }

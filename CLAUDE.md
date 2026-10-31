@@ -306,3 +306,7 @@ Test: two agents. A sends a DM; B reads its inbox since cursor 0. If this doesn'
 - *What's next?* Swapped-label condition, more scarcity levels, more runs with confidence intervals, exporting worlds as RL environments.
 
 **If the live run breaks:** switch to replay of the best saved run, or play the backup video. Keep the narration identical; don't apologize at length.
+
+## Track A verified milestone handoff
+
+Track A currently supplies a tested Terse WorldActor/runtime harness under workers/sim, deterministic pure rules, recovery and adapter smoke checks. It is transitional integration code: the agreed target remains packages/engine, actors/World and the Next.js API above. No live-agent verification, Neon projection, or completed Next.js routing is claimed. See workers/sim/SETUP.md. Actor selection is Terse-only; Neon is reporting/projection storage.

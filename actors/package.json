@@ -8,7 +8,7 @@
   },
   "scripts": {
     "vendor": "node scripts/vendor.mjs",
-    "dev": "node scripts/vendor.mjs && bunx durable-actors dev",
+    "dev": "node scripts/dev.mjs",
     "generate": "node scripts/vendor.mjs && bunx durable-actors generate",
     "inspect": "bunx durable-actors inspect",
     "observe": "bunx durable-actors observe",

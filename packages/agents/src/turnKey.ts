@@ -2,13 +2,13 @@
 import { PHASES, type AgentTurnInput } from "@simulization/shared";
 
 /** "round:phase", e.g. "3:trade". */
-export function turnKey(input: Pick<AgentTurnInput, "round" | "phase">): string {
-  return `${input.round}:${input.phase}`;
+export function turnKey(input: Pick<AgentTurnInput, "round" | "phase" | "tradeStep">): string {
+  return `${input.round}:${input.phase}:${input.tradeStep ?? ""}`;
 }
 
 function turnOrder(key: string): number {
-  const [round, phase] = key.split(":");
-  return Number(round) * PHASES.length + PHASES.indexOf(phase as (typeof PHASES)[number]);
+  const [round, phase, step] = key.split(":");
+  return Number(round) * 10 + PHASES.indexOf(phase as (typeof PHASES)[number]) * 2 + (step === "responses" ? 1 : 0);
 }
 
 /** True when `candidate` is strictly older than `current` (unknown/empty current is never newer). */

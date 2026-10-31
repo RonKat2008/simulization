@@ -12,10 +12,11 @@ export interface AgentStore {
   load(runId: string, agentId: string): Promise<AgentState>;
   save(runId: string, agentId: string, state: AgentState): Promise<void>;
   /**
+   * requestId is stable across retries; deadline is the absolute per-attempt budget for remote actors.
    * `signal` (optional, additive: older callers/implementations ignore it) aborts when the caller's turn
    * budget is spent. Implementations must forward it to model fetches and MUST NOT save state after it
    * aborts: the world already counted the turn as a pass. Remote stores (DO / Terse) cannot send a signal
    * across RPC/HTTP, so they pass an epoch-ms deadline and the actor builds its own AbortSignal.
    */
-  takeTurn(runId: string, agentId: string, input: AgentTurnInput, signal?: AbortSignal): Promise<AgentTurnOutput>;
+  takeTurn(runId: string, agentId: string, input: AgentTurnInput, signal?: AbortSignal, requestId?: string, deadline?: number): Promise<AgentTurnOutput>;
 }

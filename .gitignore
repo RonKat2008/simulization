@@ -22,3 +22,5 @@ actors/vendor/
 .env*
 !.env.example
 !**/.env.example
+
+.durable-actors/

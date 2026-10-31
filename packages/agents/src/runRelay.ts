@@ -37,7 +37,9 @@ export function channelName(runId: string, channel: string): string {
 /** Inverse of relayAgentName ("A-04" round-trips; agent ids are uppercase letter + number). Null if not from this run. */
 export function agentIdFromRelayName(runId: string, name: string): string | null {
   const prefix = `${RUN_PREFIX}${runSlug(runId)}-`;
-  return name.startsWith(prefix) && name.length > prefix.length ? name.slice(prefix.length).toUpperCase() : null;
+  if (!name.startsWith(prefix) || name.length <= prefix.length) return null;
+  const suffix = name.slice(prefix.length);
+  return /^merchant-\d+$/.test(suffix) ? suffix : suffix.toUpperCase();
 }
 
 // ---- cursor ----

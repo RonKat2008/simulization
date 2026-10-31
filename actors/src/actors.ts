@@ -4,6 +4,7 @@
 import { Actor, Emittable, Persisted } from "durable-actors"
 import {
   GatewayModelClient,
+  StubModelClient,
   RunRelay,
   RelayClient,
   AGENTRELAY_DEFAULT_BASE_URL,
@@ -37,6 +38,8 @@ export class MerchantAgent extends Actor {
   @Persisted private relayToken: string | undefined = undefined
   @Persisted private turns = 0
   @Persisted private lastTurnKey: string | null = null
+  @Persisted private completedTurnKey: string | null = null
+  @Persisted private completedTurnJson: string | null = null
 
   // NOTE: deliberately no @Interleave: turns are serialized per agent and a thrown turn rolls back.
 
@@ -70,10 +73,11 @@ export class MerchantAgent extends Actor {
   async takeTurn(runId: string, agentId: string, input: AgentTurnInput, deadline?: number): Promise<AgentTurnOutput> {
     await this.requireInit()
     const gatewayKey = process.env.AI_GATEWAY_API_KEY
-    if (!gatewayKey) {
+    if (!gatewayKey && process.env.MODEL_MODE !== "stub") {
       return passOutput("AI_GATEWAY_API_KEY not set", this.memory)
     }
     const key = turnKey(input)
+    if (this.completedTurnKey === key && this.completedTurnJson !== null) return JSON.parse(this.completedTurnJson) as AgentTurnOutput
     if (isOlderTurnKey(key, this.lastTurnKey)) {
       return passOutput(`stale turn ${key} (already at ${this.lastTurnKey})`, this.memory)
     }
@@ -84,13 +88,17 @@ export class MerchantAgent extends Actor {
       agentId,
       state,
       input: turnInput,
-      model: new GatewayModelClient(gatewayKey),
+      model: process.env.MODEL_MODE === "stub" ? new StubModelClient() : new GatewayModelClient(gatewayKey!),
       signal,
       deadline,
     })
     if (isTurnExpired(signal, deadline) || this.lastTurnKey !== key) return result.output
-    await this.applyState(result.state)
-    this.turns = this.turns + 1
+    await this.db.transaction(async () => {
+      await this.applyState(result.state)
+      this.turns = this.turns + 1
+      this.completedTurnKey = key
+      this.completedTurnJson = JSON.stringify(result.output)
+    })
     logTurn(runId, input, result.meta)
     return result.output
   }

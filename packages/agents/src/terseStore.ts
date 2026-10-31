@@ -61,7 +61,7 @@ export class DurableActorsClient {
 
   constructor(private readonly options: DurableActorsOptions) {
     this.baseUrl = options.baseUrl.replace(/\/+$/, "");
-    this.doFetch = options.fetch ?? ((input, init) => fetch(input, init));
+    this.doFetch = options.fetch ?? globalThis.fetch;
   }
 
   /** Invokes one method. Retries once, with the same requestId, only on an explicit not_executed outcome. */
@@ -71,8 +71,9 @@ export class DurableActorsClient {
     method: string,
     args: readonly unknown[] = [],
     signal?: AbortSignal,
+    stableRequestId?: string,
   ): Promise<T> {
-    const requestId = crypto.randomUUID();
+    const requestId = stableRequestId ?? crypto.randomUUID();
     const path = `/v1/projects/${component("project id", this.options.projectId)}/actors/${component("actor name", actorName)}/${component("actor id", actorId)}/invoke`;
     for (let attempt = 0; attempt < 2; attempt++) {
       const outcome = await this.attempt(`${this.baseUrl}${path}`, requestId, method, args, signal);
@@ -143,10 +144,10 @@ export class TerseAgentStore implements AgentStore {
   }
 
   /** The signal aborts our HTTP wait; the actor can't receive it, so it gets the deadline and builds its own. */
-  takeTurn(runId: string, agentId: string, input: AgentTurnInput, signal?: AbortSignal): Promise<AgentTurnOutput> {
+  takeTurn(runId: string, agentId: string, input: AgentTurnInput, signal?: AbortSignal, requestId?: string, deadlineOverride?: number): Promise<AgentTurnOutput> {
     const args: unknown[] = [runId, agentId, input];
-    const deadline = signalDeadline(signal);
+    const deadline = deadlineOverride ?? signalDeadline(signal);
     if (deadline !== undefined) args.push(deadline);
-    return this.client.invoke<AgentTurnOutput>(MERCHANT_ACTOR, terseActorId(runId, agentId), "takeTurn", args, signal);
+    return this.client.invoke<AgentTurnOutput>(MERCHANT_ACTOR, terseActorId(runId, agentId), "takeTurn", args, signal, requestId);
   }
 }
