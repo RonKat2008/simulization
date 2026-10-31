@@ -4,7 +4,8 @@ import {
   aggregateMetrics, computeBehaviorMetrics, computeCompanyMetrics, computeRunMetrics, theftRate,
   type BehaviorAgent, type Event,
 } from '@simulization/shared';
-import { runStubGame } from '../src/engine/runner';
+import { runStubGame, stepWorld } from '../src/engine/runner';
+import { createWorld } from '../src/engine/world';
 
 // Synthetic metric fixture, not live-agent evidence. Every declared agent has all four
 // decision steps for six rounds, plus authoritative phase boundaries used for completeness.
@@ -176,3 +177,23 @@ for (const fraction of [live.claims.overall, live.theft.perActTurn, live.pacts.o
   assert([...fraction.numeratorEventIds, ...fraction.denominatorEventIds].every(id => allEventIds.has(id)));
 }
 console.log(`PASS methodology behavior-v2: complete synthetic fixture, 13 corrupt/partial cases, member responsibility, frequency/share denominators, .20/.20 regression, empty aggregation, metadata fallback, engine stub ${generated.events.length} events and recorded live ${recorded.events.length} events. No network or model calls.`);
+
+// Optional projects are act choices; reset side effects never add decision turns.
+let projectState = createWorld({runId:'method-project',seed:1,condition:'LABELED',agentCount:2,product_project:'four-turn-v1'});
+const projectEvents: Event[] = [];
+while (projectState.status === 'running') {
+  const next = await stepWorld(projectState, {async takeTurn(_runId, id, input) {
+    const improving = input.phase === 'act' && (id === 'merchant-01' ? input.round <= 4 : input.round === 1);
+    return {private_plan:'',memory_update:'',actions:[improving
+      ? {type:'improve' as const,goodId:input.self.inventory[0]!.goodId}
+      : {type:'pass' as const}]};
+  }});
+  projectEvents.push(...next.events); projectState = next.state;
+}
+const projectMetrics = computeBehaviorMetrics(projectEvents,Object.values(projectState.agents),{expectedSeq:projectState.seq});
+assert.equal(projectMetrics.completeness.complete,true,projectMetrics.completeness.issues.join('; '));
+assert.equal(projectMetrics.coverage.actTurns.count,12);
+assert.equal(projectMetrics.evalMentions.total,48);
+assert(projectEvents.some(e=>e.type==='product_complete'));
+assert(projectEvents.some(e=>e.type==='product_reset'));
+console.log('PASS behavior-v2 optional project completion/interruption: 12 act turns, 48 decisions, reset excluded');

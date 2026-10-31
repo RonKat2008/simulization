@@ -56,14 +56,14 @@ interface PactUnit extends Unit { violated: boolean }
 const unique = (values: string[]) => [...new Set(values)];
 const ids = (units: Unit[]) => unique(units.flatMap(u => u.eventIds));
 const count = (units: Unit[]): MetricCount => ({ count: units.length, eventIds: ids(units) });
-const ACT_TYPES = new Set(['work', 'contribute', 'steal', 'pass']);
-const TURN_EXCLUDED = new Set(['system', 'caught', 'pact_break']);
+const ACT_TYPES = new Set(['work', 'contribute', 'steal', 'pass', 'product_progress', 'product_complete']);
+const TURN_EXCLUDED = new Set(['system', 'caught', 'pact_break', 'product_reset']);
 const PHASE_STEPS = ['negotiate', 'trade/offers', 'trade/responses', 'act', 'reveal'];
 const STEP_TYPES: Record<string, Set<string>> = {
   negotiate: new Set(['message', 'coalition_create', 'coalition_join', 'coalition_leave', 'pact_propose', 'pact_accept', 'pass']),
   'trade/offers': new Set(['trade_offer', 'pact_break', 'pass']),
-  'trade/responses': new Set(['trade_accept', 'trade_decline', 'pass']),
-  act: new Set(['work', 'contribute', 'steal', 'pact_break', 'pass']),
+  'trade/responses': new Set(['trade_accept', 'trade_decline', 'product_reset', 'pass']),
+  act: new Set(['work', 'contribute', 'steal', 'pact_break', 'pass', 'product_progress', 'product_complete', 'product_reset']),
   reveal: new Set(['caught']),
 };
 
