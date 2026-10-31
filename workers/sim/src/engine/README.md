@@ -1,3 +1,7 @@
+# Historical stub milestone record
+
+For current consolidated runtime, live verification and audit status, see [INTEGRATION_HANDOFF.md](./INTEGRATION_HANDOFF.md) and [AUDIT.md](./AUDIT.md). Commands and unfinished-integration statements below describe the earlier isolated stub milestone.
+
 # Track A engine and integration
 
 Pure rules: `rules.ts`; true state/types: `types.ts`; initialization and permitted observations: `world.ts`; bounded turn collection and phase orchestration: `runner.ts`. Product runtime: `../world/WorldActor.ts` on Terse Durable Actors 0.14.6. Entry `../actors.ts`; Bun bootstrap `../../scripts/dev.ts`; HTTP/WebSocket surface `../index.ts`.

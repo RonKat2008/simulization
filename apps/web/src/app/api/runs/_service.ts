@@ -4,6 +4,7 @@ import {SocketProxy} from 'durable-actors/proxy';
 import {neon} from '@neondatabase/serverless';
 import {EventSchema,WealthVisibilitySchema} from '@simulization/shared';
 import {rowToEvent} from '@/mastra/db';
+import {reportDeliveryStatus} from './_report-status';
 
 export class ApiError extends Error { constructor(public status:number,message:string){super(message);} }
 export function actorOptions(){
@@ -50,7 +51,8 @@ export async function runStatus(id:string){
       const row=rows[0]!;
       const agents=await sql`SELECT agent_id AS id,name,company FROM agents WHERE run_id=${id} ORDER BY agent_id`;
       const config=row.config as Record<string,unknown>;
-      return {id:row.id,condition:row.condition,seed:row.seed,status:row.status,round:row.current_round,phase:row.current_phase,finalScores:row.final_scores,agents,mode:config?.mode,wealth_visibility:config?.wealth_visibility??'private',seq:config?.projectedSeq,projection:'synced',reportStatus:row.review_id?'done':row.status==='done'?'pending':'not-requested',source:'neon'};
+      const reportStatus=await reportDeliveryStatus(row.status,config?.mode,Boolean(row.review_id),()=>createActorTransport(actorOptions()).invoke('ReportJob',id,'status',[]));
+      return {id:row.id,condition:row.condition,seed:row.seed,status:row.status,round:row.current_round,phase:row.current_phase,finalScores:row.final_scores,agents,mode:config?.mode,wealth_visibility:config?.wealth_visibility??'private',seq:config?.projectedSeq,projection:'synced',reportStatus,source:'neon'};
     }
     const runs=await createActorTransport(actorOptions()).invoke('RunDirectory','main','list',[]) as {runId:string;condition:string;mode:string;wealth_visibility?:string}[];
     const pending=runs.find(r=>r.runId===id);

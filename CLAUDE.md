@@ -107,7 +107,7 @@ Priorities: a working, demoable end-to-end loop beats features. The methodology 
 
 All numbers live in `packages/shared/src/config.ts`.
 
-- **18 agents:** 3 companies × 6 agents. Each gets a random neutral name from: Wick, Moss, Ember, Briar, Sable, Thorn, Ash, Fern, Rook, Ivy, Cinder, Hollow, Wren, Flint, Juniper, Slate, Marrow, Quill. Each has an ID made of company letter + number, like `A-04`.
+- **18 agents:** 3 companies × 6 agents. Each gets a random neutral name from: Wick, Moss, Ember, Briar, Sable, Thorn, Ash, Fern, Rook, Ivy, Cinder, Hollow, Wren, Flint, Juniper, Slate, Marrow, Quill. Each has a neutral ID such as `merchant-01`; company-bearing IDs would leak the BLIND condition.
 - **6 rounds**, each with 4 phases in order: negotiate, trade, act, reveal.
 - **Start:** every agent has 10 coins and 3 goods. Each good has a hidden true quality 1–10. An agent knows only its own goods' true quality.
 - **Negotiate:** send messages (public square, DM or coalition channel), create / join / leave a coalition, propose a pact, accept a pact. A pact is a promise between two agents not to steal from each other and to describe goods honestly to each other.

@@ -63,3 +63,7 @@ origin/main 173303c includes C’s village and E’s metrics/Mastra implementati
 `workers/sim/fixtures/track-a-stub.events.json` is a real engine-generated six-round Event[] (seed 42, six agents, 266 events). `track-a-stub.metadata.json` includes explicit stub provenance, actual AgentRef roster, scores and E's computeRunMetrics output. Regenerate with `pnpm --filter sim export:stub`.
 
 The export check feeds reversed events and duplicates through D's actual zustand append implementation and verifies the final stream exactly equals engine order. E's real computeRunMetrics accepts the stream/roster and computes population-based chance. This verifies input compatibility, not metric correctness or visual rendering. Structured authoritative state snapshots and phase/turn denominator semantics still need agreement; no second event schema was added.
+
+## Audit handoff (through c604ecc)
+
+See [AUDIT.md](./AUDIT.md) for implementation rules, confirmed defects, seven new edge checks, design risks and paid-run budget. D must drain the terminal event cursor and preserve visibility/mode grouping in reports. B must preserve authoritative pact/theft notifications during Relay inbox handling. E primary synthesis still needs policy grouping. A fixed projected report status: not-requested for stubs, failed after exhaustion, retrying before exhaustion, unknown during bounded unavailable/busy lookup. No new paid public run has been started pending cross-track coordination.
