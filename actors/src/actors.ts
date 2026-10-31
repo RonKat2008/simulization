@@ -7,9 +7,13 @@ import {
   RunRelay,
   RelayClient,
   AGENTRELAY_DEFAULT_BASE_URL,
+  isOlderTurnKey,
+  isTurnExpired,
   logTurn,
   passOutput,
+  signalFromDeadline,
   takeTurn,
+  turnKey,
   withRelayInbox,
 } from "@simulization/agents"
 import type { AgentState, AgentTurnInput, AgentTurnOutput } from "@simulization/shared"
@@ -32,6 +36,7 @@ export class MerchantAgent extends Actor {
   @Persisted private inboxCursor: string | null = null
   @Persisted private relayToken: string | undefined = undefined
   @Persisted private turns = 0
+  @Persisted private lastTurnKey: string | null = null
 
   // NOTE: deliberately no @Interleave: turns are serialized per agent and a thrown turn rolls back.
 
@@ -44,6 +49,7 @@ export class MerchantAgent extends Actor {
     this.inboxCursor = state.inboxCursor
     this.relayToken = state.relayToken
     this.turns = 0
+    this.lastTurnKey = null
     this.initialized = true
   }
 
@@ -56,19 +62,33 @@ export class MerchantAgent extends Actor {
     await this.applyState(state)
   }
 
-  async takeTurn(runId: string, agentId: string, input: AgentTurnInput): Promise<AgentTurnOutput> {
+  /**
+   * `deadline` (epoch ms) replaces an AbortSignal, which cannot cross the actor RPC boundary. Past it the
+   * result is dropped unsaved (the world already passed the turn). `lastTurnKey` (round:phase) is claimed at
+   * turn start so a late turn from an older phase never runs or saves over a newer one.
+   */
+  async takeTurn(runId: string, agentId: string, input: AgentTurnInput, deadline?: number): Promise<AgentTurnOutput> {
     await this.requireInit()
     const gatewayKey = process.env.AI_GATEWAY_API_KEY
     if (!gatewayKey) {
       return passOutput("AI_GATEWAY_API_KEY not set", this.memory)
     }
+    const key = turnKey(input)
+    if (isOlderTurnKey(key, this.lastTurnKey)) {
+      return passOutput(`stale turn ${key} (already at ${this.lastTurnKey})`, this.memory)
+    }
+    this.lastTurnKey = key
+    const signal = signalFromDeadline(deadline)
     const { input: turnInput, state } = await withRelayInbox(relayFromEnv(), runId, agentId, await this.snapshot(), input)
     const result = await takeTurn({
       agentId,
       state,
       input: turnInput,
       model: new GatewayModelClient(gatewayKey),
+      signal,
+      deadline,
     })
+    if (isTurnExpired(signal, deadline) || this.lastTurnKey !== key) return result.output
     await this.applyState(result.state)
     this.turns = this.turns + 1
     logTurn(runId, input, result.meta)

@@ -3,7 +3,7 @@ import { neon } from "@neondatabase/serverless";
 import { AgentStateSchema, type AgentState, type AgentStore, type AgentTurnInput, type AgentTurnOutput } from "@simulization/shared";
 import type { RunRelay } from "@simulization/agents";
 import { withRelayInbox } from "@simulization/agents";
-import { takeTurn } from "@simulization/agents";
+import { isTurnExpired, takeTurn } from "@simulization/agents";
 import { logTurn } from "@simulization/agents";
 import type { ModelClient } from "@simulization/agents";
 
@@ -47,10 +47,11 @@ export class NeonAgentStore implements AgentStore {
     ]);
   }
 
-  async takeTurn(runId: string, agentId: string, input: AgentTurnInput): Promise<AgentTurnOutput> {
+  async takeTurn(runId: string, agentId: string, input: AgentTurnInput, signal?: AbortSignal): Promise<AgentTurnOutput> {
     const loaded = await this.load(runId, agentId);
     const { input: turnInput, state } = await withRelayInbox(this.relay, runId, agentId, loaded, input);
-    const result = await takeTurn({ agentId, state, input: turnInput, model: this.model });
+    const result = await takeTurn({ agentId, state, input: turnInput, model: this.model, signal });
+    if (isTurnExpired(signal)) return result.output; // timed out: the world already passed this turn, don't save
     await this.save(runId, agentId, result.state);
     logTurn(runId, input, result.meta);
     return result.output;

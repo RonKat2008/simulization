@@ -1,5 +1,6 @@
 // AGENT_STORE=terse: each agent is a Terse Durable Actor (`MerchantAgent`) reached over the control-plane HTTP API.
 // Fetch-only so it runs in Workers. Spec: POST /v1/projects/{project}/actors/{name}/{id}/invoke.
+import { signalDeadline } from "@simulization/agents";
 import type { AgentState, AgentStore, AgentTurnInput, AgentTurnOutput } from "@simulization/shared";
 
 export const MERCHANT_ACTOR = "MerchantAgent";
@@ -64,11 +65,17 @@ export class DurableActorsClient {
   }
 
   /** Invokes one method. Retries once, with the same requestId, only on an explicit not_executed outcome. */
-  async invoke<T>(actorName: string, actorId: string, method: string, args: readonly unknown[] = []): Promise<T> {
+  async invoke<T>(
+    actorName: string,
+    actorId: string,
+    method: string,
+    args: readonly unknown[] = [],
+    signal?: AbortSignal,
+  ): Promise<T> {
     const requestId = crypto.randomUUID();
     const path = `/v1/projects/${component("project id", this.options.projectId)}/actors/${component("actor name", actorName)}/${component("actor id", actorId)}/invoke`;
     for (let attempt = 0; attempt < 2; attempt++) {
-      const outcome = await this.attempt(`${this.baseUrl}${path}`, requestId, method, args);
+      const outcome = await this.attempt(`${this.baseUrl}${path}`, requestId, method, args, signal);
       if (outcome.type === "completed") return outcome.result as T;
       if (outcome.type === "failed") throw new ActorInvocationError(outcome.code, outcome.message, requestId);
       if (outcome.type === "unauthenticated") {
@@ -81,7 +88,7 @@ export class DurableActorsClient {
     throw new ActorInvocationError("unavailable", "unreachable", requestId);
   }
 
-  private async attempt(url: string, requestId: string, method: string, args: readonly unknown[]): Promise<Outcome> {
+  private async attempt(url: string, requestId: string, method: string, args: readonly unknown[], signal?: AbortSignal): Promise<Outcome> {
     const headers: Record<string, string> = {
       accept: "application/json",
       "content-type": "application/json",
@@ -90,7 +97,7 @@ export class DurableActorsClient {
     if (this.options.secret) headers.authorization = `Bearer ${this.options.secret}`;
     let response: Response;
     try {
-      response = await this.doFetch(url, { method: "POST", headers, body: JSON.stringify({ requestId, method, args }) });
+      response = await this.doFetch(url, { method: "POST", headers, body: JSON.stringify({ requestId, method, args }), signal });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new ActorInvocationError("outcome_unknown", `outcome unknown, request failed: ${message}`, requestId);
@@ -135,7 +142,11 @@ export class TerseAgentStore implements AgentStore {
     await this.client.invoke<unknown>(MERCHANT_ACTOR, terseActorId(runId, agentId), "save", [state]);
   }
 
-  takeTurn(runId: string, agentId: string, input: AgentTurnInput): Promise<AgentTurnOutput> {
-    return this.client.invoke<AgentTurnOutput>(MERCHANT_ACTOR, terseActorId(runId, agentId), "takeTurn", [runId, agentId, input]);
+  /** The signal aborts our HTTP wait; the actor can't receive it, so it gets the deadline and builds its own. */
+  takeTurn(runId: string, agentId: string, input: AgentTurnInput, signal?: AbortSignal): Promise<AgentTurnOutput> {
+    const args: unknown[] = [runId, agentId, input];
+    const deadline = signalDeadline(signal);
+    if (deadline !== undefined) args.push(deadline);
+    return this.client.invoke<AgentTurnOutput>(MERCHANT_ACTOR, terseActorId(runId, agentId), "takeTurn", args, signal);
   }
 }

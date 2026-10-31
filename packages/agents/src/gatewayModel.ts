@@ -20,16 +20,16 @@ export class HttpError extends Error {
   }
 }
 
-export class GatewayModelClient implements ModelClient {
-  /** Providers whose structured output was rejected; they fall back to JSON mode for the rest of the isolate's life. */
-  private readonly jsonModeOnly = new Set<string>();
+/** Providers whose structured output was rejected; module-level so every client instance shares it for the isolate's life. */
+const jsonModeOnly = new Set<string>();
 
+export class GatewayModelClient implements ModelClient {
   constructor(private readonly apiKey: string, private readonly baseUrl = AI_GATEWAY_BASE_URL) {
     if (!apiKey) throw new Error("AI_GATEWAY_API_KEY is not set");
   }
 
   async complete(req: ModelRequest): Promise<ModelResponse> {
-    if (!this.jsonModeOnly.has(req.provider)) {
+    if (!jsonModeOnly.has(req.provider)) {
       try {
         return await this.call(req, {
           type: "json_schema",
@@ -39,7 +39,7 @@ export class GatewayModelClient implements ModelClient {
         // 400 = this provider/model rejected the schema; anything else is a real failure.
         if (!(err instanceof HttpError) || err.status !== 400) throw err;
         console.warn(`[gateway] ${req.model} rejected json_schema, falling back to JSON mode: ${err.message}`);
-        this.jsonModeOnly.add(req.provider);
+        jsonModeOnly.add(req.provider);
       }
     }
     return this.call(req, { type: "json_object" });

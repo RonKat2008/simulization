@@ -137,33 +137,42 @@ export class RunRelay {
     const cursor = parseCursor(state.inboxCursor);
     const me = relayAgentName(runId, agentId);
     const nextCursors: Record<string, string> = { ...cursor.c };
-    const fresh: InboxMessage[] = [];
+    const fresh: Array<{ id: string; msg: InboxMessage }> = [];
 
+    // Ids are kept through ingest so messages from different sources can be merged in true time order.
     const ingest = (key: string, label: string, msgs: RelayMessage[]): void => {
       if (msgs.length === 0) return;
       nextCursors[key] = msgs.reduce((max, m) => (compareIds(m.id, max) > 0 ? m.id : max), cursor.c[key] ?? msgs[0]!.id);
       for (const m of msgs) {
         if (m.from === me) continue;
         const from = agentIdFromRelayName(runId, m.from) ?? m.from;
-        fresh.push({ from, channel: label, text: m.text, round });
+        fresh.push({ id: m.id, msg: { from, channel: label, text: m.text, round } });
       }
     };
 
-    const pub = channelName(runId, "public");
-    ingest(`ch:${pub}`, "public", await this.client.channelMessages(token, pub, cursor.c[`ch:${pub}`]));
+    const readChannel = async (channel: string, label: string): Promise<void> => {
+      const key = `ch:${channel}`;
+      ingest(key, label, await this.client.channelMessages(token, channel, cursor.c[key]));
+    };
+    const readDms = async (): Promise<void> => {
+      const convs = await this.client.dmConversations(token);
+      const reads = await Promise.all(
+        convs.map(async (conv) => ({ key: `dm:${conv}`, msgs: await this.client.dmMessages(token, conv, cursor.c[`dm:${conv}`]) })),
+      );
+      for (const { key, msgs } of reads) ingest(key, "dm", msgs);
+    };
 
-    if (coalitionId) {
-      const ch = channelName(runId, coalitionId);
-      ingest(`ch:${ch}`, coalitionId, await this.client.channelMessages(token, ch, cursor.c[`ch:${ch}`]));
-    }
+    // All sources in parallel (12s turn budget).
+    await Promise.all([
+      readChannel(channelName(runId, "public"), "public"),
+      ...(coalitionId ? [readChannel(channelName(runId, coalitionId), coalitionId)] : []),
+      readDms(),
+    ]);
 
-    const convs = await this.client.dmConversations(token);
-    for (const conv of convs) {
-      const key = `dm:${conv}`;
-      ingest(key, "dm", await this.client.dmMessages(token, conv, cursor.c[key]));
-    }
-
-    const inbox = [...cursor.recent, ...fresh].slice(-INBOX_SIZE);
+    // `round` is the round in which this agent FIRST received the message (not when it was sent), and
+    // it is kept in `recent` unchanged afterwards. Fresh messages are merged oldest-first across sources.
+    const ordered = [...fresh].sort((x, y) => compareIds(x.id, y.id)).map((f) => f.msg);
+    const inbox = [...cursor.recent, ...ordered].slice(-INBOX_SIZE);
     return { inbox, inboxCursor: serializeCursor({ c: nextCursors, recent: inbox }) };
   }
 }

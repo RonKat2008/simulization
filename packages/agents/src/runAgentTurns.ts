@@ -7,7 +7,7 @@ import {
   type AgentTurnInput,
   type AgentTurnOutput,
 } from "@simulization/shared";
-import { mapLimit, Semaphore, withRetry, withTimeout } from "./limits";
+import { Semaphore, withRetry, withTimeout } from "./limits";
 import { passOutput } from "./parseTurn";
 
 /** Max in-flight calls per provider, under the global cap, so one provider's 429s don't starve the rest. */
@@ -40,27 +40,34 @@ function providerLimit(provider: string): Semaphore {
 /**
  * Calls store.takeTurn for each agent: at most CONCURRENCY at once, TURN_TIMEOUT_MS per call,
  * TURN_RETRIES retries, then a pass. Result order matches `turns`.
+ * The provider slot is taken OUTSIDE the global one, so waiting on a busy provider never holds a global slot.
+ * Each attempt's AbortSignal (with its deadline) goes to store.takeTurn so a timed-out turn stops and never saves.
  */
 export async function runAgentTurns(store: AgentStore, runId: string, turns: readonly PhaseTurn[]): Promise<PhaseTurnResult[]> {
-  return mapLimit(turns, CONCURRENCY, async (turn) => {
-    const started = Date.now();
-    try {
-      const output = await providerLimit(turn.provider).run(() =>
-        withRetry(TURN_RETRIES, () =>
-          withTimeout(TURN_TIMEOUT_MS, () => store.takeTurn(runId, turn.agentId, turn.input)),
-        ),
-      );
-      return { agentId: turn.agentId, output, ok: true, latencyMs: Date.now() - started };
-    } catch (err) {
-      const error = err instanceof Error ? err.message : String(err);
-      console.warn(`[agents] ${runId} ${turn.agentId} turn failed, passing: ${error}`);
-      return {
-        agentId: turn.agentId,
-        output: passOutput(error, turn.input.memory),
-        ok: false,
-        latencyMs: Date.now() - started,
-        error,
-      };
-    }
-  });
+  const global = new Semaphore(CONCURRENCY);
+  return Promise.all(
+    turns.map((turn) =>
+      providerLimit(turn.provider).run(() => global.run(() => runOne(store, runId, turn))),
+    ),
+  );
+}
+
+async function runOne(store: AgentStore, runId: string, turn: PhaseTurn): Promise<PhaseTurnResult> {
+  const started = Date.now();
+  try {
+    const output = await withRetry(TURN_RETRIES, () =>
+      withTimeout(TURN_TIMEOUT_MS, (signal) => store.takeTurn(runId, turn.agentId, turn.input, signal)),
+    );
+    return { agentId: turn.agentId, output, ok: true, latencyMs: Date.now() - started };
+  } catch (err) {
+    const error = err instanceof Error ? err.message : String(err);
+    console.warn(`[agents] ${runId} ${turn.agentId} turn failed, passing: ${error}`);
+    return {
+      agentId: turn.agentId,
+      output: passOutput(error, turn.input.memory),
+      ok: false,
+      latencyMs: Date.now() - started,
+      error,
+    };
+  }
 }

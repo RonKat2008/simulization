@@ -13,6 +13,9 @@
 
 export const AGENTRELAY_DEFAULT_BASE_URL = "https://armadillo.agentrelay.com/v1";
 
+/** Per-request cap so a slow relay can never eat the 12s turn budget (callers fall back to the world inbox). */
+export const RELAY_REQUEST_TIMEOUT_MS = 3000;
+
 export interface RelayMessage {
   id: string;
   /** Sender agent name. */
@@ -71,6 +74,7 @@ export async function createWorkspace(
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ name, expires_in_seconds: opts.expiresInSeconds }),
+    signal: AbortSignal.timeout(RELAY_REQUEST_TIMEOUT_MS),
   });
   const env = (await res.json().catch(() => ({}))) as Envelope<{ workspace_id: string; api_key: string; expires_at?: string | null }>;
   if (!res.ok || !env.ok || !env.data) {
@@ -84,6 +88,7 @@ export class RelayClient {
     /** Workspace key (ar_ws_* / rk_live_*). Used for registering agents and creating channels. */
     private readonly workspaceKey: string,
     private readonly baseUrl = AGENTRELAY_DEFAULT_BASE_URL,
+    private readonly timeoutMs = RELAY_REQUEST_TIMEOUT_MS,
   ) {
     if (!workspaceKey) throw new Error("AGENTRELAY_API_KEY is not set");
   }
@@ -95,6 +100,7 @@ export class RelayClient {
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
+      signal: AbortSignal.timeout(this.timeoutMs),
     });
     if (res.status === 204) return undefined as T; // e.g. leave
     const env = (await res.json().catch(() => ({ ok: false, error: { code: "bad_json", message: res.statusText } }))) as Envelope<T>;

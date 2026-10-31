@@ -1,5 +1,6 @@
 // Owner: Person B. In-memory AgentStore (Node/tests/sim:local). Same takeTurn() pipeline as production stores.
 import type { AgentState, AgentStore, AgentTurnInput, AgentTurnOutput } from "@simulization/shared";
+import { isTurnExpired } from "./limits";
 import { StubModelClient } from "./stubModel";
 import { takeTurn } from "./takeTurn";
 import type { ModelClient, TurnMeta } from "./types";
@@ -37,9 +38,10 @@ export class MemoryAgentStore implements AgentStore {
     this.states.set(this.key(runId, agentId), state);
   }
 
-  async takeTurn(runId: string, agentId: string, input: AgentTurnInput): Promise<AgentTurnOutput> {
+  async takeTurn(runId: string, agentId: string, input: AgentTurnInput, signal?: AbortSignal): Promise<AgentTurnOutput> {
     const state = await this.load(runId, agentId);
-    const outcome = await takeTurn({ agentId, state, input, model: this.model });
+    const outcome = await takeTurn({ agentId, state, input, model: this.model, signal });
+    if (isTurnExpired(signal)) return outcome.output; // timed out: the world already passed this turn, don't save
     await this.save(runId, agentId, outcome.state);
     this.onTurn?.(runId, outcome.meta);
     return outcome.output;
