@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import { canStartRuns, LOCAL_DEMO_MESSAGE } from '../../../apps/web/src/lib/run-availability';
-import { POST as start } from '../../../apps/web/src/app/api/runs/route';
-import { POST as batch } from '../../../apps/web/src/app/api/batch/route';
+// Load Next entrypoints at runtime, as in report-ui-contract.ts. Their source is
+// typechecked by the web project; importing it statically applies sim-only flags
+// to unrelated Next/database code. These tests still invoke the actual handlers.
+const runRoutePath = '../../../apps/web/src/app/api/runs/route';
+const batchRoutePath = '../../../apps/web/src/app/api/batch/route';
+type StartRoute = { POST: (request: Request) => Promise<Response> };
+const { POST: start } = await import(runRoutePath) as StartRoute;
+const { POST: batch } = await import(batchRoutePath) as StartRoute;
 assert.equal(canStartRuns({}), true);
 assert.equal(canStartRuns({VERCEL:'1'}), false);
 const old=process.env.VERCEL;
