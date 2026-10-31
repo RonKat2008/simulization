@@ -1,6 +1,6 @@
 # Local Track A/B setup
 
-Requires pnpm dependencies and Bun >=1.4.2 on PATH. Use one repository-root `.env` (copy `.env.example` and populate privately). Both `pnpm dev:sim` and `pnpm actors:dev` explicitly load it. Existing process/shell values win; do not duplicate keys in package-local env files. Bun can preload local env files if present; remove those duplicates to keep one source. `.env.example` and `.dev.vars.example` are templates, never credentials.
+Requires pnpm dependencies, Node >=22.9 and Bun >=1.4.2 on PATH. Use one repository-root `.env` (copy `.env.example` and populate privately). `pnpm dev`, `pnpm dev:sim` and `pnpm actors:dev` explicitly load it. Existing process/shell values win; do not duplicate keys in package-local env files. `dev:web` is the internal Next.js command; use `pnpm dev` to load the root configuration. Bun and Next.js can preload local env files if present; remove those duplicates to keep one source. `.env.example` and `.dev.vars.example` are templates, never credentials.
 
 - `AI_GATEWAY_API_KEY`: Vercel AI Gateway (gatewayModel.ts), not a direct provider key.
 - `AGENTRELAY_API_KEY`: existing AgentRelay integration.

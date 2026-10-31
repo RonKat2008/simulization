@@ -2,6 +2,22 @@
 
 Teammate code is synchronized from GitHub main. This document records integration evidence and remaining proposals; it does not claim unconfirmed schema decisions were agreed.
 
+## Integration check after B's 669bbbd (2026-10-31)
+
+C's ebbb29a is included. B's 669bbbd removes the obsolete NeonAgentStore and its package dependency; no B-owned code was changed by A during this check. E's defa8a8 fixes trade-step turn counting; the regenerated six-agent/six-round metadata now reports 144 turns instead of 162. Repo-wide typechecking and the engine export pass after both integrations.
+
+The product bootstrap, not just the standalone probe, passes a complete six-agent stub round (47 events) through HTTP and WebSocket. HTTP smoke now checks EventSchema, contiguous sequence numbers and run-scoped IDs, exact cursor catch-up, repeated read stability, rejection of invalid cursors, missing-run 404, and idempotent stop. The actual MerchantAgent adapter with MODEL_MODE=stub passes cancellation, expired deadlines, duplicate turns across restart, and separate trade-step identity. Unattended product restart passes with 73 ordered events and no status request waking the actor. The 266-event six-round export passes D's store ordering/deduplication and E's metrics input check.
+
+`pnpm dev` now explicitly loads root `.env` before starting Next.js. Actor launchers already load that same file, with shell variables taking precedence. There is no populated root/package environment file or shell gateway/Relay/database credential in this checkout at verification time. No model, Relay, or database network success is claimed.
+
+Remaining integration ownership:
+- **A:** the working HTTP service is still `pnpm dev:sim` on :8787 (`/runs`, `/runs/:id`, `/runs/:id/events?after=N`, `/runs/:id/ws`, `/runs/:id/stop`, `/batch`). The agreed Next.js `/api/runs*` and `/api/batch` routes and consolidated `actors/World` entrypoint are not implemented. Do not assume adding `/api` to these paths works. HTTP run creation explicitly uses stubs; live setup currently requires a new manually stepped WorldActor and enableLive().
+- **D:** `/run/[id]` remains a placeholder on this commit. Mount VillageCanvas and connect its store to the agreed API after coordination with A. D also owns UI launch controls and the report presentation. A will verify the browser after D's commit arrives; loading C's mock harness does not prove live-page integration.
+- **A + configuration owner:** Neon projection is not implemented or verified. E's analysis reads runs, agents and events from Neon and requires a completed run row. Passing computeRunMetrics on the stub artifact does not prove the analysis/report pipeline. Supply root `.env` privately for gateway, Relay and Neon verification; never commit it.
+- **B:** keep ownership of any further MerchantAgent/gateway/Relay fixes. Send pushed commit hashes; A will integrate and rerun the adapter checks.
+
+These are unfinished integration tasks, not evidence that the completed deterministic engine has failed. In particular, missing Next.js routes are A's work and must not be attributed to D's pending canvas wiring.
+
 ## C/D: ordered event consumption
 
 Existing frozen Event schema is unchanged. HTTP GET `/runs/:id/events?after=N` returns increasing seq; WebSocket `/runs/:id/ws` sends Event objects and replays on reconnect. Deduplicate by runId+seq (or id), sort by seq, recover gaps via HTTP. Reset the current event store on run switch: its Map is keyed only by seq. Its `append`/`load` signatures already accept this data.

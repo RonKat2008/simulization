@@ -3,7 +3,8 @@
   "private": true,
   "packageManager": "pnpm@12.8.1",
   "scripts": {
-    "dev": "pnpm --filter web dev",
+    "dev": "node --env-file-if-exists=.env --run dev:web",
+    "dev:web": "pnpm --filter web dev",
     "dev:sim": "pnpm --filter sim dev",
     "actors:dev": "pnpm --filter actors dev",
     "mock": "pnpm --filter @simulization/shared mock",
