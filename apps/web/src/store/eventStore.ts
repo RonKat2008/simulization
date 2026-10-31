@@ -1,7 +1,7 @@
 // Owner: D. Single source of truth for rendering: an ordered Event[].
 // Live mode calls append(); replay calls load(). One code path.
 import { create } from "zustand";
-import type { Event } from "@simulization/shared";
+import type { Event, EventType } from "@simulization/shared";
 
 interface EventState {
   events: Event[];
@@ -9,6 +9,11 @@ interface EventState {
   append: (incoming: Event[]) => void;
   load: (events: Event[]) => void;
   select: (id: string | null) => void;
+  /** HUD feed filters (additive). Empty typeFilter = all types. */
+  typeFilter: EventType[];
+  agentFilter: string | null;
+  setTypeFilter: (types: EventType[]) => void;
+  setAgentFilter: (id: string | null) => void;
   reset: () => void;
 }
 
@@ -24,5 +29,9 @@ export const useEventStore = create<EventState>((set) => ({
   append: (incoming) => set((s) => ({ events: sortedUnique([...s.events, ...incoming]) })),
   load: (events) => set({ events: sortedUnique(events) }),
   select: (id) => set({ selectedAgentId: id }),
-  reset: () => set({ events: [], selectedAgentId: null }),
+  typeFilter: [],
+  agentFilter: null,
+  setTypeFilter: (types) => set({ typeFilter: types }),
+  setAgentFilter: (id) => set({ agentFilter: id }),
+  reset: () => set({ events: [], selectedAgentId: null, typeFilter: [], agentFilter: null }),
 }));

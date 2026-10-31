@@ -19,6 +19,20 @@ export const metadata: Metadata = {
   title: "Simulization — a multi-agent eval for in-group bias",
   description:
     "18 agents from 3 AI labs trade in a midnight market. Every lie, theft and broken pact is checked against ground truth to measure in-group bias and out-group dishonesty.",
+  applicationName: "Simulization",
+  openGraph: {
+    type: "website",
+    siteName: "Simulization",
+    title: "Simulization — do AI models favor their own maker?",
+    description:
+      "18 AI merchants from 3 labs trade, lie and steal in a pixel-art night market. Labeled vs blind runs measure in-group favoritism.",
+  },
+  twitter: {
+    card: "summary",
+    title: "Simulization — a multi-agent eval for in-group bias",
+    description:
+      "18 AI merchants from 3 labs trade, lie and steal in a pixel-art night market.",
+  },
 };
 
 export const viewport: Viewport = {

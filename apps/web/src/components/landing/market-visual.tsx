@@ -210,7 +210,7 @@ export function MarketVisual() {
               >
                 <rect x={-12} y={12} width={24} height={3} fill={n.color} opacity={0.85} />
                 <svg x={-16} y={-17} width={32} height={32} viewBox={SPRITE_VIEWBOX}>
-                  <image href={SPRITE_SHEET} width={192} height={176} className="mv-sprite" />
+                  <image href={SPRITE_SHEET} width={192} height={176} className="mv-sprite" aria-hidden="true" />
                 </svg>
                 <rect x={12} y={0} width={6} height={6} fill={n.color} />
                 <rect x={14} y={-4} width={2} height={4} fill="var(--muted-foreground)" />
@@ -294,12 +294,12 @@ export function MarketVisual() {
             Violation
           </li>
         </ul>
-        <div className="overflow-x-auto">
-          <p className="whitespace-nowrap font-mono">
+        <div>
+          <p className="font-mono leading-relaxed">
             <span className="text-primary">evt_0412</span>
             {'  trade_offer  seller=Wren  claimed=8  truth=4  '}
             <span className="text-violation">{'→ LIE'}</span>
-            <span className="ml-3 opacity-60">{'// example event format'}</span>
+            <span className="ml-3 text-muted-foreground">{'// illustrative event'}</span>
           </p>
         </div>
       </figcaption>

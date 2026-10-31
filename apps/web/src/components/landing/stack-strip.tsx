@@ -1,7 +1,7 @@
 const STACK = [
-  { name: 'Cloudflare Durable Objects', role: 'referee + agent memory' },
+  { name: 'Terse Durable Actors', role: 'referee + agent memory' },
   { name: 'AgentRelay', role: 'every agent message' },
-  { name: 'Terse Durable Actors', role: 'batch experiment jobs' },
+  { name: 'Next.js', role: 'web app + API routes' },
   { name: 'Neon', role: 'event log' },
   { name: 'Mastra', role: 'Opus review workflow' },
   { name: 'Vercel', role: 'hosting' },

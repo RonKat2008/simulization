@@ -64,7 +64,7 @@ function ConditionPanel({ condition }: { condition: Condition }) {
               {condition.showLab ? (
                 <span className={`text-xs ${agent.text}`}>{`Lab ${agent.lab}`}</span>
               ) : (
-                <span className="text-xs text-muted-foreground/60">
+                <span className="text-xs text-muted-foreground">
                   <span aria-hidden="true">{'— — —'}</span>
                   <span className="sr-only">lab hidden</span>
                 </span>
@@ -92,8 +92,8 @@ export function Conditions() {
             <ConditionPanel key={c.name} condition={c} />
           ))}
         </div>
-        <div className="overflow-x-auto rounded-md border bg-surface px-5 py-4">
-          <p className="whitespace-nowrap text-sm">
+        <div className="rounded-md border bg-surface px-5 py-4">
+          <p className="text-sm">
             <span className="text-muted-foreground">{'label effect  = '}</span>
             <span className="text-primary">metric</span>
             <span className="text-muted-foreground">(LABELED)</span>

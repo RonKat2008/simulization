@@ -56,6 +56,12 @@ export function Hero() {
             >
               See the report card
             </Link>
+            <Link
+              href="/run/mock"
+              className="inline-flex items-center justify-center gap-2 rounded-md px-3 py-3 text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-accent hover:underline"
+            >
+              Watch a mock run
+            </Link>
           </div>
         </div>
 

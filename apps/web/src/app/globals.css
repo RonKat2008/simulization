@@ -248,3 +248,13 @@
 .mv-sprite {
   image-rendering: pixelated;
 }
+
+/* Landing: stronger reduced-motion guarantee for any animation */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

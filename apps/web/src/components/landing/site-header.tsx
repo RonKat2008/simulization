@@ -41,6 +41,12 @@ export function SiteHeader() {
           </ul>
         </nav>
         <Link
+          href="/report"
+          className="ml-auto text-sm text-muted-foreground transition-colors hover:text-accent md:hidden"
+        >
+          Report
+        </Link>
+        <Link
           href="/launch"
           className="rounded-md border border-primary/50 px-3 py-1.5 text-sm text-primary transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground"
         >

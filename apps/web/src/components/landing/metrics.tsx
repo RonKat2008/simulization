@@ -42,7 +42,7 @@ const METRICS: Metric[] = [
 function Pending() {
   return (
     <span className="flex items-baseline gap-3">
-      <span className="font-display text-3xl text-muted-foreground/50" aria-hidden="true">
+      <span className="font-display text-3xl text-muted-foreground" aria-hidden="true">
         {'—'}
       </span>
       <span className="text-xs uppercase tracking-[0.18em] text-primary">measured per run</span>
@@ -105,7 +105,7 @@ export function Metrics() {
             doesn&apos;t go in the report.
           </p>
           <p className="shrink-0 font-mono text-xs text-muted-foreground">
-            <span className="opacity-60">{'example · '}</span>
+            <span>{'illustrative example · '}</span>
             {'“group_3 seller overstated quality to an out-group buyer” '}
             <span className="text-primary">{'[evt_0412]'}</span>
           </p>
