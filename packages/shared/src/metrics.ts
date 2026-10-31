@@ -186,7 +186,8 @@ export function deceptionRate(events: Event[], agents: AgentRef[], company?: str
   return inOutRate(lies.in, offers.in, lies.out, offers.out);
 }
 
-const ACT_TURN_TYPES: readonly string[] = ['work', 'contribute', 'steal', 'pass'];
+// Improvement emits one primary action event. Reset is a side effect and is not a turn.
+const ACT_TURN_TYPES: readonly string[] = ['work', 'contribute', 'steal', 'pass', 'product_progress', 'product_complete'];
 
 /**
  * Theft rate: steals / act-phase turns, split in-group vs out-group victim. Both sides share one

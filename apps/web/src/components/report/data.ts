@@ -19,7 +19,7 @@ import labeledRun from '@simulization/shared/mock/mock-run.labeled.json';
 import blindRun from '@simulization/shared/mock/mock-run.blind.json';
 import { buildSampleClaims } from './sample-claims';
 import { relabelForDisplay } from '../../mastra/anonymize';
-import { labelModeOf, monitoringOf, runModeOf, wealthVisibilityOf } from '../../mastra/hierarchy';
+import { labelModeOf, monitoringOf, productProjectOfConfig, runModeOf, wealthVisibilityOf } from '../../mastra/hierarchy';
 import { buildJudgeChecks } from './judge-check';
 import { toEvidence, type AgentLookup } from './summarize';
 import { loadNeonReport, type NeonReport } from './neon';
@@ -36,7 +36,7 @@ export interface LoadedRun {
   initial?: StartingLuckInput['initial'];
   events: Event[];
   finalScores: Record<string, number>;
-  config?: { wealth_visibility?: string; mode?: string; label_mode?: string; monitoring?: string; label_mapping?: Record<string, string> | null };
+  config?: { wealth_visibility?: string; mode?: string; label_mode?: string; monitoring?: string; product_project?: string; label_mapping?: Record<string, string> | null };
   status?: string;
   storedMetrics?: RunMetrics & { byCompany?: Record<string, RunMetrics> };
   /** runs.config.mode, e.g. 'live-model-relay' or 'deterministic-stub'; 'unknown' when not recorded. */
@@ -47,6 +47,7 @@ export interface LoadedRun {
   labelMode?: string;
   /** 'standard' | 'unmonitored'; legacy runs = 'standard'. */
   monitoring?: string;
+  productProject?: string;
 }
 
 /** The mock files are scripted stub runs with no recorded config. */
@@ -205,7 +206,8 @@ const monitoringOfRun = (r: LoadedRun) => (r.monitoring === 'unmonitored' ? 'unm
 /** '' for default settings, so historical group keys (`mode/wealth`) are unchanged. */
 const settingsSuffix = (labelMode: string, monitoring: string) =>
   `${labelMode === 'swapped' ? '/swapped' : ''}${monitoring === 'unmonitored' ? '/unmonitored' : ''}`;
-const groupKey = (r: LoadedRun) => `${modeOf(r)}/${visibilityOf(r)}${settingsSuffix(labelModeOfRun(r), monitoringOfRun(r))}`;
+const projectOfRun = (r: LoadedRun) => r.productProject ?? productProjectOfConfig(r.config);
+const groupKey = (r: LoadedRun) => `${modeOf(r)}/${visibilityOf(r)}${settingsSuffix(labelModeOfRun(r), monitoringOfRun(r))}${projectOfRun(r) === "off" ? "" : `/project=${encodeURIComponent(projectOfRun(r))}`}`;
 
 function groupLabel(mode: string, visibility: string, source: ReportData['source'], labelMode = 'true', monitoring = 'standard'): string {
   const who = source === 'mock' ? 'Mock (scripted stubs)' : isStubMode(mode) ? 'Stub agents' : mode === LIVE_MODE ? 'Live models' : `Mode: ${mode}`;
@@ -230,10 +232,11 @@ function groupsOf(runs: LoadedRun[], source: ReportData['source']): RunGroup[] {
         wealthVisibility,
         labelMode,
         monitoring,
+        productProject: projectOfRun(list[0]!),
         isStub: source === 'mock' || isStubMode(mode),
         labeledRuns: list.filter((r) => r.condition === 'LABELED').length,
         blindRuns: list.filter((r) => r.condition === 'BLIND').length,
-        label: groupLabel(mode, wealthVisibility, source, labelMode, monitoring),
+        label: groupLabel(mode, wealthVisibility, source, labelMode, monitoring) + (projectOfRun(list[0]!) === "off" ? "" : ` · project ${projectOfRun(list[0]!)}`),
       };
     })
     .sort((a, b) => Number(a.isStub) - Number(b.isStub) || b.labeledRuns + b.blindRuns - (a.labeledRuns + a.blindRuns));
@@ -245,7 +248,7 @@ function groupsOf(runs: LoadedRun[], source: ReportData['source']): RunGroup[] {
  */
 function defaultGroup(all: RunGroup[]): RunGroup {
   // Default-settings runs come first; swapped-label / unmonitored groups are only shown when selected or alone.
-  const standard = all.filter((g) => (g.labelMode ?? 'true') === 'true' && (g.monitoring ?? 'standard') === 'standard');
+  const standard = all.filter((g) => (g.labelMode ?? 'true') === 'true' && (g.monitoring ?? 'standard') === 'standard' && (g.productProject ?? 'off') === 'off');
   const groups = standard.length > 0 ? standard : all;
   const live = groups.filter((g) => !g.isStub);
   if (live.length === 0) return groups[0]!;
@@ -292,7 +295,7 @@ export function selectReportRuns(runs: LoadedRun[], options: ReportOptions): Loa
   const mode = options.mode ?? fallback?.mode ?? 'unknown';
   const labelMode = fallback?.labelMode ?? 'true';
   const monitoring = fallback?.monitoring ?? 'standard';
-  return runs.filter(r => visibilityOf(r) === wealth && modeOf(r) === mode && labelModeOfRun(r) === labelMode && monitoringOfRun(r) === monitoring);
+  return runs.filter(r => visibilityOf(r) === wealth && modeOf(r) === mode && labelModeOfRun(r) === labelMode && monitoringOfRun(r) === monitoring && projectOfRun(r) === (fallback?.productProject ?? "off"));
 }
 
 function emptyReport(state: ReportData['state'], message: string, options: ReportOptions = {}): ReportData {

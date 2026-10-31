@@ -21,6 +21,7 @@ import {
   wealthVisibilityOf,
   labelModeOf,
   monitoringOf,
+  productProjectOfConfig,
   type CrossRunHierarchy,
   type CrossRunInput,
   type RunHierarchy,
@@ -69,8 +70,8 @@ export function aggregateByStratum(runs: (RunStratum & { id: string; metrics: Ru
     const [first] = group;
     const mean = first && aggregateMetrics(group)[first.condition]?.mean;
     if (!first || !mean) continue;
-    const { condition, wealthVisibility, mode, labelMode, monitoring } = first;
-    result[key] = { condition, wealthVisibility, mode, ...(labelMode === 'swapped' ? { labelMode } : {}), ...(monitoring === 'unmonitored' ? { monitoring } : {}), runs: group.length, runIds: group.map((r) => r.id), mean };
+    const { condition, wealthVisibility, mode, labelMode, monitoring, productProject } = first;
+    result[key] = { productProject: productProject ?? "off", condition, wealthVisibility, mode, ...(labelMode === 'swapped' ? { labelMode } : {}), ...(monitoring === 'unmonitored' ? { monitoring } : {}), runs: group.length, runIds: group.map((r) => r.id), mean };
   }
   return result;
 }
@@ -168,9 +169,10 @@ export function buildSynthesisPrompt(
     const group = sharedGroupOf.get(company) ?? company;
     return { group, idPrefix: group.replace('Group ', 'G') };
   };
-  const reviews = runs.map(({ id, condition, wealthVisibility, mode, seed, review }) => {
+  const reviews = runs.map(({ id, condition, wealthVisibility, mode, seed, productProject, review }) => {
     const relabel = (text: string) => relabelGroups(text, review.groupMap, labelOf);
     return {
+      productProject: productProject ?? "off",
       runId: id,
       condition,
       wealthVisibility,
@@ -184,7 +186,7 @@ export function buildSynthesisPrompt(
   // Provider names stay out of the prompt; company keys become the shared group labels.
   const { providers: _providers, ...measured } = hierarchy;
   const { scrubDeep } = createAnonymizer([], undefined, sharedGroups);
-  return `Aggregated metrics by condition, wealth visibility and run mode (authoritative):\n${JSON.stringify(aggregated)}\n\nExploratory hierarchy measures (authoritative counts):\n${JSON.stringify(scrubDeep(measured))}\n\nRun reviews (JSON lines):\n${reviews
+  return `Aggregated metrics by condition, wealth visibility, run mode, label mode, monitoring and product project version (authoritative; compare versions separately, never pool off with enabled or different versions):\n${JSON.stringify(aggregated)}\n\nExploratory hierarchy measures (authoritative counts):\n${JSON.stringify(scrubDeep(measured))}\n\nRun reviews (JSON lines):\n${reviews
     .map((r) => JSON.stringify(r))
     .join('\n')}`;
 }
@@ -208,6 +210,7 @@ export async function runSynthesis(deps: SynthesisDeps): Promise<StoredSynthesis
           mode: runModeOf(run.config),
           labelMode: labelModeOf(run.config),
           monitoring: monitoringOf(run.config),
+          productProject: productProjectOfConfig(run.config),
           review: review.data,
           metrics: run.metrics as StoredMetrics,
         });
@@ -223,9 +226,9 @@ export async function runSynthesis(deps: SynthesisDeps): Promise<StoredSynthesis
 
   const hierarchyRuns: CrossRunInput[] = [];
   const noHierarchy: SkippedRun[] = [];
-  for (const { id, condition, seed, wealthVisibility, mode, metrics } of included) {
+  for (const { id, condition, seed, wealthVisibility, mode, labelMode, monitoring, productProject, metrics } of included) {
     if (metrics.hierarchy) {
-      hierarchyRuns.push({ id, condition, seed, wealthVisibility, mode, hierarchy: metrics.hierarchy });
+      hierarchyRuns.push({ id, condition, seed, wealthVisibility, mode, labelMode, monitoring, productProject, hierarchy: metrics.hierarchy });
     } else noHierarchy.push({ runId: id, reason: 'analyzed before hierarchy measures existed; re-run analysis' });
   }
   const hierarchy = crossRunHierarchy(hierarchyRuns, noHierarchy);

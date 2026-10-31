@@ -191,6 +191,7 @@ export interface RunGroup {
   labelMode?: string;
   /** 'standard' | 'unmonitored'; absent = 'standard'. */
   monitoring?: string;
+  productProject?: string;
   /** Scripted stub agents (or the mock): not model output. */
   isStub: boolean;
   labeledRuns: number;

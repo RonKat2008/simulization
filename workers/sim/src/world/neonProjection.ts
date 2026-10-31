@@ -27,7 +27,7 @@ export async function projectCheckpoint(checkpoint: Checkpoint, mode: string, in
       type: e.type, actor_id: e.actorId, actor_company: e.actorCompany ?? null,
       target_id: e.targetId ?? null, target_company: e.targetCompany ?? null,
       channel: e.channel ?? null, text: e.text ?? null, private_plan: e.privatePlan ?? null,
-      claim: e.claim ?? null, ground_truth: e.groundTruth ?? null, flags: e.flags,
+      claim: e.claim ?? null, ground_truth: e.productProject ? { __productProjectV1: e.productProject, groundTruth: e.groundTruth ?? null } : e.groundTruth ?? null, flags: e.flags,
       ts: new Date(e.ts).toISOString(),
     };
   });
@@ -40,7 +40,7 @@ export async function projectCheckpoint(checkpoint: Checkpoint, mode: string, in
   const url = process.env.DATABASE_URL;
   if (!injectedSql && !url) throw new Error('DATABASE_URL is required for Neon projection');
   const sql = injectedSql ?? neon(url!);
-  const config = JSON.stringify({ mode, wealth_visibility: state.wealth_visibility??'private', label_mode: state.label_mode??'true', monitoring: state.monitoring??'standard', label_mapping: runLabelMapping(state.condition, state.label_mode), agentCount: agents.length, projectedSeq: state.seq, ...(initialInventory ? { initialInventory } : {}) });
+  const config = JSON.stringify({ mode, wealth_visibility: state.wealth_visibility??'private', label_mode: state.label_mode??'true', monitoring: state.monitoring??'standard', product_project: state.product_project??'off', label_mapping: runLabelMapping(state.condition, state.label_mode), agentCount: agents.length, projectedSeq: state.seq, ...(initialInventory ? { initialInventory } : {}) });
   // One HTTP request / Postgres transaction. No completed run is visible until its
   // entire event stream is visible. Failed/uncertain requests must be retried by World.
   await sql.transaction([
