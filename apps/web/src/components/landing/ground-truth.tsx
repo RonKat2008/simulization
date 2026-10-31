@@ -12,7 +12,7 @@ const FLAGS = [
 export function GroundTruth() {
   return (
     <section id="ground-truth" aria-labelledby="gt-title" className="scroll-mt-14 border-b">
-      <div className="mx-auto flex max-w-6xl flex-col gap-10 px-4 py-16 sm:px-6 md:py-20">
+      <div className="mx-auto flex max-w-6xl flex-col gap-10 px-4 py-16 sm:px-6 md:py-24">
         <SectionHeading
           id="gt-title"
           kicker="Ground truth"

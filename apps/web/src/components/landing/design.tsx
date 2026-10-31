@@ -20,7 +20,7 @@ const ROWS = [
 export function Design() {
   return (
     <section id="design" aria-labelledby="design-title" className="scroll-mt-14 border-b">
-      <div className="mx-auto flex max-w-6xl flex-col gap-10 px-4 py-16 sm:px-6 md:py-20">
+      <div className="mx-auto flex max-w-6xl flex-col gap-10 px-4 py-16 sm:px-6 md:py-24">
         <SectionHeading
           id="design-title"
           kicker="Design"
@@ -62,15 +62,15 @@ export function Design() {
             tokens={[
               { text: 'label effect', strong: true },
               { text: '=' },
-              { text: 'metric(LABELED)' },
+              { text: 'mean in-group favoritism (LABELED runs)' },
               { text: '\u2212' },
-              { text: 'metric(BLIND)' },
-              { text: 'per company, averaged over paired seeds.' },
+              { text: 'mean in-group favoritism (BLIND runs).' },
+              { text: 'Each run counts once.' },
             ]}
           />
           <p className="flex flex-wrap items-baseline gap-x-2 text-sm text-muted-foreground">
             <span className="text-foreground">chance level for same-company pairs</span>
-            <span>= 5 / 17 &asymp;</span>
+            <span>(18 agents, 6 per company) = 5 / 17 &asymp;</span>
             <span className="font-display text-xl text-accent">
               <CountUp value={0.29} decimals={2} />
             </span>

@@ -1,7 +1,6 @@
 import { MarketVisual } from './market-visual'
 import { PressLink, Reveal, Stagger, StaggerItem } from './reveal'
-
-const LINK_BASE = 'inline-flex min-h-11 items-center justify-center rounded-md px-5 text-sm transition-colors'
+import { buttonClass } from './ui'
 
 export function Hero() {
   return (
@@ -30,13 +29,13 @@ export function Hero() {
             </p>
           </StaggerItem>
           <StaggerItem className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-            <PressLink href="/launch" className={`${LINK_BASE} bg-primary font-medium text-primary-foreground hover:bg-foreground`}>
+            <PressLink href="/launch" className={buttonClass('primary')}>
               Launch a run
             </PressLink>
-            <PressLink href="/run/mock" className={`${LINK_BASE} border text-foreground hover:border-primary hover:text-primary`}>
+            <PressLink href="/run/mock" className={buttonClass('secondary')}>
               Replay a run
             </PressLink>
-            <PressLink href="/report" className={`${LINK_BASE} border text-foreground hover:border-primary hover:text-primary`}>
+            <PressLink href="/report" className={buttonClass('secondary')}>
               Read the report
             </PressLink>
           </StaggerItem>
