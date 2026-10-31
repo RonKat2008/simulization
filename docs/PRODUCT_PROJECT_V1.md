@@ -210,3 +210,10 @@ unattended resume with no status request, six stub rounds, 266 ordered events an
 model choice of improve; completion itself is covered by deterministic rule and
 SQLite recovery tests. External credentials are blanked by the harness. No paid
 model, Relay or real Neon execution is claimed.
+
+Rendered desktop verification in Dia: a temporary, explicitly scripted 174-event
+fixture showed completed (+6 quality) after round 4; seeking backward rebuilt
+2/4 turns at the end of round 2, removed completion, shortened the coin chart,
+and kept final score hidden. Deselect/reselect and the existing panel layout were
+checked. This was an offline engine-generated fixture, not a model run. New
+project-specific mobile inspection remains outstanding; the PR stays draft.
