@@ -7,6 +7,7 @@ import { AgentCard } from "./agent-card";
 import { EventFeed } from "./event-feed";
 import { MetricsBar } from "./metrics-bar";
 import { Roster } from "./roster";
+import { RunSummary } from "./run-summary";
 import { buildRunCtx, RunProvider } from "./run-context";
 import { mergeAgents } from "./run-helpers";
 import { ErrorPanel, OfflineStrip } from "./run-states";
@@ -70,6 +71,7 @@ export function RunViewer({ id }: { id: string }) {
         {meta.status === "offline" ? <OfflineStrip eventCount={events.length} /> : null}
         <main className="mx-auto flex w-full max-w-[1600px] min-w-0 flex-1 flex-col gap-3 px-4 py-3 sm:px-6">
           <MetricsBar events={events} />
+          {meta.status === "ended" && events.length > 0 ? <RunSummary events={events} isMock={meta.isMock} mode={meta.mode} /> : null}
           <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start">
             <div className="flex min-w-0 flex-col gap-3">
               <ViewTabs view={view} onChange={setView} />

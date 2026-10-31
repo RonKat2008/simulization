@@ -4,7 +4,11 @@ import {
   aggregateMetrics,
   computeCompanyMetrics,
   computeRunMetrics,
+  ethicality,
+  inGroupFavoritism,
+  labelEffectFromValues,
   powerStructure,
+  type EthicalityBucket,
   type Condition,
   type Event,
   type Review,
@@ -15,7 +19,7 @@ import blindRun from '@simulization/shared/mock/mock-run.blind.json';
 import { buildSampleClaims } from './sample-claims';
 import { toEvidence, type AgentLookup } from './summarize';
 import { loadNeonReport, type NeonReport } from './neon';
-import type { ConditionReport, ReportClaim, ReportData, ReportReview } from './types';
+import type { ConditionReport, EthicalitySplit, Frac, ReportClaim, ReportData, ReportReview, RunCooperation, RunEthicality, RunGroup } from './types';
 
 /** A finished run as the report needs it. Neon rows map onto this one-to-one. */
 export interface LoadedRun {
@@ -24,7 +28,16 @@ export interface LoadedRun {
   agents: { id: string; name: string; company: string }[];
   events: Event[];
   finalScores: Record<string, number>;
+  /** runs.config.mode, e.g. 'live-model-relay' or 'deterministic-stub'; 'unknown' when not recorded. */
+  mode: string;
+  /** runs.config.wealth_visibility; 'unrecorded' for older runs. */
+  wealthVisibility: string;
 }
+
+/** The mock files are scripted stub runs with no recorded config. */
+const MOCK_MODE = 'deterministic-stub';
+const LIVE_MODE = 'live-model-relay';
+const isStubMode = (mode: string) => mode.includes('stub');
 
 const MockSchema = z.object({
   run: z.object({ id: z.string(), condition: z.enum(['LABELED', 'BLIND']), finalScores: z.record(z.string(), z.number()) }),
@@ -34,7 +47,35 @@ const MockSchema = z.object({
 
 function parseMock(raw: unknown): LoadedRun {
   const m = MockSchema.parse(raw);
-  return { id: m.run.id, condition: m.run.condition, agents: m.agents, events: m.events, finalScores: m.run.finalScores };
+  return {
+    id: m.run.id,
+    condition: m.run.condition,
+    agents: m.agents,
+    events: m.events,
+    finalScores: m.run.finalScores,
+    mode: MOCK_MODE,
+    wealthVisibility: 'unrecorded',
+  };
+}
+
+const frac = (good: number, total: number): Frac => ({ good, total, rate: total > 0 ? good / total : null });
+const ethFrac = (b: EthicalityBucket): Frac => frac(b.ethical, b.total);
+
+function runCooperation(r: LoadedRun): RunCooperation {
+  const f = inGroupFavoritism(r.events, r.agents);
+  const { inGroup: i, outGroup: o } = f.cooperation;
+  return { runId: r.id, crIn: frac(i.cooperative, i.total), crOut: frac(o.cooperative, o.total), favoritism: f.value };
+}
+
+function runEthicality(r: LoadedRun): RunEthicality {
+  const e = ethicality(r.events, r.agents);
+  return { runId: r.id, overall: ethFrac(e.overall), inGroup: ethFrac(e.inGroup), outGroup: ethFrac(e.outGroup) };
+}
+
+function poolEthicality(list: RunEthicality[]): EthicalitySplit {
+  const pool = (pick: (x: RunEthicality) => Frac) =>
+    frac(list.reduce((s, x) => s + pick(x).good, 0), list.reduce((s, x) => s + pick(x).total, 0));
+  return { overall: pool((x) => x.overall), inGroup: pool((x) => x.inGroup), outGroup: pool((x) => x.outGroup) };
 }
 
 const mean = (xs: number[]) => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : 0);
@@ -51,6 +92,7 @@ function conditionReport(condition: Condition, runs: LoadedRun[]): ConditionRepo
   const byCompany = Object.fromEntries(
     companies.map((c) => [c, agg(perRun.map((p) => p.byCompany[c]).filter((m): m is RunMetrics => m !== undefined))]),
   );
+  const eth = runs.map(runEthicality);
   const meanScore = Object.fromEntries(
     companies.map((c) => [
       c,
@@ -65,6 +107,8 @@ function conditionReport(condition: Condition, runs: LoadedRun[]): ConditionRepo
     byCompany,
     meanScore,
     power: runs.map((r) => powerStructure(r.events, r.agents, r.finalScores)),
+    cooperation: runs.map(runCooperation),
+    ethicality: { perRun: eth, pooled: poolEthicality(eth) },
   };
 }
 
@@ -131,42 +175,86 @@ function realReview(runs: LoadedRun[], reviews: NeonReport['reviews']): ReportRe
   };
 }
 
-function assemble(source: ReportData['source'], runs: LoadedRun[], review: ReportReview): ReportData {
+const groupKey = (r: Pick<LoadedRun, 'mode' | 'wealthVisibility'>) => `${r.mode}/${r.wealthVisibility}`;
+
+function groupLabel(mode: string, visibility: string, source: ReportData['source']): string {
+  const who = source === 'mock' ? 'Mock (scripted stubs)' : isStubMode(mode) ? 'Stub agents' : mode === LIVE_MODE ? 'Live models' : `Mode: ${mode}`;
+  const wealth = visibility === 'unrecorded' ? 'wealth visibility unrecorded' : `${visibility} wealth`;
+  return `${who} · ${wealth}`;
+}
+
+/** One entry per (mode, wealth visibility) present, live groups first, then by run count. */
+function groupsOf(runs: LoadedRun[], source: ReportData['source']): RunGroup[] {
+  const byKey = new Map<string, LoadedRun[]>();
+  for (const r of runs) byKey.set(groupKey(r), [...(byKey.get(groupKey(r)) ?? []), r]);
+  return [...byKey.entries()]
+    .map(([key, list]) => {
+      const { mode, wealthVisibility } = list[0]!;
+      return {
+        key,
+        mode,
+        wealthVisibility,
+        isStub: source === 'mock' || isStubMode(mode),
+        labeledRuns: list.filter((r) => r.condition === 'LABELED').length,
+        blindRuns: list.filter((r) => r.condition === 'BLIND').length,
+        label: groupLabel(mode, wealthVisibility, source),
+      };
+    })
+    .sort((a, b) => Number(a.isStub) - Number(b.isStub) || b.labeledRuns + b.blindRuns - (a.labeledRuns + a.blindRuns));
+}
+
+/**
+ * Default group: live models with the most common wealth visibility among live runs (ties: more runs).
+ * Without live runs, the group with the most runs.
+ */
+function defaultGroup(groups: RunGroup[]): RunGroup {
+  const live = groups.filter((g) => !g.isStub);
+  if (live.length === 0) return groups[0]!;
+  const runsByVisibility = new Map<string, number>();
+  for (const g of live) runsByVisibility.set(g.wealthVisibility, (runsByVisibility.get(g.wealthVisibility) ?? 0) + g.labeledRuns + g.blindRuns);
+  const [visibility] = [...runsByVisibility.entries()].sort((a, b) => b[1] - a[1])[0]!;
+  return live.filter((g) => g.wealthVisibility === visibility).sort((a, b) => Number(b.mode === LIVE_MODE) - Number(a.mode === LIVE_MODE) || b.labeledRuns + b.blindRuns - (a.labeledRuns + a.blindRuns))[0]!;
+}
+
+function assemble(source: ReportData['source'], allRuns: LoadedRun[], review: (runs: LoadedRun[]) => ReportReview, requested?: string): ReportData {
+  const groups = groupsOf(allRuns, source);
+  const group = groups.find((g) => g.key === requested) ?? defaultGroup(groups);
+  const runs = allRuns.filter((r) => groupKey(r) === group.key);
   const conditions: ReportData['conditions'] = {};
   for (const condition of ['LABELED', 'BLIND'] as const) {
     const ofCondition = runs.filter((r) => r.condition === condition);
     if (ofCondition.length > 0) conditions[condition] = conditionReport(condition, ofCondition);
   }
-  return { source, conditions, review };
+  const values = (c: ConditionReport | undefined) => (c?.cooperation ?? []).map((x) => ({ runId: x.runId, value: x.favoritism }));
+  const labelEffect = labelEffectFromValues(values(conditions.LABELED), values(conditions.BLIND));
+  return { source, group, groups, labelEffect, conditions, review: review(runs) };
 }
 
 function mockReport(): ReportData {
-  const runs = [parseMock(labeledRun), parseMock(blindRun)];
-  return assemble('mock', runs, sampleReview(runs));
+  return assemble('mock', [parseMock(labeledRun), parseMock(blindRun)], sampleReview);
 }
 
 /**
  * The single data seam for /report.
  *
- * With DATABASE_URL set: completed runs from Neon (see neon.ts), metrics recomputed here with the
+ * With DATABASE_URL set: completed runs from Neon (see neon.ts), split into groups by (mode, wealth
+ * visibility) and never pooled across groups; one group is shown (`groupKeyParam`, else live models with
+ * the most common visibility). Within the group, conditions present are reported (a single completed run
+ * is enough; the label effect stays n/a until both conditions exist). Metrics recomputed here with the
  * shared functions, review = latest stored kind 'run' review per run (isSample false). If no run has
  * a stored review yet, claims are the flagged-event placeholders (isSample true) over the real events.
  * Falls back to the schema-validated mock for the whole report when DATABASE_URL is unset, the query
- * throws, or either condition has no completed run. Never throws.
+ * throws, or there is no completed run. Never throws.
  */
-export async function loadReportData(): Promise<ReportData> {
+export async function loadReportData(groupKeyParam?: string): Promise<ReportData> {
   try {
     const neon = await loadNeonReport();
-    if (neon) {
-      const has = (c: Condition) => neon.runs.some((r) => r.condition === c);
-      if (has('LABELED') && has('BLIND')) {
-        const review = neon.reviews.size > 0 ? realReview(neon.runs, neon.reviews) : sampleReview(neon.runs);
-        return assemble('neon', neon.runs, review);
-      }
-      console.error(
-        `[report] Neon has ${neon.runs.filter((r) => r.condition === 'LABELED').length} LABELED and ${neon.runs.filter((r) => r.condition === 'BLIND').length} BLIND completed runs; need both. Showing mock data.`,
-      );
+    if (neon && neon.runs.length > 0) {
+      const review = (runs: LoadedRun[]) =>
+        runs.some((r) => neon.reviews.has(r.id)) ? realReview(runs, neon.reviews) : sampleReview(runs);
+      return assemble('neon', neon.runs, review, groupKeyParam);
     }
+    if (neon) console.error('[report] Neon has no completed runs. Showing mock data.');
   } catch (err) {
     console.error('[report] Neon read failed; showing mock data', err);
   }

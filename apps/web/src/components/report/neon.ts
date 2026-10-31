@@ -1,9 +1,10 @@
 import { neon } from '@neondatabase/serverless';
 import { ReviewSchema, type Review } from '@simulization/shared';
 import { rowToEvent } from '@/mastra/db';
+import { runModeOf, wealthVisibilityOf } from '@/mastra/hierarchy';
 import type { LoadedRun } from './data';
 
-/** Newest completed runs kept per condition, so a long history cannot bloat the page. */
+/** Newest completed runs kept per condition (across all groups), so a long history cannot bloat the page. */
 const MAX_RUNS_PER_CONDITION = 12;
 
 export interface NeonReport {
@@ -28,8 +29,8 @@ export async function loadNeonReport(): Promise<NeonReport | null> {
   const sql = neon(url);
 
   const runRows = await sql`
-    SELECT id, condition, final_scores FROM (
-      SELECT id, condition, final_scores, created_at,
+    SELECT id, condition, final_scores, config FROM (
+      SELECT id, condition, final_scores, config, created_at,
              row_number() OVER (PARTITION BY condition ORDER BY created_at DESC) AS rn
       FROM runs WHERE status = 'done'
     ) t WHERE rn <= ${MAX_RUNS_PER_CONDITION} ORDER BY created_at`;
@@ -51,6 +52,9 @@ export async function loadNeonReport(): Promise<NeonReport | null> {
       .map((a) => ({ id: a.agent_id as string, name: a.name as string, company: a.company as string })),
     events: eventRows.filter((e) => e.run_id === r.id).map(rowToEvent),
     finalScores: asScores(r.final_scores),
+    // Kept per run so the report never pools stub with live or public with private wealth.
+    mode: runModeOf(r.config),
+    wealthVisibility: wealthVisibilityOf(r.config),
   }));
 
   const reviews = new Map<string, Review>();
