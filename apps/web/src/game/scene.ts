@@ -8,7 +8,7 @@
 // - name labels with a dark backing that dodge each other,
 // - BLIND-safe colors/looks/positions, and prefers-reduced-motion (no walking, hops or arcs).
 import * as Phaser from "phaser";
-import type { Event } from "@simulization/shared";
+import { LANTERN_GOAL, type Event } from "@simulization/shared";
 import { contiguousCursor } from "@/components/run/event-progress";
 import { useEventStore } from "@/store/eventStore";
 import { HEIGHT, SPOTS, WIDTH, homeSpot, jitter, type Spot } from "./spots";
@@ -160,6 +160,9 @@ class VillageScene extends Phaser.Scene {
   private lastSeq!: number;
   private runId!: string | null;
   private round!: number;
+  private fund!: number; // lantern fund, counted from contribute events (1 coin each)
+  private fundText!: Phaser.GameObjects.Text;
+  private fundG!: Phaser.GameObjects.Graphics;
   private nightables!: { setTint: (c: number) => unknown }[];
   private instant!: boolean; // seeking: apply state, skip animation
   private reduced!: boolean; // prefers-reduced-motion: no walking/hops/arcs, bubbles + banner stay
@@ -191,6 +194,7 @@ class VillageScene extends Phaser.Scene {
     this.lastSeq = 0;
     this.runId = null;
     this.round = 0;
+    this.fund = 0;
     this.nightables = [];
     this.instant = false;
     this.reduced = prefersReducedMotion();
@@ -391,6 +395,8 @@ class VillageScene extends Phaser.Scene {
         break;
       case "contribute":
         this.addCoins(a, -1);
+        this.fund++;
+        this.refreshFund();
         this.enqueue(a, async () => {
           await this.walk(a, jitter(SPOTS.shrine, a.idx));
           this.float({ x: SPOTS.shrine.x, y: SPOTS.shrine.y - 50 }, "+1", "#ffd36b");
@@ -709,6 +715,15 @@ class VillageScene extends Phaser.Scene {
   // ---- map -------------------------------------------------------------------------
 
   /** Ground baked once into a render texture at 1x and shown at 2x; props are sprites on top. */
+  /** Shrine counter: "FUND n/30" with a progress bar that turns gold at the goal. */
+  private refreshFund() {
+    const sh = SPOTS.shrine;
+    const done = this.fund >= LANTERN_GOAL;
+    this.fundText.setText(`FUND ${this.fund}/${LANTERN_GOAL}`).setColor(done ? "#ffe9b0" : "#ffd36b");
+    this.fundG.clear().fillStyle(0x05070d, 0.85).fillRect(sh.x - 62, sh.y - 108, 124, 10);
+    this.fundG.fillStyle(done ? 0xffe27a : 0xb8892f).fillRect(sh.x - 60, sh.y - 106, 120 * Math.min(1, this.fund / LANTERN_GOAL), 6);
+  }
+
   private drawMap() {
     const cols = WIDTH / (TILE * SCALE); // 40
     const rows = Math.ceil(HEIGHT / (TILE * SCALE)); // 23
@@ -738,31 +753,39 @@ class VillageScene extends Phaser.Scene {
       this.nightables.push(i);
       return i;
     };
-    const label = (s: Spot, text: string, dy: number) =>
-      this.add.text(s.x, s.y + dy, text, { fontFamily: "monospace", fontSize: "10px", color: "#d8def5" }).setOrigin(0.5).setDepth(-1);
+    const label = (s: Spot, text: string, dy: number, size = 12, color = "#d8def5", wrap = 0) =>
+      this.add
+        .text(s.x, s.y + dy, text, { fontFamily: "monospace", fontSize: `${size}px`, color, align: "center", stroke: "#05070d", strokeThickness: 3, wordWrap: wrap ? { width: wrap } : undefined })
+        .setOrigin(0.5)
+        .setDepth(-1);
     /** 3-wide building: roof row over wall row, wall row centred at y. */
     const building = (x: number, y: number, roof: number[], wall: number[]) =>
       [roof, wall].forEach((row, r) => row.forEach((f, i) => prop("town", f, x + (i - 1) * 32, y - 32 + r * 32)));
 
     SPOTS.stalls.forEach((s, i) => {
       building(s.x, s.y, [52, 53, 54], [72, 74, 75]); // red roof over wood
-      label(s, `stall ${i + 1}`, -60);
+      label(s, `Stall ${i + 1}`, -64);
     });
     SPOTS.tents.forEach((s, i) => {
       building(s.x, s.y + 85, [48, 49, 50], [76, 78, 79]); // coalition hall: grey roof over stone
-      label(s, `tent ${i + 1}`, 122);
+      label(s, `Hall ${i + 1}`, 104);
     });
 
     const sh = SPOTS.shrine;
     this.add.circle(sh.x, sh.y - 30, 46, 0xffd98a, 0.18).setBlendMode(Phaser.BlendModes.ADD).setDepth(-4);
     prop("town", 104, sh.x, sh.y - 30).setDepth(-4);
-    label(sh, "lantern shrine", -64);
+    label(sh, "LANTERN SHRINE\nshared fund: 30 coins gives everyone a bonus", -78, 11, "#ffe9b0", 150);
+    this.fundText = label(sh, "", -122, 14, "#ffd36b").setDepth(5);
+    this.fundG = this.add.graphics().setDepth(5);
+    this.refreshFund();
 
     const st = SPOTS.stocks;
     [69, 70, 71, 81, 82, 83, 93, 94, 95].forEach((f, k) =>
       prop("dungeon", f, st.x + ((k % 3) - 1) * 32, st.y + (Math.floor(k / 3) - 1) * 32).setDepth(-4),
     );
-    label(st, "stocks", -64);
+    label(st, "THE STOCKS\ncaught thieves wait here", -78, 11, "#ffb3b6", 150);
+    label({ x: 640, y: 62 }, "MARKET STALLS: goods are bought and sold here", 0, 12, "#ffd9a8");
+    label({ x: 640, y: 708 }, "COALITION HALLS: teams of agents who pay each member 2 coins a round", 0, 12, "#bcd0ff");
   }
 }
 
