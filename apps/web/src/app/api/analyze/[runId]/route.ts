@@ -3,7 +3,7 @@ import { getRun } from "@/mastra/db";
 import { mastra } from "@/mastra";
 
 // Three judges review a full event log in parallel; it takes minutes.
-export const maxDuration = 300;
+export const maxDuration = 800; // three judge calls run in parallel; ~220s observed
 
 export async function POST(_req: Request, { params }: { params: Promise<{ runId: string }> }) {
   const { runId } = await params;

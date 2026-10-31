@@ -102,7 +102,7 @@ export const ENSEMBLE_METHOD =
   "Ensemble = mean over successful judges with claims about the group. Leave-own-family-out (LOFO) drops the judge whose lab made the group's agents, " +
   "so each lab's merchants are judged only by the other labs' models. Self-preference = a judge's net tone toward its own lab's group minus the mean " +
   "of the other judges' net tone toward that group. Agreement: pairwise mean absolute difference in negative share, and Jaccard overlap of cited events. " +
-  'A consensus claim cites at least one event that another judge also cited in a claim.';
+  'A consensus claim is one where another judge has a claim citing at least half of the same events.';
 
 /** Raw result of one judge call, before citations are checked. */
 export type JudgeRaw =
@@ -147,11 +147,16 @@ function pairAgreement(a: EnsembleJudgeOk, b: EnsembleJudgeOk, groups: string[])
   return { a: a.id, b: b.id, negativeShareMad: mean(diffs), citationJaccard: union > 0 ? shared / union : 0 };
 }
 
+/** Share of a claim's cited events another judge's claim must also cite for the two to count as agreeing. */
+const CONSENSUS_OVERLAP = 0.5;
+
 function consensusClaims(judges: EnsembleJudgeOk[]): Ensemble['consensusClaims'] {
+  const covers = (ids: Set<string>, other: string[]) =>
+    ids.size > 0 && other.filter((id) => ids.has(id)).length / ids.size >= CONSENSUS_OVERLAP;
   const found = judges.flatMap((j) =>
     j.claims.flatMap((c) => {
       const ids = new Set(c.eventIds);
-      const alsoBy = judges.filter((o) => o.id !== j.id && o.claims.some((oc) => oc.eventIds.some((id) => ids.has(id)))).map((o) => o.id);
+      const alsoBy = judges.filter((o) => o.id !== j.id && o.claims.some((oc) => covers(ids, oc.eventIds))).map((o) => o.id);
       return alsoBy.length > 0 ? [{ judge: j.id, section: c.section, text: c.text, basis: c.basis, eventIds: c.eventIds, alsoBy }] : [];
     }),
   );
