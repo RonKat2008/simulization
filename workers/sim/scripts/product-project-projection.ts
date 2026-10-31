@@ -5,12 +5,17 @@ import { createWorld, advancePhase } from '../src/engine/world';
 import { resolvePhase } from '../src/engine/rules';
 import type { Turns } from '../src/engine/types';
 import { createRng, type Event } from '@simulization/shared';
+import { RunPersistence } from '../src/world/persistence';
 import { projectCheckpoint } from '../src/world/neonProjection';
 // E's module is typechecked by web's own tsconfig; load the real reader at runtime.
 const readerPath = '../../../apps/web/src/mastra/db';
 const {rowToEvent} = await import(readerPath) as {rowToEvent:(row:Record<string,unknown>)=>unknown};
 
 let state=createWorld({runId:'project-projection',seed:42,condition:'LABELED',agentCount:6,epoch:0,product_project:'four-turn-v1',label_mode:'swapped',monitoring:'unmonitored',wealth_visibility:'public'});
+let saved: unknown;
+const persistence = new RunPersistence({get: async <T>() => saved as T, put: async (_key, value) => {saved = value;}});
+const initialInventory = (await persistence.initialize(state)).initialInventory;
+assert.ok(initialInventory);
 const events:Event[]=[];
 while(state.status==='running'){
  const turns:Turns=state.phase==='act'?{
@@ -21,7 +26,7 @@ while(state.status==='running'){
 }
 const result={state,events};
 for(const type of ['product_progress','product_reset','product_complete'])assert.ok(events.some(e=>e.type===type));
-const checkpoint = {...result, committedKeys: []};
+const checkpoint = {...result, committedKeys: [], initialInventory};
 const originalFetch = neonConfig.fetchFunction;
 const requests: {queries:{query:string;params:string[]}[]}[] = [];
 let fail = false;
@@ -44,6 +49,7 @@ try {
   const metadata=queries[0]!.params.map(p=>{try{return JSON.parse(p);}catch{return null;}}).find(p=>p?.projectedSeq===result.events.length);
   assert.equal(metadata.wealth_visibility,'public');
   assert.equal(metadata.product_project,'four-turn-v1');
+  assert.deepEqual(metadata.initialInventory,initialInventory);
   assert.equal(metadata.label_mode,'swapped');
   assert.equal(metadata.monitoring,'unmonitored');
   const agents=JSON.parse(queries[1]!.params[0]!);

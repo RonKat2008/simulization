@@ -1,6 +1,6 @@
 # Product project four-turn-v1
 
-Engine-only optional feature, based on shared main `637aa0b`. Config name is
+Optional feature integrated on follow-through with Starting Luck evidence and hosted launch guard. Config name is
 `product_project: 'four-turn-v1' | 'off'`; omitted means off. Unknown versions are
 rejected by `createWorld`. Disabled worlds do not acquire new state/observation
 fields or events, and system prompts retain their exact previous bytes.
@@ -58,7 +58,7 @@ UI data contract: self reads only self observation; privileged observer can fold
 these events per actor, clear progress on reset/completion, and retain completed on
 completion. Events do not grant agent visibility. Render progress as turns/4, with
 completion distinct from idle. The quality/good fields belong only in private self
-or privileged observer views. No UI implementation is included.
+or privileged observer views. The existing inspector renders this compactly, bounded by the replay cursor.
 
 Events use the existing contiguous `${runId}-${seq}` IDs and deterministic `epoch+seq`
 timestamps. Merchants resolve in sorted ID order. Reset precedes the interrupting
@@ -104,8 +104,7 @@ turns=4 is terminal, not another progress event. Do not infer payout from progre
 completion qualityGain is authoritative, including zero. Reset/switch ordering is
 already encoded in seq. Rebuild from the start when seeking backwards; repeated
 poll/WebSocket events must not increment counters. Keep goods/quality/progress out
-of other-agent inputs and Relay. Root still owns launch control, observer UI, report
-grouping, metric v2, and any shared exports it needs.
+of other-agent inputs and Relay. Launch, observer UI and report grouping are integrated below; metric v2 is unchanged.
 
 ## Payoff interpretation (checked against actual engine)
 
@@ -160,3 +159,35 @@ product-project-contract, product-project-recovery, product-project-runtime,
 product-project-projection; baseline smoke, projection-smoke, monitoring-smoke
 (original prompt SHA-256), and label-mode-smoke. Dependencies installed using the
 existing frozen lockfile; no dependency or lockfile changes.
+
+
+## Follow-through integration
+
+The existing local launch form has an advanced off / four-turn-v1 option (default
+and omitted payload remain off). Both halves of a requested pair receive the same
+version. The existing hosted policy still hides the form and rejects launch before
+body parsing or actor transport; no hosted-policy changes were made.
+
+The selected-agent inspector shows idle, turns/4 or completed with authoritative
+quality gain. Its privileged fold sorts and deduplicates committed events, rebuilds
+through the replay cursor, clears progress on reset and never clears completion.
+No panel, agent observations or Relay payloads were added by the UI integration.
+
+Report loading quotas, selection, comparison groups, gallery pairs, synthesis
+aggregates and hierarchy strata retain exact project versions. Missing means off;
+unknown explicit versions remain separate. The experiment headline's existing
+settings-key gate excludes enabled and unknown projects. The legacy hierarchy
+visibility summary covers off only; visibilityByProject contains each separate
+version's comparison. Initial-inventory evidence is preserved unchanged alongside
+project metadata through commits, SQLite reloads and Neon projection.
+
+Verification on the integrated checkout: full pnpm typecheck; product-project
+contract, recovery, runtime, projection and web integration scripts; initial-evidence,
+starting-luck and hosted-launch contracts; smoke, projection-smoke, monitoring-smoke
+and label-mode-smoke. Web integration command:
+`pnpm --filter sim exec tsx ../../apps/web/scripts/product-project-integration.ts`.
+Tests cover four consecutive ACTs, reset/restart, forced skip, sale/return, deadline,
+quality and completion caps, duplicate commits, rollback and backward replay seek.
+Projection uses intercepted transport; recovery uses in-memory SQLite. No real SQL
+service, model, Relay, provisioning, deployment or paid run was used. Rendered UI
+and the real Terse alarm lifecycle were not exercised in this integration.

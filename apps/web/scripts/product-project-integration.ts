@@ -1,0 +1,51 @@
+// Pure offline checks: no services, models, database or Relay.
+import assert from 'node:assert/strict';
+import { createRng, computeRunMetrics, type Event } from '@simulization/shared';
+import { createWorld } from '../../../workers/sim/src/engine/world';
+import { resolvePhase } from '../../../workers/sim/src/engine/rules';
+import { productProjectHistory } from '../src/components/run/product-project-history';
+import { buildRunBody } from '../src/components/launch/schemas';
+import { settingsKey } from '../src/components/runs/settings';
+import { groupRuns } from '../src/components/runs/group-runs';
+import type { RunEntry } from '../src/components/runs/types';
+import { aggregateByStratum } from '../src/mastra/pipeline';
+import { selectReportRuns, type LoadedRun } from '../src/components/report/data';
+import { crossRunHierarchy, computeRunHierarchy, type CrossRunInput } from '../src/mastra/hierarchy';
+
+const defaultBody = buildRunBody('BLIND', 1, 'private', 'true', 'standard');
+assert.deepEqual(defaultBody, {condition:'BLIND', seed:1, wealth_visibility:'private'});
+assert.equal(buildRunBody('BLIND',1,'private','true','standard','four-turn-v1').product_project,'four-turn-v1');
+let state=createWorld({runId:'fold',condition:'BLIND',seed:1,agentCount:2,product_project:'four-turn-v1'});
+const events: Event[]=[];
+for(let round=1;round<=4;round++) {
+ state.round=round;state.phase='act';
+ const result=resolvePhase(state,{'merchant-01':{private_plan:'',actions:[{type:'improve',goodId:'good-1-1'}],memory_update:''}},createRng(1));
+ state=result.state;events.push(...result.events);
+}
+const first=events.find(e=>e.type==='product_progress')!;
+const complete=events.find(e=>e.type==='product_complete')!;
+assert.equal(productProjectHistory(events,'merchant-01',first.seq-1).observed,false);
+assert.equal(productProjectHistory([...events,...events].reverse(),'merchant-01',first.seq).progress?.turns,1);
+assert.equal(productProjectHistory(events,'merchant-01',complete.seq).completed,true);
+assert.equal(productProjectHistory(events,'merchant-01',first.seq).completed,false,'backward seek rebuilds');
+assert.equal(productProjectHistory(events,'merchant-02',null).observed,false);
+const reset={...first,id:'reset',seq:99,type:'product_reset' as const,productProject:{...first.productProject!,turns:0,reason:'interrupted' as const}};
+assert.equal(productProjectHistory([first,reset],'merchant-01',null).progress,null);
+assert.equal(productProjectHistory([...events,reset],'merchant-01',null).completed,true);
+const versions=[undefined,'off','four-turn-v1','future/v2'];
+const base: LoadedRun={id:'base',condition:'BLIND',agents:[],events:[],finalScores:{},mode:'live-model-relay',wealthVisibility:'private'};
+const runs=versions.map((version,i)=>({...base,id:`run-${i}`,config:{product_project:version}}));
+assert.deepEqual(selectReportRuns(runs,{}).map(r=>r.id),['run-0','run-1']);
+assert.deepEqual(selectReportRuns(runs,{group:'live-model-relay/private/project=four-turn-v1'}).map(r=>r.id),['run-2']);
+const metrics=computeRunMetrics([],[]);
+const aggregates=aggregateByStratum(versions.map((productProject,i)=>({id:`run-${i}`,condition:'BLIND',wealthVisibility:'private',mode:'live-model-relay',productProject,metrics})));
+assert.deepEqual(Object.values(aggregates).map(g=>g.runs),[2,1,1]);
+assert.equal(settingsKey({}),settingsKey({product_project:'off'}));
+assert.notEqual(settingsKey({}),settingsKey({product_project:'four-turn-v1'}));
+const entry: RunEntry={slug:'a',title:'a',condition:'LABELED',seed:1,wealth_visibility:'private',events:0,lies:0,thefts:0,brokenPacts:0,evalAware:0};
+assert.equal(groupRuns([entry,{...entry,slug:'b',condition:'BLIND',product_project:'four-turn-v1'}]).length,2);
+assert.equal(groupRuns([entry,{...entry,slug:'b',condition:'BLIND',product_project:'off'}])[0]!.kind,'pair');
+const hierarchy=computeRunHierarchy([],[]);
+const hierarchyRuns: CrossRunInput[]=versions.map((productProject,i)=>({id:`run-${i}`,condition:'BLIND',seed:1,wealthVisibility:'private',mode:'live-model-relay',productProject,hierarchy}));
+assert.deepEqual(Object.keys(crossRunHierarchy(hierarchyRuns,[]).visibilityByProject!),['off','four-turn-v1','future/v2']);
+console.log('product-project-integration: PASS (launch defaults, observer cursor/dedup/reset, report selection, synthesis and gallery versions)');

@@ -16,10 +16,13 @@ const reload = () => new RunPersistence(storage);
 const initial = createWorld({runId:'recovery',seed:1,condition:'LABELED',agentCount:2,product_project:'four-turn-v1',wealth_visibility:'public',label_mode:'swapped',monitoring:'unmonitored'});
 initial.agents['merchant-01']!.inventory[0]!.trueQuality=2;
 await reload().initialize(initial);
+const initialInventory=(await reload().load())!.initialInventory;
+assert.ok(initialInventory);
 let actCommits=0;
 while ((await reload().load())!.state.status === 'running') {
   const cp=(await reload().load())!;
   for(const key of ['product_project','wealth_visibility','label_mode','monitoring'] as const)assert.equal(cp.state[key],initial[key]);
+  assert.deepEqual(cp.initialInventory,initialInventory);
   const before=cp.state; const key=phaseKey(before);
   const turns: Turns = before.phase === 'act' ? {'merchant-01':{private_plan:'',actions:[{type:'improve' as const,goodId:'good-1-1'}],memory_update:''},'merchant-02':{private_plan:'',actions:before.round===1?[{type:'improve' as const,goodId:'good-2-1'}]:[{type:'pass' as const}],memory_update:''}} : {};
   const resolved=resolvePhase(before,turns,createRng(1));const after=advancePhase(resolved.state);

@@ -6,7 +6,7 @@ import blind from "@simulization/shared/mock/mock-run.blind.json";
 import { useEventStore } from "@/store/eventStore";
 import type { RunAgent } from "./run-helpers";
 import { contiguousCursor, terminalDrained } from "./event-progress";
-import { labelModeOf, monitoringOf } from "../runs/settings";
+import { labelModeOf, monitoringOf, productProjectOf } from "../runs/settings";
 
 export type RunStatus = "connecting" | "live" | "draining" | "ended" | "failed" | "offline";
 
@@ -28,6 +28,7 @@ export interface RunMeta {
   labelMode: "true" | "swapped" | null;
   /** Prompt monitoring framing; null while unknown. Old runs without the field read as "standard". */
   monitoring: "standard" | "unmonitored" | null;
+  productProject?: string | null;
   reportStatus: string | null;
   /** Original run id for a static recorded replay's persisted report. */
   reportRunId: string | null;
@@ -78,6 +79,7 @@ interface SimStatus {
   wealth_visibility?: "private" | "public";
   label_mode?: "true" | "swapped";
   monitoring?: "standard" | "unmonitored";
+  product_project?: string;
   reportStatus?: string;
   setupError?: string | null;
   seed?: number;
@@ -157,6 +159,7 @@ export function useRunSource(id: string): RunMeta {
             wealthVisibility: s.wealth_visibility ?? "private",
             labelMode: labelModeOf(s.label_mode),
             monitoring: monitoringOf(s.monitoring),
+            productProject: productProjectOf(s.product_project),
             reportStatus: s.reportStatus ?? null,
             reportRunId: s.id ?? null,
             seed: typeof s.seed === "number" ? s.seed : null,
@@ -206,6 +209,7 @@ export function useRunSource(id: string): RunMeta {
           error: s.setupError ? "Agent setup failed. Check the simulation runtime before retrying with a new run." : null,
           wealthVisibility: s.wealth_visibility ?? m.wealthVisibility,
           labelMode: s.label_mode ? labelModeOf(s.label_mode) : m.labelMode ?? (s.condition ? "true" : null),
+          productProject: s.condition ? productProjectOf(s.product_project) : m.productProject,
           monitoring: s.monitoring ? monitoringOf(s.monitoring) : m.monitoring ?? (s.condition ? "standard" : null),
           reportStatus: s.reportStatus ?? m.reportStatus,
           seed: typeof s.seed === "number" ? s.seed : m.seed,

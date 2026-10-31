@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { CrossJudgeSchema, type CrossJudge } from '../../mastra/crossJudge';
 import { EnsembleSchema, type Ensemble } from '../../mastra/ensemble';
 import { rowToEvent } from '../../mastra/db';
-import { labelModeOf, monitoringOf, runModeOf, wealthVisibilityOf } from '../../mastra/hierarchy';
+import { labelModeOf, monitoringOf, productProjectOfConfig, runModeOf, wealthVisibilityOf } from '../../mastra/hierarchy';
 import type { LoadedRun } from './data';
 import { initialEvidenceForRun } from './initial-evidence';
 
@@ -55,7 +55,7 @@ export async function loadNeonReport(runId?: string): Promise<NeonReport | null>
     ? await sql`SELECT id,condition,status,config,final_scores FROM runs WHERE id=${runId}`
     : await sql`SELECT id,condition,status,config,final_scores FROM (
         SELECT id,condition,status,config,final_scores,created_at,
-          row_number() OVER (PARTITION BY condition,COALESCE(config->>'wealth_visibility','private'),config->>'mode',COALESCE(config->>'label_mode','true'),COALESCE(config->>'monitoring','standard') ORDER BY created_at DESC) AS rn
+          row_number() OVER (PARTITION BY condition,COALESCE(config->>'wealth_visibility','private'),config->>'mode',COALESCE(config->>'label_mode','true'),COALESCE(config->>'monitoring','standard'),COALESCE(config->>'product_project','off') ORDER BY created_at DESC) AS rn
         FROM runs WHERE status='done'
       ) t WHERE rn <= ${MAX_RUNS_PER_CONDITION} ORDER BY created_at`;
   if (runRows.length === 0) return { runs: [], reviews: new Map(), extras: new Map() };
@@ -89,6 +89,7 @@ export async function loadNeonReport(runId?: string): Promise<NeonReport | null>
     wealthVisibility: wealthVisibilityOf(r.config),
     labelMode: labelModeOf(r.config),
     monitoring: monitoringOf(r.config),
+    productProject: productProjectOfConfig(r.config),
   }));
 
   const reviews = new Map<string, Review>();

@@ -8,6 +8,8 @@ import { useRun } from "./run-context";
 import { claimCheck, eventVerb, PHASE_SHORT } from "./run-helpers";
 import { selectedAgentHistory, type CoinPoint } from "./agent-history";
 
+import { productProjectHistory } from "./product-project-history";
+
 const PAGE = 6;
 
 function Activity({ event, showPlan }: { event: Event; showPlan: boolean }) {
@@ -48,7 +50,7 @@ function CoinChart({ points, reason }: { points: CoinPoint[]; reason: string | n
   </>;
 }
 
-export function AgentCard({ finalScores, wealthVisibility, labelMode, monitoring }: { finalScores: Record<string, number> | null; wealthVisibility: "private" | "public" | null; labelMode?: "true" | "swapped" | null; monitoring?: "standard" | "unmonitored" | null }) {
+export function AgentCard({ finalScores, wealthVisibility, labelMode, monitoring, productProject }: { productProject?: string | null; finalScores: Record<string, number> | null; wealthVisibility: "private" | "public" | null; labelMode?: "true" | "swapped" | null; monitoring?: "standard" | "unmonitored" | null }) {
   const { agents, label, blind } = useRun();
   const selected = useEventStore(s=>s.selectedAgentId);
   const events = useEventStore(s=>s.events);
@@ -60,6 +62,7 @@ export function AgentCard({ finalScores, wealthVisibility, labelMode, monitoring
   const reduced = useReducedMotion();
   const previous = useRef<{id:string|null;seq:number;coins:number|null}>({id:null,seq:0,coins:null});
   const agent=agents.find(a=>a.id===selected);
+  const project=useMemo(()=>productProjectHistory(events,selected ?? "",playbackSeq),[events,selected,playbackSeq]);
   const history=useMemo(()=>selected ? selectedAgentHistory(events,selected,playbackSeq,finalScores) : null,[events,selected,playbackSeq,finalScores]);
   useEffect(() => {
     if (!selected || !history || !root.current) { previous.current.id = null; return; }
@@ -118,6 +121,7 @@ export function AgentCard({ finalScores, wealthVisibility, labelMode, monitoring
     <div className="grid max-h-[22dvh] gap-6 overflow-y-auto p-4 md:max-h-[14rem] lg:grid-cols-[minmax(12rem,0.9fr)_minmax(0,1.4fr)_minmax(15rem,1fr)]">
       <div id="agent-section-identity" role="tabpanel" aria-labelledby="agent-tab-identity" tabIndex={0} className={`min-w-0 text-sm ${section === "identity" ? "" : "hidden"} lg:block`}>
         <h3 className="font-semibold">Identity and Agreements</h3>
+        {(productProject === "four-turn-v1" || project.observed) && <p className="mt-2 text-sm" aria-live="polite">Product project · observer only: {project.completed ? `Completed (+${project.qualityGain ?? 0} quality)` : project.progress ? `${project.progress.turns}/4 turns · ${project.progress.goodId}` : "Idle (0/4 turns)"}</p>}
         <dl className="mt-3 grid grid-cols-2 gap-3">
           <div><dt className="text-xs text-muted-foreground">Model provider{blind ? " · observer only" : ""}</dt><dd className="mt-0.5">{provider || "Not recorded"}</dd></div>
           <div className="col-span-2"><dt className="text-xs text-muted-foreground">Exact model · run metadata</dt><dd className="mt-0.5 break-words">{agent.model ?? "Not recorded in this run"}</dd></div>

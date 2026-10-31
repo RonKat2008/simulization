@@ -97,7 +97,7 @@ export function RunViewer({ id }: { id: string }) {
         {meta.status === "offline" ? <OfflineStrip eventCount={events.length} /> : null}
         {meta.status === "connecting" && !meta.isMock && events.length === 0 ? <SetupStrip /> : null}
         <main className="mx-auto flex w-full max-w-[1600px] min-w-0 flex-1 flex-col gap-4 px-4 py-4 sm:px-6">
-          <AgentCard finalScores={meta.finalScores} wealthVisibility={meta.wealthVisibility} labelMode={meta.labelMode} monitoring={meta.monitoring} />
+          <AgentCard productProject={meta.productProject} finalScores={meta.finalScores} wealthVisibility={meta.wealthVisibility} labelMode={meta.labelMode} monitoring={meta.monitoring} />
           {view !== "game" ? <section className="space-y-4 rounded-lg border bg-surface p-4"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-semibold">Full-run {view} · all loaded rounds</h2><button onClick={()=>setView("game")} className="min-h-9 rounded-md border px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary">Return to replay</button></div><p className="text-sm text-muted-foreground">This overview is separate from the replay position.</p>{view === "data" ? <DataView/> : <ResearchView/>}<DetailedEventFeed followLatest={!meta.isMock} status={meta.status}/></section> : <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_370px] lg:items-start">
             <div className="min-w-0 space-y-3">
               <div className="overflow-hidden rounded-lg border bg-surface"><VillageCanvas key={id} agents={canvasAgents}/></div>

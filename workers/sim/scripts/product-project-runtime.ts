@@ -26,7 +26,7 @@ let storedConfig:Record<string,unknown>={};
 const fakeSql=async(parts:TemplateStringsArray)=>parts.join('').includes('FROM agents')?[]:[{id:'historical',condition:'BLIND',status:'done',config:storedConfig}];
 const api=isolated('../../../apps/web/src/app/api/runs/_service.ts',{
   'durable-actors/backend':{createActorTransport:()=>transport},'durable-actors/proxy':{},
-  '@neondatabase/serverless':{neon:()=>fakeSql},'@simulization/shared':shared,'@/mastra/db':{},'./_report-status':{reportDeliveryStatus:async()=> 'not-requested'},
+  '@neondatabase/serverless':{neon:()=>fakeSql},'@simulization/shared':shared,'../../../mastra/db':{},'./_report-status':{reportDeliveryStatus:async()=> 'not-requested'},
 });
 process.env.SIM_RUN_MODE='stub';
 const settings={condition:'LABELED',seed:42,wealth_visibility:'public',label_mode:'swapped',monitoring:'unmonitored',product_project:'four-turn-v1'};
