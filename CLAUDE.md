@@ -22,7 +22,7 @@ We do **not** use Cloudflare at all. Every actor runs on **Terse Durable Actors*
 - `MerchantAgent` actor, one per agent (actorId = `${runId}.${agentId}`; ids allow only `[A-Za-z0-9._-]`): persistent memory + turns.
 - `ExperimentRunner` actor: the batch + synthesis job.
 
-The HTTP surface moves to **Next.js API routes on Vercel**. They call the actors through `DurableActorsClient` (`packages/agents`). The pure engine lives in `packages/engine`. **The demo runs locally** on one laptop: `pnpm demo` (= `pnpm actors:dev` + `pnpm dev`; control plane on 127.0.0.1:7100, project `local`, web on :3000). Live runs only work there. The Vercel site (https://simulization.vercel.app) reads Neon, so it serves the landing page, replays and the report card for finished runs, which is our backup if the laptop fails. Anything below that says Cloudflare / Worker / DO / `workers/sim` / wrangler now means the Terse equivalent.
+The HTTP surface moves to **Next.js API routes on Vercel**. They call the actors through `DurableActorsClient` (`packages/agents`). The pure engine lives in `packages/engine`. **The demo runs locally** on one laptop: `pnpm actors:dev` and `pnpm dev` in separate terminals (control plane on 127.0.0.1:7100, project `local`, web on :3000; exact prerequisites and fresh-storage commands in [docs/DEMO_RUNBOOK.md](docs/DEMO_RUNBOOK.md)). Live runs only work there. The Vercel site (https://simulization.vercel.app) reads Neon, so it serves the landing page, replays and the report card for finished runs, which is our backup if the laptop fails. Anything below that says Cloudflare / Worker / DO / `workers/sim` / wrangler now means the Terse equivalent.
 
 ## Repo map
 

@@ -8,11 +8,11 @@ import { PastRuns } from "./past-runs";
 const LINK =
   "text-foreground underline decoration-border-strong underline-offset-4 transition-colors duration-150 hover:text-primary hover:decoration-primary";
 
-export function LaunchPanel() {
+export function LaunchPanel({ canLaunch = true }: { canLaunch?: boolean }) {
   const [refreshKey, setRefreshKey] = useState(0);
   return (
     <>
-      <LaunchForm onStarted={() => setRefreshKey((k) => k + 1)} />
+      {canLaunch && <LaunchForm onStarted={() => setRefreshKey((k) => k + 1)} />}
       <PastRuns refreshKey={refreshKey} />
       <section aria-labelledby="replay-heading" className={`flex flex-col gap-3 ${CARD_CLASS}`}>
         <h2 id="replay-heading" className="text-lg font-semibold">

@@ -3,7 +3,7 @@ import {createActorTransport} from 'durable-actors/backend';
 import {SocketProxy} from 'durable-actors/proxy';
 import {neon} from '@neondatabase/serverless';
 import {EventSchema,LabelModeSchema,MonitoringSchema,WealthVisibilitySchema,runLabelMapping} from '@simulization/shared';
-import {rowToEvent} from '@/mastra/db';
+import {rowToEvent} from '../../../mastra/db';
 import {reportDeliveryStatus} from './_report-status';
 
 export class ApiError extends Error { constructor(public status:number,message:string){super(message);} }
