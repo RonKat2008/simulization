@@ -1,0 +1,47 @@
+import { z } from "zod";
+
+export const CONDITIONS = ["LABELED", "BLIND"] as const;
+export const ConditionSchema = z.enum(CONDITIONS);
+export type Condition = z.infer<typeof ConditionSchema>;
+
+export const SEED_MIN = -2147483648;
+export const SEED_MAX = 2147483647;
+export const DEFAULT_SEED = 1;
+
+export const CreateRunResponseSchema = z.object({ runId: z.string().min(1) });
+export const ApiErrorSchema = z.object({ error: z.string() });
+
+export const RunSummarySchema = z.object({
+  id: z.string(),
+  condition: z.string(),
+  seed: z.number().nullish(),
+  status: z.string(),
+  round: z.number().nullish(),
+  phase: z.string().nullish(),
+  mode: z.string().nullish(),
+  createdAt: z.union([z.string(), z.number()]).nullish(),
+});
+export type RunSummary = z.infer<typeof RunSummarySchema>;
+export const RunListSchema = z.array(RunSummarySchema);
+
+/** Parse an integer seed string; returns an error message or the value. */
+export function parseSeed(raw: string): { ok: true; value: number } | { ok: false; message: string } {
+  const text = raw.trim();
+  if (!/^-?\d+$/.test(text)) return { ok: false, message: "Seed must be a whole number." };
+  const value = Number(text);
+  if (!Number.isSafeInteger(value) || value < SEED_MIN || value > SEED_MAX) {
+    return { ok: false, message: `Seed must be between ${SEED_MIN} and ${SEED_MAX}.` };
+  }
+  return { ok: true, value };
+}
+
+/** Read the `{error}` message from a failed response body, falling back to the status. */
+export async function readErrorMessage(res: Response): Promise<string> {
+  try {
+    const parsed = ApiErrorSchema.safeParse(await res.json());
+    if (parsed.success) return parsed.data.error;
+  } catch {
+    // non-JSON body
+  }
+  return `Request failed with status ${res.status}.`;
+}

@@ -1,5 +1,5 @@
 import { COMPANIES, type Condition, type RunMetrics } from '@simulization/shared';
-import { SectionHeading } from '../landing/section-heading';
+import { Section } from './section';
 import { COMPANY_VAR, inText, outText, pct, times, withCount } from './format';
 import type { ReportData } from './types';
 
@@ -21,23 +21,19 @@ function cells(m: RunMetrics, score: number): string[] {
 
 export function CompanyTable({ data }: { data: ReportData }) {
   return (
-    <section aria-labelledby="company-title" className="border-b">
-      <div className="mx-auto flex max-w-7xl flex-col gap-10 px-4 py-14 sm:px-6 lg:px-8">
-        <SectionHeading
-          id="company-title"
-          kicker="Per company"
-          title="Each lab, both conditions."
-          description="Metrics scoped to that company's agents; in-group means their own company. Values show rate (count/total) so a zero with no data reads as no data."
-        />
-        <div className="overflow-x-auto rounded-lg border bg-surface">
-          <table className="w-full min-w-[56rem] border-collapse text-left text-xs">
-            <caption className="sr-only">Behavior metrics per company and condition</caption>
+    <Section
+      id="company-title"
+      title="Per company"
+      lead="Metrics scoped to each company's agents; in-group means their own company. Theft shows chance-adjusted ratios in brackets (1.00x = random targeting). Avg score is coins plus true value of goods held."
+    >
+        <div className="relative overflow-x-auto rounded-md border bg-surface">
+          <table aria-label="Behavior metrics per company and condition" className="w-full min-w-[56rem] border-collapse text-left text-xs">
             <thead className="text-muted-foreground">
               <tr className="border-b">
-                <th scope="col" className="px-4 py-3 font-normal">Company</th>
-                <th scope="col" className="px-3 py-3 font-normal">Condition</th>
+                <th scope="col" className="px-3 py-2 font-normal">Company</th>
+                <th scope="col" className="px-3 py-2 font-normal">Condition</th>
                 {HEADS.map((h) => (
-                  <th key={h} scope="col" className="px-3 py-3 font-normal">{h}</th>
+                  <th key={h} scope="col" className="px-3 py-2 font-normal">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -49,23 +45,23 @@ export function CompanyTable({ data }: { data: ReportData }) {
                   return (
                     <tr key={`${co.id}-${cond}`} className={`${i === 0 ? 'border-t' : ''} align-top`}>
                       {i === 0 && (
-                        <th scope="rowgroup" rowSpan={2} className="px-4 py-3 text-left font-normal">
-                          <span className="flex items-center gap-2 font-display text-base">
+                        <th scope="rowgroup" rowSpan={2} className="px-3 py-2 text-left font-normal">
+                          <span className="flex items-center gap-2 font-medium text-sm">
                             <span className="size-2.5 rounded-sm" style={{ background: COMPANY_VAR[co.id] }} aria-hidden="true" />
                             {co.name}
                           </span>
                           <span className="text-muted-foreground">agents {co.id}-01 to {co.id}-06</span>
                         </th>
                       )}
-                      <td className="px-3 py-3">
+                      <td className="px-3 py-2">
                         <span className={cond === 'LABELED' ? 'text-primary' : 'text-accent'}>{cond}</span>
                       </td>
                       {m && rep ? (
                         cells(m, rep.meanScore[co.id] ?? 0).map((c, j) => (
-                          <td key={HEADS[j]} className="px-3 py-3 tabular-nums">{c}</td>
+                          <td key={HEADS[j]} className="px-3 py-2 tabular-nums">{c}</td>
                         ))
                       ) : (
-                        <td colSpan={HEADS.length} className="px-3 py-3 text-muted-foreground">no run</td>
+                        <td colSpan={HEADS.length} className="px-3 py-2 text-muted-foreground">no run</td>
                       )}
                     </tr>
                   );
@@ -74,7 +70,6 @@ export function CompanyTable({ data }: { data: ReportData }) {
             </tbody>
           </table>
         </div>
-      </div>
-    </section>
+    </Section>
   );
 }

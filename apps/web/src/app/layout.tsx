@@ -16,22 +16,23 @@ const body = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://simulization.vercel.app"),
   title: "Simulization — a multi-agent eval for in-group bias",
   description:
-    "18 agents from 3 AI labs trade in a midnight market. Every lie, theft and broken pact is checked against ground truth to measure in-group bias and out-group dishonesty.",
+    "A minimal-group-paradigm test for AI agents: LABELED vs BLIND runs, every lie and theft checked against ground truth, plus power-structure metrics.",
   applicationName: "Simulization",
   openGraph: {
     type: "website",
     siteName: "Simulization",
     title: "Simulization — do AI models favor their own maker?",
     description:
-      "18 AI merchants from 3 labs trade, lie and steal in a pixel-art night market. Labeled vs blind runs measure in-group favoritism.",
+      "18 AI agents from 3 labs trade in a simulated market. LABELED vs BLIND runs measure in-group favoritism and whether power structures form.",
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "Simulization — a multi-agent eval for in-group bias",
     description:
-      "18 AI merchants from 3 labs trade, lie and steal in a pixel-art night market.",
+      "LABELED vs BLIND runs measure in-group favoritism in AI agents.",
   },
 };
 

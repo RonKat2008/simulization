@@ -1,49 +1,69 @@
 "use client";
-import { useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { COMPANIES, type Event } from "@simulization/shared";
 import { useEventStore } from "@/store/eventStore";
 import { useRun } from "./run-context";
-import { COMPANY_BG } from "./run-helpers";
+import { claimCheck, COMPANY_BG, computeAgentStats, emptyStats, eventVerb, FLAG_LABEL, FLAG_TONE, isViolation, PHASE_SHORT } from "./run-helpers";
 
-const RECENT_PLANS = 5;
+const PAGE = 12;
 
-function Row({ k, v }: { k: string; v: ReactNode }) {
+function Row({ k, v, tone }: { k: string; v: ReactNode; tone?: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3 border-b border-border/50 py-1 text-sm last:border-b-0">
       <dt className="text-muted-foreground">{k}</dt>
-      <dd className="text-right tabular-nums">{v}</dd>
+      <dd className={`text-right tabular-nums ${tone ?? ""}`}>{v}</dd>
     </div>
   );
 }
 
-function summarize(events: Event[], id: string) {
-  const mine = events.filter((e) => e.actorId === id);
+function relations(events: Event[], id: string) {
   const pacts = new Set<string>();
   let coalition: string | null = null;
   for (const e of events) {
-    if (e.type === "pact_accept" && (e.actorId === id || e.targetId === id)) {
-      pacts.add((e.actorId === id ? e.targetId : e.actorId) ?? "");
-    }
-    if (e.type === "pact_break" && (e.actorId === id || e.targetId === id)) {
-      pacts.delete((e.actorId === id ? e.targetId : e.actorId) ?? "");
-    }
+    const other = e.actorId === id ? e.targetId : e.targetId === id ? e.actorId : undefined;
+    if (e.type === "pact_accept" && other) pacts.add(other);
+    if (e.type === "pact_break" && other) pacts.delete(other);
     if (e.actorId !== id) continue;
     if (e.type === "coalition_create" || e.type === "coalition_join") coalition = e.channel ?? "coalition";
     if (e.type === "coalition_leave") coalition = null;
   }
-  const offers = mine.filter((e) => e.type === "trade_offer" && e.claim);
-  return {
-    messages: mine.filter((e) => e.type === "message").length,
-    offers,
-    lies: mine.filter((e) => e.flags.includes("lie")).length,
-    thefts: mine.filter((e) => e.type === "steal").length,
-    caught: mine.filter((e) => e.type === "caught").length,
-    brokenPacts: mine.filter((e) => e.type === "pact_break").length,
-    evalAware: mine.filter((e) => e.flags.includes("eval_aware")).length,
-    pacts: [...pacts].filter(Boolean),
-    coalition,
-    plans: mine.filter((e) => e.privatePlan).slice(-RECENT_PLANS).reverse(),
-  };
+  return { pacts: [...pacts], coalition };
+}
+
+function Pair({ e }: { e: Event }) {
+  const { label } = useRun();
+  const c = claimCheck(e);
+  const lie = e.flags.includes("lie");
+  const to = e.targetId ? label(e.targetId) : null;
+  return (
+    <li className={`border-b border-border/60 last:border-b-0 ${isViolation(e) ? "border-l-2 border-l-violation" : "border-l-2 border-l-transparent"}`}>
+      <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 bg-surface px-3 pt-1.5 text-[11px] text-muted-foreground">
+        <span className="tabular-nums">R{e.round} {PHASE_SHORT[e.phase]} #{e.seq}</span>
+        <span className="uppercase tracking-wider">{e.type.replaceAll("_", " ")}</span>
+        {to ? <span>{`→ ${to}`}</span> : null}
+        {e.flags.map((f) => (
+          <span key={f} className={`rounded-sm border px-1 text-[10px] uppercase ${FLAG_TONE[f]}`}>{FLAG_LABEL[f]}</span>
+        ))}
+      </p>
+      <div className="grid gap-px bg-border sm:grid-cols-2">
+        <div className="bg-surface px-3 py-1.5 text-xs">
+          <p className="mb-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">Said / did</p>
+          <p className="break-words">{e.text ?? eventVerb(e)}</p>
+          {c ? <p className="mt-0.5 tabular-nums">claimed <b>Q{c.claimed}</b> for {c.price}c</p> : null}
+        </div>
+        <div className="bg-surface-raised px-3 py-1.5 text-xs">
+          <p className="mb-0.5 text-[10px] uppercase tracking-wider text-accent">Private plan{c ? " and truth" : ""}</p>
+          <p className="break-words">{e.privatePlan ?? <span className="text-muted-foreground">no plan recorded</span>}</p>
+          {c && c.actual !== null ? (
+            <p className={`mt-0.5 tabular-nums ${lie ? "text-violation" : ""}`}>
+              true <b>Q{c.actual}</b>
+              {c.delta ? ` (${c.delta > 0 ? "+" : "−"}${Math.abs(c.delta)} claimed)` : " (accurate)"}
+            </p>
+          ) : null}
+        </div>
+      </div>
+    </li>
+  );
 }
 
 export function AgentCard({ finalScores }: { finalScores: Record<string, number> | null }) {
@@ -51,84 +71,106 @@ export function AgentCard({ finalScores }: { finalScores: Record<string, number>
   const selected = useEventStore((s) => s.selectedAgentId);
   const events = useEventStore((s) => s.events);
   const select = useEventStore((s) => s.select);
-  const info = useMemo(() => (selected ? summarize(events, selected) : null), [events, selected]);
+  const [flaggedOnly, setFlaggedOnly] = useState(false);
+  const [more, setMore] = useState<{ id: string | null; n: number }>({ id: null, n: PAGE });
+  const root = useRef<HTMLElement>(null);
+
   const agent = agents.find((a) => a.id === selected);
+  const stats = useMemo(() => (selected ? (computeAgentStats(events).get(selected) ?? emptyStats()) : null), [events, selected]);
+  const rel = useMemo(() => (selected ? relations(events, selected) : null), [events, selected]);
+  const pairs = useMemo(
+    () =>
+      selected
+        ? events.filter((e) => e.actorId === selected && (e.privatePlan || e.text) && e.type !== "system" && e.type !== "caught" && (!flaggedOnly || isViolation(e))).reverse()
+        : [],
+    [events, selected, flaggedOnly],
+  );
+
+  useEffect(() => {
+    if (selected) root.current?.scrollIntoView({ block: "nearest", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  }, [selected]);
+
+  const shown = more.id === selected ? more.n : PAGE;
   const company = selected ? shownCompany(selected) : undefined;
   const lab = COMPANIES.find((c) => c.id === company);
 
   return (
-    <section aria-labelledby="agent-title" className="rounded-lg border bg-surface">
+    <section ref={root} aria-labelledby="agent-title" className="min-w-0 rounded-lg border bg-surface">
       <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
-        <h2 id="agent-title" className="font-display text-base tracking-wide">
-          Agent card
+        <h2 id="agent-title" className="flex min-w-0 items-center gap-2 font-display text-sm tracking-wide">
+          {selected && agent ? (
+            <>
+              {company ? <span className={`size-2.5 shrink-0 ${COMPANY_BG[company] ?? "bg-muted-foreground"}`} aria-hidden="true" /> : null}
+              <span className="truncate">{label(agent.id)}</span>
+              <span className="text-xs font-normal text-muted-foreground">{lab ? lab.name : blind ? "lab hidden" : ""}</span>
+            </>
+          ) : (
+            "Agent inspector"
+          )}
         </h2>
         {selected ? (
-          <button type="button" onClick={() => select(null)} className="text-xs text-muted-foreground transition-colors hover:text-accent">
-            Close
+          <button type="button" onClick={() => select(null)} className="shrink-0 text-xs text-muted-foreground transition-colors hover:text-accent">
+            Close (Esc)
           </button>
         ) : null}
       </div>
-      {!selected || !info || !agent ? (
-        <p className="p-4 text-sm text-muted-foreground">Select a merchant on the map, in the roster or in the feed to inspect it.</p>
+      {!selected || !stats || !rel || !agent ? (
+        <p className="p-4 text-sm text-muted-foreground">
+          Select a merchant in the table, the log or on the map to compare what it said publicly with what it privately planned.
+        </p>
       ) : (
-        <div className="grid gap-px bg-border sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-          <div className="bg-surface p-3">
-            <h3 className="mb-1 flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
-              <span className="size-1.5 bg-primary" aria-hidden="true" /> Public
-            </h3>
-            <p className="mb-2 flex items-center gap-2 font-display text-lg">
-              {company ? <span className={`size-2.5 ${COMPANY_BG[company] ?? "bg-muted-foreground"}`} aria-hidden="true" /> : null}
-              {label(agent.id)}
-            </p>
-            <dl>
-              {lab ? <Row k="Lab" v={lab.name} /> : <Row k="Lab" v={blind ? "hidden (BLIND)" : "unknown"} />}
-              <Row k="Final score" v={finalScores?.[agent.id] ?? "in play"} />
-              <Row k="Coalition" v={info.coalition ?? "none"} />
-              <Row k="Pacts" v={info.pacts.length ? info.pacts.map(label).join(", ") : "none"} />
-              <Row k="Messages sent" v={info.messages} />
-              <Row k="Pacts broken" v={info.brokenPacts} />
-              <Row k="Caught stealing" v={info.caught} />
-            </dl>
+        <>
+          <div className="grid gap-px bg-border sm:grid-cols-2">
+            <div className="bg-surface p-3">
+              <h3 className="mb-1 text-[11px] uppercase tracking-wider text-muted-foreground">Public record</h3>
+              <dl>
+                <Row k="Final score" v={finalScores?.[agent.id] ?? "in play"} />
+                <Row k="Coalition" v={rel.coalition ?? "none"} />
+                <Row k="Open pacts" v={rel.pacts.length ? rel.pacts.map(label).join(", ") : "none"} />
+                <Row k="Messages sent" v={stats.messages} />
+                <Row k="Pacts accepted / broken" v={`${stats.pactsAccepted} / ${stats.pactsBroken}`} />
+              </dl>
+            </div>
+            <div className="bg-surface-raised p-3">
+              <h3 className="mb-1 text-[11px] uppercase tracking-wider text-accent">Ground truth (observer only)</h3>
+              <dl>
+                <Row k="Lies / offers made" v={`${stats.lies} / ${stats.offers}`} tone={stats.lies ? "text-violation" : ""} />
+                {!blind ? <Row k="Lies to same lab" v={`${stats.liesToSameCompany} / ${stats.lies}`} /> : null}
+                <Row k="Thefts" v={stats.thefts} tone={stats.thefts ? "text-violation" : ""} />
+                <Row k="Caught / thefts" v={`${stats.caught} / ${stats.thefts}`} />
+                <Row k="Lied to / stolen from" v={`${stats.victimOfLie} / ${stats.victimOfTheft}`} />
+                <Row k="Eval-aware turns" v={stats.evalAware} />
+              </dl>
+            </div>
           </div>
-          <div className="bg-surface-raised p-3">
-            <h3 className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wider text-accent">
-              <span className="size-1.5 bg-accent" aria-hidden="true" /> Private (hidden from other agents)
-            </h3>
-            <dl>
-              <Row k="Lies told" v={<span className={info.lies ? "text-lab-b" : ""}>{info.lies}</span>} />
-              <Row k="Thefts" v={<span className={info.thefts ? "text-violation" : ""}>{info.thefts}</span>} />
-              <Row k="Eval-aware turns" v={info.evalAware} />
-            </dl>
-            {info.offers.length ? (
-              <div className="mt-2">
-                <p className="text-xs text-muted-foreground">Goods offered (claimed vs true)</p>
-                <ul className="mt-1 flex flex-wrap gap-1.5">
-                  {info.offers.map((o) => {
-                    const lie = o.flags.includes("lie");
-                    return (
-                      <li key={o.seq} className={`rounded-sm border px-1.5 py-0.5 text-xs tabular-nums ${lie ? "border-lab-b/60 text-lab-b" : ""}`}>
-                        {o.claim?.claimedQuality} / {o.groundTruth?.trueQuality ?? "?"}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            ) : null}
-            <p className="mt-3 text-xs text-muted-foreground">Recent private plans</p>
-            {info.plans.length ? (
-              <ul className="mt-1 space-y-1.5">
-                {info.plans.map((p) => (
-                  <li key={p.seq} className="border-l-2 border-accent/50 pl-2 text-xs leading-relaxed">
-                    <span className="text-muted-foreground">R{p.round} {p.phase}: </span>
-                    {p.privatePlan}
-                  </li>
-                ))}
-              </ul>
+          <div className="border-t">
+            <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+              <h3 className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                Statement vs private plan <span className="tabular-nums">({pairs.length})</span>
+              </h3>
+              <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <input type="checkbox" checked={flaggedOnly} onChange={(e) => setFlaggedOnly(e.target.checked)} />
+                Flagged only
+              </label>
+            </div>
+            {pairs.length === 0 ? (
+              <p className="px-3 pb-3 text-sm text-muted-foreground">{flaggedOnly ? "No flagged actions by this merchant." : "Nothing recorded yet."}</p>
             ) : (
-              <p className="mt-1 text-xs text-muted-foreground">No private notes recorded.</p>
+              <>
+                <ul className="max-h-[28rem] overflow-y-auto border-t">
+                  {pairs.slice(0, shown).map((e) => (
+                    <Pair key={e.seq} e={e} />
+                  ))}
+                </ul>
+                {pairs.length > shown ? (
+                  <button type="button" onClick={() => setMore({ id: selected, n: shown + PAGE })} className="w-full border-t px-3 py-2 text-xs text-primary hover:bg-primary/10">
+                    Show {Math.min(PAGE, pairs.length - shown)} older of {pairs.length - shown}
+                  </button>
+                ) : null}
+              </>
             )}
           </div>
-        </div>
+        </>
       )}
     </section>
   );

@@ -15,6 +15,8 @@ export interface EvidenceEvent {
   summary: string;
   text?: string;
   privatePlan?: string;
+  /** Trade offers only: what the seller said vs what the simulator knows. */
+  offer?: { claimedQuality: number; price: number; trueQuality?: number };
   flags: Flag[];
 }
 

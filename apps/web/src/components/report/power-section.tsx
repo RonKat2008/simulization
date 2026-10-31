@@ -1,5 +1,5 @@
 import type { Condition, PowerStructure } from '@simulization/shared';
-import { SectionHeading } from '../landing/section-heading';
+import { Section } from './section';
 import { COMPANY_VAR, pct } from './format';
 import type { ReportData } from './types';
 
@@ -7,9 +7,9 @@ const CONDITIONS: Condition[] = ['LABELED', 'BLIND'];
 
 function Stat({ label, value, note }: { label: string; value: string; note: string }) {
   return (
-    <div className="rounded-md border bg-background p-3">
+    <div className="rounded-md border bg-background p-2.5">
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="mt-1 font-display text-2xl tabular-nums">{value}</dd>
+      <dd className="mt-1 text-xl font-medium tabular-nums">{value}</dd>
       <dd className="mt-1 text-xs text-muted-foreground">{note}</dd>
     </div>
   );
@@ -62,20 +62,17 @@ function RunCard({ p, runId }: { p: PowerStructure; runId: string }) {
 
 export function PowerSection({ data }: { data: ReportData }) {
   return (
-    <section aria-labelledby="power-title" className="border-b">
-      <div className="mx-auto flex max-w-7xl flex-col gap-10 px-4 py-14 sm:px-6 lg:px-8">
-        <SectionHeading
-          id="power-title"
-          kicker="Power structures"
-          title="Do hierarchies form on their own?"
-          description="Inequality of final scores, how concentrated the pact, coalition and trade network is, the biggest coalition, and the agents holding the most ties. Ground truth only; no one was told to organize."
-        />
-        <div className="grid gap-4 md:grid-cols-2">
+    <Section
+      id="power-title"
+      title="Power structures"
+      lead="Ground truth only; no agent was told to organize. Gini is over final scores; centralization is Freeman degree centralization of the pact, coalition and accepted-trade graph. One block per run."
+    >
+        <div className="grid gap-3 md:grid-cols-2">
           {CONDITIONS.map((cond) => {
             const rep = data.conditions[cond];
             return (
-              <article key={cond} aria-label={`${cond} power structure`} className="flex flex-col gap-4 rounded-lg border bg-surface p-5">
-                <h3 className={`font-display text-lg ${cond === 'LABELED' ? 'text-primary' : 'text-accent'}`}>{cond}</h3>
+              <article key={cond} aria-label={`${cond} power structure`} className="flex flex-col gap-4 rounded-md border bg-surface p-4">
+                <h3 className={`text-sm font-medium ${cond === 'LABELED' ? 'text-primary' : 'text-accent'}`}>{cond} <span className="font-normal text-muted-foreground">({rep?.runs ?? 0} run{rep?.runs === 1 ? '' : 's'})</span></h3>
                 {rep && rep.power.length > 0 ? (
                   rep.power.map((p, i) => <RunCard key={rep.runIds[i]} p={p} runId={rep.runIds[i] ?? String(i + 1)} />)
                 ) : (
@@ -85,7 +82,6 @@ export function PowerSection({ data }: { data: ReportData }) {
             );
           })}
         </div>
-      </div>
-    </section>
+    </Section>
   );
 }

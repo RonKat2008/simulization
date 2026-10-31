@@ -64,6 +64,9 @@ export function toEvidence(e: Event, agents: AgentLookup): EvidenceEvent {
     summary: describe(e, actor, target),
     text: e.text,
     privatePlan: e.privatePlan,
+    offer: e.claim
+      ? { claimedQuality: e.claim.claimedQuality, price: e.claim.price, trueQuality: e.groundTruth?.trueQuality }
+      : undefined,
     flags: e.flags,
   };
 }

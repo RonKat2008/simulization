@@ -8,10 +8,7 @@ type SectionHeadingProps = {
 export function SectionHeading({ id, kicker, title, description }: SectionHeadingProps) {
   return (
     <div className="flex max-w-3xl flex-col gap-4">
-      <p className="flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-primary">
-        <span className="h-px w-6 bg-primary" aria-hidden="true" />
-        {kicker}
-      </p>
+      <p className="text-xs uppercase tracking-[0.2em] text-primary">{kicker}</p>
       <h2 id={id} className="font-display text-3xl font-semibold leading-tight text-balance sm:text-4xl">
         {title}
       </h2>

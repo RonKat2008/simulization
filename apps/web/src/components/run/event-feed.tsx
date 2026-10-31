@@ -1,92 +1,67 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { Event } from "@simulization/shared";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useEventStore } from "@/store/eventStore";
+import { EventRow } from "./event-row";
 import { FeedFilters } from "./feed-filters";
 import { useRun } from "./run-context";
-import { COMPANY_TEXT, eventSummary, isViolation } from "./run-helpers";
+import { eventVerb, isViolation, matchesFilter } from "./run-helpers";
+import type { RunStatus } from "./use-run-source";
 
 const PIN_THRESHOLD_PX = 48;
+const ANNOUNCE_MAX = 3;
 
-const FLAG_STYLE: Record<string, string> = {
-  lie: "border-lab-b/60 text-lab-b",
-  theft: "border-violation/60 text-violation",
-  broken_pact: "border-violation/60 text-violation",
-  rule_break: "border-violation/60 text-violation",
-  eval_aware: "border-accent/60 text-accent",
-};
+const KEYS: [string, string][] = [
+  ["j / k, arrows", "next / previous event"],
+  ["Home / End", "first / last event"],
+  ["Enter or p", "show private plan"],
+  ["a / t", "select actor / target"],
+  ["/", "search"],
+  ["Esc", "deselect agent"],
+];
 
-function FeedRow({ e }: { e: Event }) {
-  const { label, shownCompany } = useRun();
-  const select = useEventStore((s) => s.select);
-  const selected = useEventStore((s) => s.selectedAgentId === e.actorId);
-  const company = shownCompany(e.actorId);
-  const world = e.actorId === "world";
-  const summary = eventSummary(e, label);
-  const speech = e.type === "message";
-
-  return (
-    <li
-      className={`border-b border-border/60 px-3 py-2 text-sm ${
-        isViolation(e) ? "border-l-2 border-l-violation bg-violation/5" : selected ? "bg-primary/5" : ""
-      } ${world ? "text-muted-foreground" : ""}`}
-    >
-      <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-        <span className="text-[10px] tabular-nums text-muted-foreground" title={`seq ${e.seq}`}>
-          R{e.round} {e.phase.slice(0, 3)}
-        </span>
-        {world ? (
-          <span className="text-xs uppercase tracking-wider">world</span>
-        ) : (
-          <button
-            type="button"
-            onClick={() => select(e.actorId)}
-            className={`font-display text-sm underline-offset-2 hover:underline ${company ? COMPANY_TEXT[company] ?? "" : "text-foreground"}`}
-          >
-            {label(e.actorId)}
-          </button>
-        )}
-        <span className="rounded-sm bg-surface-raised px-1.5 text-[10px] text-muted-foreground">
-          {e.type === "message" && e.channel ? e.channel : e.type.replace("_", " ")}
-        </span>
-        {e.flags.map((f) => (
-          <span key={f} className={`rounded-sm border px-1 text-[10px] ${FLAG_STYLE[f] ?? ""}`}>
-            {f.replace("_", " ")}
-          </span>
-        ))}
-      </p>
-      {summary ? (
-        <p className={`mt-0.5 break-words ${speech ? "text-foreground" : "text-muted-foreground"}`}>
-          {speech && e.targetId ? <span className="text-accent">{`to ${label(e.targetId)}: `}</span> : null}
-          {summary}
-        </p>
-      ) : null}
-    </li>
-  );
-}
-
-export function EventFeed() {
+export function EventFeed({ followLatest, status }: { followLatest: boolean; status: RunStatus }) {
+  const { label } = useRun();
   const events = useEventStore((s) => s.events);
   const typeFilter = useEventStore((s) => s.typeFilter);
+  const flagFilter = useEventStore((s) => s.flagFilter);
   const agentFilter = useEventStore((s) => s.agentFilter);
+  const roundFilter = useEventStore((s) => s.roundFilter);
+  const query = useEventStore((s) => s.query);
+  const select = useEventStore((s) => s.select);
+  const clearFilters = useEventStore((s) => s.clearFilters);
+
   const scroller = useRef<HTMLDivElement>(null);
-  const pinned = useRef(true);
+  const pinned = useRef(followLatest);
   const [showJump, setShowJump] = useState(false);
+  const [active, setActive] = useState(0);
+  const [openSeqs, setOpenSeqs] = useState<ReadonlySet<number>>(new Set());
+  const [expandAll, setExpandAll] = useState(false);
+  const [announce, setAnnounce] = useState("");
+  const prevCount = useRef(0);
 
   const visible = useMemo(
-    () =>
-      events.filter(
-        (e) =>
-          (typeFilter.length === 0 || typeFilter.includes(e.type)) &&
-          (agentFilter === null || e.actorId === agentFilter || e.targetId === agentFilter),
-      ),
-    [events, typeFilter, agentFilter],
+    () => events.filter((e) => matchesFilter(e, { types: typeFilter, flags: flagFilter, round: roundFilter, agent: agentFilter, query }, label)),
+    [events, typeFilter, flagFilter, roundFilter, agentFilter, query, label],
   );
+  const activeIdx = Math.min(active, Math.max(visible.length - 1, 0));
+  const filtered = visible.length !== events.length;
 
   useEffect(() => {
     const el = scroller.current;
     if (el && pinned.current) el.scrollTop = el.scrollHeight;
   }, [visible]);
+
+  // Screen readers get a short digest of new events, not every row of a polled batch.
+  useEffect(() => {
+    const added = events.length - prevCount.current;
+    const first = prevCount.current === 0;
+    prevCount.current = events.length;
+    if (first || added <= 0) return;
+    const fresh = events.slice(-added);
+    const flagged = fresh.filter(isViolation);
+    const lead = fresh.slice(-ANNOUNCE_MAX).map((e) => `${label(e.actorId)} ${eventVerb(e) || e.type}`);
+    setAnnounce(`${added} new events${flagged.length ? `, ${flagged.length} flagged` : ""}. Latest: ${lead.join("; ")}.`);
+  }, [events, label]);
 
   const onScroll = () => {
     const el = scroller.current;
@@ -96,44 +71,154 @@ export function EventFeed() {
     setShowJump(!atBottom);
   };
 
-  const jump = () => {
+  const jump = useCallback(() => {
     const el = scroller.current;
     if (!el) return;
     pinned.current = true;
     setShowJump(false);
-    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    el.scrollTo({ top: el.scrollHeight, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  }, []);
+
+  const toggle = useCallback((seq: number) => {
+    setOpenSeqs((prev) => {
+      const next = new Set(prev);
+      if (next.has(seq)) next.delete(seq);
+      else next.add(seq);
+      return next;
+    });
+  }, []);
+
+  const focusRow = (i: number) => {
+    const idx = Math.max(0, Math.min(visible.length - 1, i));
+    setActive(idx);
+    const el = scroller.current?.querySelector<HTMLElement>(`[data-row-index="${idx}"]`);
+    el?.focus();
+    el?.scrollIntoView({ block: "nearest" });
   };
+
+  const onKeyDown = (ev: KeyboardEvent<HTMLDivElement>) => {
+    if (ev.altKey || ev.ctrlKey || ev.metaKey) return;
+    const t = ev.target as HTMLElement;
+    if (t.tagName === "INPUT" || t.tagName === "SELECT") return;
+    const onControl = t.tagName === "BUTTON";
+    const cur = visible[activeIdx];
+    switch (ev.key) {
+      case "j":
+      case "ArrowDown":
+        ev.preventDefault();
+        return focusRow(activeIdx + 1);
+      case "k":
+      case "ArrowUp":
+        ev.preventDefault();
+        return focusRow(activeIdx - 1);
+      case "Home":
+        ev.preventDefault();
+        return focusRow(0);
+      case "End":
+        ev.preventDefault();
+        focusRow(visible.length - 1);
+        return jump();
+      case "Enter":
+      case "p":
+        if (onControl && ev.key === "Enter") return;
+        if (cur?.privatePlan) {
+          ev.preventDefault();
+          toggle(cur.seq);
+        }
+        return;
+      case "a":
+        if (cur && cur.actorId !== "world") select(cur.actorId);
+        return;
+      case "t":
+        if (cur?.targetId) select(cur.targetId);
+        return;
+    }
+  };
+
+  const withPlans = useMemo(() => visible.filter((e) => e.privatePlan).length, [visible]);
+  const empty = events.length === 0;
 
   return (
     <section aria-labelledby="feed-title" className="flex min-h-0 flex-1 flex-col rounded-lg border bg-surface">
-      <div className="flex items-center justify-between border-b px-3 py-2">
-        <h2 id="feed-title" className="font-display text-base tracking-wide">
-          Event feed
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
+        <h2 id="feed-title" className="font-display text-sm tracking-wide">
+          Event log
         </h2>
-        <span className="text-xs tabular-nums text-muted-foreground">
-          {visible.length}
-          {visible.length !== events.length ? ` / ${events.length}` : ""}
-        </span>
+        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          {withPlans > 0 ? (
+            <button
+              type="button"
+              aria-pressed={expandAll}
+              onClick={() => setExpandAll((v) => !v)}
+              className={`rounded-sm border px-1.5 py-0.5 transition-colors hover:border-accent/60 ${expandAll ? "border-accent text-accent" : ""}`}
+            >
+              {expandAll ? "Collapse" : "Expand"} all plans ({withPlans})
+            </button>
+          ) : null}
+          <span className="tabular-nums" aria-label={`${visible.length} of ${events.length} events shown`}>
+            {visible.length}
+            {filtered ? ` / ${events.length}` : ""}
+          </span>
+        </div>
       </div>
       <FeedFilters />
+      <details className="border-b px-3 py-1.5 text-xs text-muted-foreground">
+        <summary className="cursor-pointer select-none hover:text-foreground">Keyboard shortcuts</summary>
+        <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+          {KEYS.map(([k, d]) => (
+            <Fragment key={k}>
+              <dt className="font-display text-foreground">{k}</dt>
+              <dd>{d}</dd>
+            </Fragment>
+          ))}
+        </dl>
+      </details>
+      <p role="status" aria-live="polite" className="sr-only">
+        {announce}
+      </p>
       <div className="relative min-h-0 flex-1">
         <div
           ref={scroller}
           onScroll={onScroll}
-          tabIndex={0}
+          onKeyDown={onKeyDown}
           role="log"
-          aria-live="polite"
-          aria-relevant="additions"
-          aria-label="Market events"
-          className="h-full max-h-[60vh] overflow-y-auto overscroll-contain lg:max-h-none"
+          aria-live="off"
+          aria-label="Market events, oldest first"
+          className="h-full max-h-[70vh] overflow-y-auto overscroll-contain lg:max-h-none"
         >
           {visible.length === 0 ? (
-            <p className="p-4 text-sm text-muted-foreground">No events match these filters yet.</p>
+            <div className="p-4 text-sm text-muted-foreground">
+              {empty ? (
+                status === "offline" ? (
+                  <p>No events received. The sim is unreachable; retrying.</p>
+                ) : (
+                  <p>{status === "ended" ? "This run has no events." : "Waiting for the first event. The run is starting, so this can take a minute."}</p>
+                )
+              ) : (
+                <>
+                  <p>No events match these filters.</p>
+                  <button type="button" onClick={clearFilters} className="mt-2 text-accent underline underline-offset-2">
+                    Clear filters
+                  </button>
+                </>
+              )}
+            </div>
           ) : (
             <ol>
-              {visible.map((e) => (
-                <FeedRow key={e.seq} e={e} />
-              ))}
+              {visible.map((e, i) => {
+                const prev = visible[i - 1];
+                const newSection = !prev || prev.round !== e.round || prev.phase !== e.phase;
+                return (
+                  <Fragment key={e.seq}>
+                    {newSection ? (
+                      <li role="presentation" className="sticky top-0 z-10 border-b bg-surface-raised px-3 py-1 text-[11px] uppercase tracking-wider text-muted-foreground">
+                        Round {e.round} / {e.phase}
+                      </li>
+                    ) : null}
+                    <EventRow e={e} index={i} active={i === activeIdx} open={expandAll || openSeqs.has(e.seq)} onToggle={toggle} onActivate={setActive} />
+                  </Fragment>
+                );
+              })}
             </ol>
           )}
         </div>

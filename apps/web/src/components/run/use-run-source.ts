@@ -15,7 +15,10 @@ export interface RunMeta {
   phase: Phase | null;
   /** Set when the run could not be loaded at all. */
   error: string | null;
-  mockAgents: RunAgent[] | null;
+  /** Authoritative roster: the mock file, or the `agents` array of GET /runs/:id. Null until known. */
+  roster: RunAgent[] | null;
+  /** Server-reported run mode (initializing-live, live-model-relay, deterministic-stub). */
+  mode: string | null;
   finalScores: Record<string, number> | null;
   isMock: boolean;
 }
@@ -53,6 +56,19 @@ interface SimStatus {
   phase?: Phase;
   stopped?: boolean;
   finalScores?: Record<string, number>;
+  agents?: unknown;
+  mode?: string;
+}
+
+function parseRoster(raw: unknown): RunAgent[] | null {
+  if (!Array.isArray(raw)) return null;
+  const out = raw.flatMap((r): RunAgent[] => {
+    if (!r || typeof r !== "object") return [];
+    const o = r as Record<string, unknown>;
+    if (typeof o.id !== "string") return [];
+    return [{ id: o.id, name: typeof o.name === "string" && o.name ? o.name : o.id, company: typeof o.company === "string" ? o.company : "" }];
+  });
+  return out.length ? out : null;
 }
 
 function mockMeta(id: string): RunMeta {
@@ -63,7 +79,8 @@ function mockMeta(id: string): RunMeta {
     round: null,
     phase: null,
     error: null,
-    mockAgents: mock ? (mock.agents as RunAgent[]) : null,
+    roster: mock ? (mock.agents as RunAgent[]) : null,
+    mode: mock ? "recorded replay" : null,
     finalScores: mock ? (mock.run.finalScores as Record<string, number>) : null,
     isMock: Boolean(mock),
   };
@@ -107,6 +124,8 @@ export function useRunSource(id: string): RunMeta {
           round: s.round ?? m.round,
           phase: s.phase ?? m.phase,
           finalScores: s.finalScores ?? m.finalScores,
+          roster: parseRoster(s.agents) ?? m.roster,
+          mode: s.mode ?? m.mode,
           error: null,
         }));
       } catch (err) {

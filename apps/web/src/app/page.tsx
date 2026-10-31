@@ -1,11 +1,11 @@
 // Landing page. Owner: D (HUD/pages). Base design from v0 (chat n6MLntLYcDE).
-import { Conditions } from "@/components/landing/conditions";
+import { Design } from "@/components/landing/design";
+import { GroundTruth } from "@/components/landing/ground-truth";
 import { Hero } from "@/components/landing/hero";
-import { HowItWorks } from "@/components/landing/how-it-works";
+import { Method, Cta } from "@/components/landing/method";
 import { Metrics } from "@/components/landing/metrics";
 import { SiteFooter } from "@/components/landing/site-footer";
 import { SiteHeader } from "@/components/landing/site-header";
-import { StackStrip } from "@/components/landing/stack-strip";
 
 export default function Home() {
   return (
@@ -19,10 +19,11 @@ export default function Home() {
       <SiteHeader />
       <main id="main" className="overflow-x-clip">
         <Hero />
-        <HowItWorks />
-        <Conditions />
+        <Design />
+        <GroundTruth />
         <Metrics />
-        <StackStrip />
+        <Method />
+        <Cta />
       </main>
       <SiteFooter />
     </>

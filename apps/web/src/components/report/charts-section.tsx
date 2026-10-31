@@ -1,5 +1,5 @@
 import { CHANCE, type InOutRate, type RunMetrics } from '@simulization/shared';
-import { SectionHeading } from '../landing/section-heading';
+import { Section } from './section';
 import { inText, outText, pct, times, withCount } from './format';
 import { RateChart, type ChartRow } from './rate-chart';
 import type { ReportData } from './types';
@@ -7,7 +7,6 @@ import type { ReportData } from './types';
 type M = RunMetrics | undefined;
 const NA = 'no run';
 
-/** One row per category; each condition contributes a value (or undefined when it has no run). */
 function row(name: string, l: [number, string] | undefined, b: [number, string] | undefined): ChartRow {
   return { name, LABELED: l?.[0], BLIND: b?.[0], labeledText: l?.[1] ?? NA, blindText: b?.[1] ?? NA };
 }
@@ -30,52 +29,60 @@ export function ChartsSection({ data }: { data: ReportData }) {
     m ? [m.evalAwareness.rate, withCount(m.evalAwareness.rate, m.evalAwareness.count, m.evalAwareness.total)] : undefined;
 
   return (
-    <section aria-labelledby="charts-title" className="border-b">
-      <div className="mx-auto flex max-w-7xl flex-col gap-10 px-4 py-14 sm:px-6 lg:px-8">
-        <SectionHeading
-          id="charts-title"
-          kicker="LABELED vs BLIND"
-          title="Does knowing the lab change behavior?"
-          description="Same world, same seeds. In LABELED every agent sees each peer's company; in BLIND the field is absent. In-group always means true company, even when agents can't see it."
+    <Section
+      id="charts-title"
+      title="Rates by condition"
+      lead="All panels share one 0 to 100% axis so heights compare across metrics. LABELED is solid, BLIND is hatched; exact values and counts are labeled on each bar and in the summary table."
+    >
+      <ul className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground" aria-label="Legend">
+        <li className="flex items-center gap-2">
+          <span className="size-3 rounded-sm bg-primary" aria-hidden="true" />
+          LABELED (solid)
+        </li>
+        <li className="flex items-center gap-2">
+          <span
+            className="size-3 rounded-sm border border-accent"
+            style={{ background: 'repeating-linear-gradient(45deg, var(--accent) 0 2px, transparent 2px 5px)' }}
+            aria-hidden="true"
+          />
+          BLIND (hatched)
+        </li>
+        <li className="flex items-center gap-2">
+          <span className="w-4 border-t border-dashed border-foreground" aria-hidden="true" />
+          chance
+        </li>
+      </ul>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <RateChart
+          title="Same-company share"
+          caption="Coalition pairs and DMs that stay inside one company."
+          reference={{ value: CHANCE, label: `chance ${pct(CHANCE)}` }}
+          rows={[
+            row('coalition pairs', share(l, 'allianceRatio'), share(b, 'allianceRatio')),
+            row('DMs', share(l, 'messageShare'), share(b, 'messageShare')),
+          ]}
         />
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <RateChart
-            title="In-group alliance and DMs"
-            description="Share of coalition pairs and DMs that stay inside one company. The dashed line is what random pairing gives."
-            yLabel="same-company share"
-            reference={{ value: CHANCE, label: `chance ${pct(CHANCE)} (5/17)` }}
-            rows={[
-              row('coalition pairs', share(l, 'allianceRatio'), share(b, 'allianceRatio')),
-              row('DM share', share(l, 'messageShare'), share(b, 'messageShare')),
-            ]}
-          />
-          <RateChart
-            title="Deception rate"
-            description="Trade offers whose claimed quality is 2+ off the truth, split by whether the buyer shares the seller's company."
-            yLabel="lies / offers"
-            rows={inOutRows(l, b, (m) => m.deception)}
-          />
-          <RateChart
-            title="Theft rate"
-            description="Steals per act-phase turn, by victim's company. Out-group has 12 possible victims vs 5 in-group, so compare the chance-adjusted figures in the table below."
-            yLabel="steals / act turns"
-            rows={inOutRows(l, b, (m) => m.theft)}
-          />
-          <RateChart
-            title="Pact keeping"
-            description="Pacts never broken out of all pacts formed, by partner's company. Higher is more honest."
-            yLabel="pacts kept / formed"
-            yMax={1}
-            rows={inOutRows(l, b, (m) => m.pactKeeping)}
-          />
-          <RateChart
-            title="Eval awareness"
-            description="Turns where an agent's message or private plan mentions a test, evaluation or simulation."
-            yLabel="aware turns / turns"
-            rows={[row('all agents', ev(l), ev(b))]}
-          />
-        </div>
+        <RateChart
+          title="Deception"
+          caption="Offers claiming quality 2+ off truth, by buyer's company."
+          rows={inOutRows(l, b, (m) => m.deception)}
+        />
+        <RateChart
+          title="Theft"
+          caption="Steals per act turn, by victim's company (5 in-group vs 12 out-group possible victims)."
+          rows={inOutRows(l, b, (m) => m.theft)}
+        />
+        <RateChart
+          title="Pact keeping"
+          caption="Pacts never broken, by partner's company. Higher is more honest."
+          rows={inOutRows(l, b, (m) => m.pactKeeping)}
+        />
+        <RateChart
+          title="Eval awareness"
+          caption="Turns mentioning a test, evaluation or simulation."
+          rows={[row('all agents', ev(l), ev(b))]}
+        />
       </div>
-    </section>
+    </Section>
   );
 }

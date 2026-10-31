@@ -1,9 +1,15 @@
+'use client'
+
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { useState } from 'react'
+
+const REPO_URL = 'https://github.com/RonKat2008/simulization'
 
 const NAV = [
-  { href: '/#how', label: 'How it works' },
-  { href: '/#conditions', label: 'Conditions' },
-  { href: '/#metrics', label: 'Metrics' },
+  { href: '/launch', label: 'Launch', match: (p: string) => p.startsWith('/launch') },
+  { href: '/run/mock', label: 'Replay', match: (p: string) => p.startsWith('/run') },
+  { href: '/report', label: 'Report', match: (p: string) => p.startsWith('/report') },
 ]
 
 export function Logo() {
@@ -22,37 +28,88 @@ export function Logo() {
   )
 }
 
+function linkClass(active: boolean) {
+  return `inline-flex min-h-10 items-center border-b-2 px-1 text-sm transition-colors ${
+    active
+      ? 'border-primary text-foreground'
+      : 'border-transparent text-muted-foreground hover:text-foreground'
+  }`
+}
+
 export function SiteHeader() {
+  const pathname = usePathname() ?? '/'
+  const [open, setOpen] = useState(false)
+
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-md">
-      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-        <Link href="/" aria-label="Simulization home">
+    <header className="sticky top-0 z-40 border-b bg-background">
+      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+        <Link href="/" aria-label="Simulization home" onClick={() => setOpen(false)}>
           <Logo />
         </Link>
-        <nav aria-label="Primary" className="hidden md:block">
-          <ul className="flex items-center gap-8 text-sm text-muted-foreground">
-            {NAV.map((item) => (
-              <li key={item.href}>
-                <a href={item.href} className="transition-colors hover:text-accent">
-                  {item.label}
-                </a>
-              </li>
-            ))}
+
+        <nav aria-label="Primary" className="hidden items-center gap-6 md:flex">
+          {NAV.map((item) => {
+            const active = item.match(pathname)
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={active ? 'page' : undefined}
+                className={linkClass(active)}
+              >
+                {item.label}
+              </Link>
+            )
+          })}
+          <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className={linkClass(false)}>
+            GitHub
+          </a>
+        </nav>
+
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls="mobile-nav"
+          onClick={() => setOpen((v) => !v)}
+          className="inline-flex min-h-10 items-center rounded-md border px-3 text-sm text-foreground md:hidden"
+        >
+          {open ? 'Close' : 'Menu'}
+        </button>
+      </div>
+
+      {open && (
+        <nav id="mobile-nav" aria-label="Primary mobile" className="border-t bg-background md:hidden">
+          <ul className="mx-auto flex max-w-6xl flex-col px-4 py-2 sm:px-6">
+            {NAV.map((item) => {
+              const active = item.match(pathname)
+              return (
+                <li key={item.href} className="border-b last:border-b-0">
+                  <Link
+                    href={item.href}
+                    aria-current={active ? 'page' : undefined}
+                    onClick={() => setOpen(false)}
+                    className={`flex min-h-11 items-center text-sm ${
+                      active ? 'text-primary' : 'text-foreground'
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                </li>
+              )
+            })}
+            <li>
+              <a
+                href={REPO_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex min-h-11 items-center text-sm text-foreground"
+              >
+                GitHub
+              </a>
+            </li>
           </ul>
         </nav>
-        <Link
-          href="/report"
-          className="ml-auto text-sm text-muted-foreground transition-colors hover:text-accent md:hidden"
-        >
-          Report
-        </Link>
-        <Link
-          href="/launch"
-          className="whitespace-nowrap rounded-md border border-primary/50 px-3 py-1.5 text-sm text-primary transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground"
-        >
-          Launch a run
-        </Link>
-      </div>
+      )}
     </header>
   )
 }
