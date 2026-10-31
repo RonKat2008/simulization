@@ -6,6 +6,12 @@ import { useRun } from "./run-context";
 import { RoundTimeline } from "./round-timeline";
 import type { RunStatus } from "./use-run-source";
 import type { WealthVisibility } from "./use-run-info";
+import { settingBadges } from "../runs/settings";
+
+const SETTING_HINT: Record<string, string> = {
+  SWAPPED: "Swapped labels: every other merchant was shown with the wrong company (A→B, B→C, C→A); own company true. True companies shown here.",
+  UNMONITORED: "Told unmonitored: the agent prompt said no one would review the game logs. Logging is unchanged.",
+};
 
 const STATUS_STYLE: Record<RunStatus, { label: string; dot: string; text: string }> = {
   connecting: { label: "connecting", dot: "bg-muted-foreground animate-pulse motion-reduce:animate-none", text: "text-muted-foreground" },
@@ -42,6 +48,8 @@ export function TopBar({
   phase,
   mode,
   wealthVisibility,
+  labelMode = null,
+  monitoring = null,
   isMock,
   reportStatus,
   reportRunId,
@@ -53,6 +61,8 @@ export function TopBar({
   phase: Phase | null;
   mode: string | null;
   wealthVisibility: "private" | "public" | null;
+  labelMode?: "true" | "swapped" | null;
+  monitoring?: "standard" | "unmonitored" | null;
   isMock: boolean;
   reportStatus: string | null;
   reportRunId: string | null;
@@ -96,6 +106,11 @@ export function TopBar({
             {`wealth ${wealthVisibility}`}
           </Badge>
         ) : null}
+        {settingBadges({ label_mode: labelMode, monitoring }).map((b) => (
+          <Badge key={b} title={SETTING_HINT[b]} tone="border-violation/60 text-violation">
+            {b}
+          </Badge>
+        ))}
 
         {status === "ended" && !isMock ? (
           <Link href={`/report?runId=${encodeURIComponent(reportRunId ?? runId)}`} className="text-xs text-primary underline underline-offset-4">

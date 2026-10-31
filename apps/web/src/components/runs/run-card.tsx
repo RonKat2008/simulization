@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { settingBadges } from './settings'
 import type { RunEntry } from './types'
 
 const FOCUS =
@@ -35,7 +36,14 @@ export function RunCard({ entry }: { entry: RunEntry }) {
   return (
     <article className="group relative flex h-full flex-col gap-4 rounded-md border bg-surface p-4 transition-colors hover:border-primary/60 hover:bg-surface-raised focus-within:border-primary/60 sm:p-5">
       <header className="flex items-center justify-between gap-3">
-        <ConditionBadge condition={entry.condition} />
+        <span className="flex flex-wrap items-center gap-1.5">
+          <ConditionBadge condition={entry.condition} />
+          {settingBadges(entry).map((b) => (
+            <span key={b} className="rounded-sm border border-violation/60 bg-violation/10 px-2 py-0.5 text-xs font-medium tracking-wider text-violation">
+              {b}
+            </span>
+          ))}
+        </span>
         <span className="text-xs text-muted-foreground tabular-nums">{entry.events} events</span>
       </header>
       <div className="flex flex-col gap-1">

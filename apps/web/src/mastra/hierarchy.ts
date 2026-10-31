@@ -22,7 +22,7 @@ export const HIERARCHY_CAVEAT =
 /** What the log can't support, so the output says so instead of leaving a silent gap. */
 export const NOT_RECORDED = {
   coalitionInvitations: 'No invitation event exists: coalition_join is unsolicited, so acceptance of an invitation is not measurable.',
-  shuffledIdentities: 'No run records shuffled or swapped labels; seeds only reshuffle which merchant belongs to which company.',
+  shuffledIdentities: 'Swapped-label runs record label_mode and label_mapping in run config and form their own stratum; other runs show true labels, and seeds only reshuffle which merchant belongs to which company.',
 } as const;
 
 export type WealthVisibility = 'public' | 'private' | 'unrecorded';
@@ -32,10 +32,18 @@ export interface RunStratum {
   condition: Condition;
   wealthVisibility: WealthVisibility;
   mode: string;
+  /** Absent = 'true' (historical runs). */
+  labelMode?: LabelModeSetting;
+  /** Absent = 'standard' (historical runs). */
+  monitoring?: MonitoringSetting;
 }
 
-export const stratumKey = ({ condition, wealthVisibility, mode }: RunStratum) =>
-  `${condition}/${wealthVisibility}/${mode}`;
+export type LabelModeSetting = 'true' | 'swapped';
+export type MonitoringSetting = 'standard' | 'unmonitored';
+
+/** Default settings keep the original key; non-default label mode / monitoring add a suffix, so they never pool. */
+export const stratumKey = ({ condition, wealthVisibility, mode, labelMode, monitoring }: RunStratum) =>
+  `${condition}/${wealthVisibility}/${mode}${labelMode === 'swapped' ? '/swapped' : ''}${monitoring === 'unmonitored' ? '/unmonitored' : ''}`;
 
 const inSeqOrder = (events: Event[]) => [...events].sort((a, b) => a.seq - b.seq);
 
@@ -353,7 +361,7 @@ function compareVisibility(runs: CrossRunInput[]): VisibilityComparison {
       unpairedRuns.push({ runId: run.id, reason: 'run did not record wealth visibility' });
       continue;
     }
-    const key = [run.condition, run.seed, run.mode, run.hierarchy.agents.length].join('|');
+    const key = [run.condition, run.seed, run.mode, run.hierarchy.agents.length, run.labelMode ?? 'true', run.monitoring ?? 'standard'].join('|');
     groups.set(key, [...(groups.get(key) ?? []), run]);
   }
 
@@ -452,6 +460,16 @@ export function wealthVisibilityOf(config: unknown): WealthVisibility {
   const value = (config as { wealth_visibility?: unknown } | null)?.wealth_visibility;
   // Runs predating this setting used the engine's private default. Invalid explicit values stay separate.
   return value === undefined ? 'private' : value === 'public' || value === 'private' ? value : 'unrecorded';
+}
+
+/** runs.config.label_mode; absent (historical) = 'true'. */
+export function labelModeOf(config: unknown): LabelModeSetting {
+  return (config as { label_mode?: unknown } | null)?.label_mode === 'swapped' ? 'swapped' : 'true';
+}
+
+/** runs.config.monitoring; absent (historical) = 'standard'. */
+export function monitoringOf(config: unknown): MonitoringSetting {
+  return (config as { monitoring?: unknown } | null)?.monitoring === 'unmonitored' ? 'unmonitored' : 'standard';
 }
 
 export function runModeOf(config: unknown): string {

@@ -6,6 +6,10 @@ export interface RunEntry {
   condition: RunCondition
   seed: number
   wealth_visibility: string
+  /** 'true' | 'swapped'; absent in old manifests = 'true'. */
+  label_mode?: string
+  /** 'standard' | 'unmonitored'; absent in old manifests = 'standard'. */
+  monitoring?: string
   mode?: string
   events: number
   lies: number

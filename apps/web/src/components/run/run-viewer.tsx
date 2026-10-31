@@ -86,7 +86,7 @@ export function RunViewer({ id }: { id: string }) {
   return (
     <RunProvider value={ctx}>
       <div className="flex min-h-dvh flex-col">
-        <TopBar status={meta.status} round={round} phase={phase} mode={meta.mode} wealthVisibility={meta.wealthVisibility} isMock={meta.isMock} reportStatus={meta.reportStatus} reportRunId={meta.reportRunId} helpOpen={guideOpen} onHelp={() => setGuide(guideOpen)} />
+        <TopBar status={meta.status} round={round} phase={phase} mode={meta.mode} wealthVisibility={meta.wealthVisibility} labelMode={meta.labelMode} monitoring={meta.monitoring} isMock={meta.isMock} reportStatus={meta.reportStatus} reportRunId={meta.reportRunId} helpOpen={guideOpen} onHelp={() => setGuide(guideOpen)} />
         {guideOpen ? <RunLegend onClose={() => setGuide(true)} /> : null}
         {ctx.blind ? <BlindBanner /> : null}
         {meta.status === "offline" ? <OfflineStrip eventCount={events.length} /> : null}

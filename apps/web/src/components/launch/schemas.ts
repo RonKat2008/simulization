@@ -9,8 +9,37 @@ export const WealthVisibilitySchema = z.enum(WEALTH_VISIBILITIES);
 export type WealthVisibility = z.infer<typeof WealthVisibilitySchema>;
 export const DEFAULT_WEALTH_VISIBILITY: WealthVisibility = "private";
 
+export const LABEL_MODES = ["true", "swapped"] as const;
+export const LabelModeSchema = z.enum(LABEL_MODES);
+export type LabelMode = z.infer<typeof LabelModeSchema>;
+export const DEFAULT_LABEL_MODE: LabelMode = "true";
+
+export const MONITORINGS = ["standard", "unmonitored"] as const;
+export const MonitoringSchema = z.enum(MONITORINGS);
+export type Monitoring = z.infer<typeof MonitoringSchema>;
+export const DEFAULT_MONITORING: Monitoring = "standard";
+
 /** Body accepted by POST /api/runs (field names validated by createRun in _service.ts). */
-export type CreateRunBody = { condition: Condition; seed: number; wealth_visibility: WealthVisibility };
+export type CreateRunBody = {
+  condition: Condition;
+  seed: number;
+  wealth_visibility: WealthVisibility;
+  /** LABELED only; the server rejects "swapped" for BLIND. Omitted means "true". */
+  label_mode?: LabelMode;
+  /** Omitted means "standard". */
+  monitoring?: Monitoring;
+};
+
+/** Build a POST body; label_mode is sent only for LABELED runs so BLIND bodies stay valid. */
+export function buildRunBody(condition: Condition, seed: number, wealth: WealthVisibility, labelMode: LabelMode, monitoring: Monitoring): CreateRunBody {
+  return {
+    condition,
+    seed,
+    wealth_visibility: wealth,
+    ...(condition === "LABELED" && labelMode !== DEFAULT_LABEL_MODE ? { label_mode: labelMode } : {}),
+    ...(monitoring !== DEFAULT_MONITORING ? { monitoring } : {}),
+  };
+}
 
 export const SEED_MIN = -2147483648;
 export const SEED_MAX = 2147483647;
@@ -28,6 +57,8 @@ export const RunSummarySchema = z.object({
   phase: z.string().nullish(),
   mode: z.string().nullish(),
   wealth_visibility: z.string().nullish(),
+  label_mode: z.string().nullish(),
+  monitoring: z.string().nullish(),
   createdAt: z.union([z.string(), z.number()]).nullish(),
 });
 export type RunSummary = z.infer<typeof RunSummarySchema>;

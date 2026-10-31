@@ -129,11 +129,15 @@ export interface RunEthicality extends EthicalitySplit {
   runId: string;
 }
 
-/** Runs are pooled only within one (mode, wealth visibility) group; conditions are compared inside it. */
+/** Runs are pooled only within one (mode, wealth visibility, label mode, monitoring) group; conditions are compared inside it. */
 export interface RunGroup {
   key: string;
   mode: string;
   wealthVisibility: string;
+  /** 'true' | 'swapped'; absent = 'true'. */
+  labelMode?: string;
+  /** 'standard' | 'unmonitored'; absent = 'standard'. */
+  monitoring?: string;
   /** Scripted stub agents (or the mock): not model output. */
   isStub: boolean;
   labeledRuns: number;

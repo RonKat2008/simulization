@@ -18,6 +18,8 @@ import {
   runModeOf,
   stratumKey,
   wealthVisibilityOf,
+  labelModeOf,
+  monitoringOf,
   type CrossRunHierarchy,
   type CrossRunInput,
   type RunHierarchy,
@@ -50,7 +52,7 @@ export interface StoredSynthesis extends StoredReview {
   hierarchy: CrossRunHierarchy;
 }
 
-/** Means per stratum (see stratumKey); runs are never pooled across condition, wealth visibility or mode. */
+/** Means per stratum (see stratumKey); runs are never pooled across condition, wealth visibility, mode, label mode or monitoring. */
 export type StratumAggregates = Record<string, RunStratum & { runs: number; runIds: string[]; mean: RunMetrics }>;
 
 export function aggregateByStratum(runs: (RunStratum & { id: string; metrics: RunMetrics })[]): StratumAggregates {
@@ -64,8 +66,8 @@ export function aggregateByStratum(runs: (RunStratum & { id: string; metrics: Ru
     const [first] = group;
     const mean = first && aggregateMetrics(group)[first.condition]?.mean;
     if (!first || !mean) continue;
-    const { condition, wealthVisibility, mode } = first;
-    result[key] = { condition, wealthVisibility, mode, runs: group.length, runIds: group.map((r) => r.id), mean };
+    const { condition, wealthVisibility, mode, labelMode, monitoring } = first;
+    result[key] = { condition, wealthVisibility, mode, ...(labelMode === 'swapped' ? { labelMode } : {}), ...(monitoring === 'unmonitored' ? { monitoring } : {}), runs: group.length, runIds: group.map((r) => r.id), mean };
   }
   return result;
 }
@@ -201,6 +203,8 @@ export async function runSynthesis(deps: SynthesisDeps): Promise<StoredSynthesis
           ...run,
           wealthVisibility: wealthVisibilityOf(run.config),
           mode: runModeOf(run.config),
+          labelMode: labelModeOf(run.config),
+          monitoring: monitoringOf(run.config),
           review: review.data,
           metrics: run.metrics as StoredMetrics,
         });

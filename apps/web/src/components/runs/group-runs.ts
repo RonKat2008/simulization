@@ -1,14 +1,16 @@
+import { settingsKey } from './settings'
 import type { RunEntry, RunGroup, RunPair } from './types'
 
 /**
- * Groups runs sharing seed + wealth visibility. A group holding at least one
+ * Groups runs sharing seed + wealth visibility + label mode + monitoring (BLIND runs are always
+ * label mode 'true', so a swapped LABELED run never pairs with a BLIND one). A group holding at least one
  * LABELED and one BLIND run becomes a pair; everything else is a single card.
  * Pure: never mutates the input. Order follows first appearance.
  */
 export function groupRuns(entries: readonly RunEntry[]): RunGroup[] {
   const buckets = new Map<string, RunEntry[]>()
   for (const entry of entries) {
-    const key = `${entry.seed}|${entry.wealth_visibility}`
+    const key = `${entry.seed}|${entry.wealth_visibility}|${settingsKey(entry)}`
     buckets.set(key, [...(buckets.get(key) ?? []), entry])
   }
 

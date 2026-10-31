@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ROUNDS } from "@simulization/shared";
 import { RunListSchema, readErrorMessage, type RunSummary } from "./schemas";
+import { settingBadges } from "../runs/settings";
 
 type State =
   | { kind: "loading" }
@@ -118,7 +119,7 @@ export function PastRuns({ refreshKey = 0 }: { refreshKey?: number }) {
                 <tr key={run.id} className="border-t transition-colors hover:bg-surface-raised">
                   <th scope="row" className="max-w-[10rem] px-3 py-2.5 font-normal" title={`${run.id} · ${formatCreated(run.createdAt)}`}>
                     <span className="block truncate">{run.id}</span>
-                    <span className="block text-xs text-muted-foreground">{modeLabel(run.mode)} · {run.wealth_visibility ?? "private"} wealth</span>
+                    <span className="block text-xs text-muted-foreground">{modeLabel(run.mode)} · {run.wealth_visibility ?? "private"} wealth{settingBadges(run).map((b) => ` · ${b}`).join("")}</span>
                   </th>
                   <td className={`px-3 py-2.5 font-display tracking-widest ${run.condition === "BLIND" ? "text-accent" : "text-primary"}`}>
                     {run.condition}
