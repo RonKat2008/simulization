@@ -1,13 +1,9 @@
 // Owner: Person B. Merges the AgentRelay inbox with the referee's own notices when Relay is available.
-import type { AgentState, AgentTurnInput } from "@simulization/shared";
+import { INBOX_SIZE, type AgentState, type AgentTurnInput } from "@simulization/shared";
 import type { RunRelay } from "./runRelay";
 
 type InboxMessage = AgentTurnInput["inbox"][number];
 
-/** Same cap the world uses for the turn input inbox. */
-const INBOX_LIMIT = 10;
-/** Engine notices (thefts, pact proposals) always keep at least this many slots. */
-const NOTICE_SLOTS = 5;
 /** Channel for notices that come from the world engine, never from another merchant over Relay. */
 export const REFEREE_CHANNEL = "referee";
 const REFEREE_PREFIX = "[referee notice] ";
@@ -27,8 +23,11 @@ export function mergeInboxes(world: readonly InboxMessage[], relay: readonly Inb
   const notices = world
     .filter(isEngineNotice)
     .map((m) => ({ ...m, channel: REFEREE_CHANNEL, text: m.text.startsWith(REFEREE_PREFIX) ? m.text : `${REFEREE_PREFIX}${m.text}` }))
-    .slice(-NOTICE_SLOTS);
-  const messages = relay.slice(-(INBOX_LIMIT - notices.length));
+    .slice(-INBOX_SIZE);
+  // Keep every trusted notice still present in the bounded engine inbox.
+  // A fixed five-notice quota discarded valid notifications even with no Relay traffic.
+  const remaining = INBOX_SIZE - notices.length;
+  const messages = remaining > 0 ? relay.slice(-remaining) : [];
   return [...messages, ...notices].sort((a, b) => a.round - b.round);
 }
 
@@ -44,8 +43,9 @@ export async function withRelayInbox(
   try {
     const { inbox, inboxCursor } = await relay.pullInbox(runId, agentId, state, input.self.coalitionId, input.round);
     return { input: { ...input, inbox: mergeInboxes(input.inbox, inbox) }, state: { ...state, inboxCursor } };
-  } catch (err) {
-    console.warn(`relay inbox pull failed for ${agentId} in ${runId}; using world inbox`, err);
+  } catch {
+    // Provider errors may contain credentials or response bodies.
+    console.warn(`relay inbox pull failed for ${agentId} in ${runId}; using world inbox`);
     return { input, state };
   }
 }

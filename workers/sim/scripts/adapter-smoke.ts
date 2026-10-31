@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {fileURLToPath} from 'node:url';
+import {createActorTransport} from 'durable-actors/backend';
 import {startLocalActors} from 'durable-actors/dev';
 import {DurableActorsClient,TerseAgentStore} from '../src/agents/terseStore';
 import {createWorld,buildTurnInput} from '../src/engine/world';
@@ -13,9 +14,11 @@ process.env.MODEL_MODE='stub';delete process.env.AI_GATEWAY_API_KEY;delete proce
 let rt=await startLocalActors({project:actorProject,entrypoint:'src/actors.ts',dataDir,quiet:true});
 const store=()=>new TerseAgentStore(new DurableActorsClient({baseUrl:rt.connection.controlPlaneUrl,projectId:rt.connection.projectId}));
 try {
- const s=createWorld({runId:'adapter',seed:42,condition:'BLIND',agentCount:6});const id=Object.keys(s.agents).sort()[0]!;const input=buildTurnInput(s,id);
+ const s=createWorld({runId:'adapter',seed:42,condition:'BLIND',agentCount:6,wealth_visibility:'public'});const id=Object.keys(s.agents).sort()[0]!;const input=buildTurnInput(s,id);
  await store().init(s.runId,id,{name:input.self.name,company:input.self.company,provider:'stub',model:'stub',memory:'',inboxCursor:null});
  const first=await store().takeTurn(s.runId,id,input,undefined,'stable-turn',Date.now()+10000);
+ const receipt=await createActorTransport({controlPlaneUrl:rt.connection.controlPlaneUrl,projectId:rt.connection.projectId,apiKey:rt.connection.apiKey}).invoke('MerchantAgent',`${s.runId}.${id}`,'observationReceipt',[]) as any;
+ assert.equal(receipt.peersWithCoins,5);assert.equal(receipt.peerInventoryExposed,false);assert.equal(receipt.modelMode,'stub');
  const before=await store().load(s.runId,id);
  const duplicate=await store().takeTurn(s.runId,id,{...input,legalActions:['work'],memory:'must not overwrite'},undefined,'stable-turn',Date.now()+10000);
  assert.deepEqual(duplicate,first);assert.deepEqual(await store().load(s.runId,id),before);

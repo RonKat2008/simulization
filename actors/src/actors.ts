@@ -36,6 +36,8 @@ export class MerchantAgent extends Actor {
   @Persisted private memory = ""
   @Persisted private inboxCursor: string | null = null
   @Persisted private relayToken: string | undefined = undefined
+  // Minimal verification receipt from the actual post-Relay model input; no prompts or secrets.
+  @Persisted private firstObservation: {round:number;phase:string;peers:number;peersWithCoins:number;peerInventoryExposed:boolean;modelMode:string;outputTokens:number;passReason:string|null}|null = null
   @Persisted private turns = 0
   @Persisted private lastTurnKey: string | null = null
   @Persisted private completedTurnKey: string | null = null
@@ -55,6 +57,8 @@ export class MerchantAgent extends Actor {
     this.lastTurnKey = null
     this.initialized = true
   }
+
+  async observationReceipt(): Promise<unknown> { return this.firstObservation }
 
   async load(): Promise<AgentState> {
     return await this.snapshot()
@@ -95,6 +99,13 @@ export class MerchantAgent extends Actor {
     if (isTurnExpired(signal, deadline) || this.lastTurnKey !== key) return result.output
     await this.db.transaction(async () => {
       await this.applyState(result.state)
+      if (!this.firstObservation) this.firstObservation = {
+        round:turnInput.round,phase:turnInput.phase,peers:turnInput.otherAgents.length,
+        peersWithCoins:turnInput.otherAgents.filter(peer=>typeof peer.coins==='number').length,
+        peerInventoryExposed:turnInput.otherAgents.some(peer=>'inventory' in peer || 'trueQuality' in peer || 'value' in peer),
+        modelMode:process.env.MODEL_MODE==='stub'?'stub':'gateway',outputTokens:result.meta.outputTokens,
+        passReason:result.meta.passReason??null,
+      }
       this.turns = this.turns + 1
       this.completedTurnKey = key
       this.completedTurnJson = JSON.stringify(result.output)

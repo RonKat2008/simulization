@@ -18,12 +18,14 @@ export function LaunchPanel() {
         <h2 id="replay-heading" className="font-display text-2xl font-semibold">
           Recorded runs
         </h2>
-        <ul className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+        <p className="text-sm text-muted-foreground">Recorded live and scripted replays; no new model calls.</p>
+          <ul className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+            <li><Link href="/run/featured" className={LINK}>Recorded live run</Link></li>
           <li>
             <Link href="/runs" className={LINK}>Browse recorded runs</Link>
           </li>
           <li>
-            <Link href="/report" className={LINK}>Report</Link>
+            <Link href="/report?mock=1" className={LINK}>Mock report</Link>
           </li>
         </ul>
       </section>

@@ -25,9 +25,9 @@
 }
 
 @theme inline {
-  --font-sans: var(--font-body), ui-monospace, monospace;
+  --font-sans: Arial, Helvetica, sans-serif;
   --font-mono: var(--font-body), ui-monospace, monospace;
-  --font-display: var(--font-pixel), var(--font-body), monospace;
+  --font-display: Arial, Helvetica, sans-serif;
 
   --color-background: var(--background);
   --color-surface: var(--surface);
@@ -257,6 +257,13 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
   }
+}
+
+/* Interface explanations use readable type; the Phaser village keeps its pixel identity. */
+body.font-sans, body .font-display { font-family: Arial, Helvetica, sans-serif !important; }
+button, summary, a { touch-action: manipulation; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
 
 /* Landing hero market visual (anime.js). Initial hidden states have a reduced-motion static fallback. */

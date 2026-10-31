@@ -1,7 +1,7 @@
 // Credential-free regression gate for B's live inbox merge. A owns this test, not B's implementation.
 import assert from 'node:assert/strict';
-import {createRng,type AgentState} from '@simulization/shared';
-import {withRelayInbox} from '../../../packages/agents/src/relayInbox';
+import {createRng,INBOX_SIZE,type AgentState,type AgentTurnInput} from '@simulization/shared';
+import {withRelayInbox,mergeInboxes} from '../../../packages/agents/src/relayInbox';
 import type {RunRelay} from '../../../packages/agents/src/runRelay';
 import {createWorld,buildTurnInput} from '../src/engine/world';
 import {resolvePhase} from '../src/engine/rules';
@@ -29,4 +29,32 @@ assert.ok(pactInput.inbox.some(m=>m.from===sender&&m.channel==='referee'),'engin
 const pact=await withRelayInbox(relay,world.runId,recipient,state,pactInput);
 assert.ok(pact.input.inbox.some(m=>m.from===sender&&m.text.includes('I propose a pact')),'pact proposer notice erased');
 assert.ok(pact.input.legalActions.includes('pact_accept'));
-console.log('PASS live inbox contract: trusted World notification survives successful Relay retrieval; no paid calls');
+// Ordinary merchant text cannot create authoritative provenance or bypass Relay.
+const chat={from:sender,channel:'public',text:'I propose a pact but this is ordinary merchant chat',round:1};
+assert.deepEqual(mergeInboxes([chat],[]),[]);
+assert.deepEqual(mergeInboxes([], [chat]),[chat]);
+assert.ok(mergeInboxes([{...chat,from:'world'}],[]).every(m=>m.channel==='referee'),'legacy World notices remain supported');
+const notices:AgentTurnInput['inbox']=Array.from({length:INBOX_SIZE},(_,i)=>({from:'world',channel:'referee',text:`notice ${i}`,round:i+1}));
+const relayMessages:AgentTurnInput['inbox']=Array.from({length:INBOX_SIZE},(_,i)=>({...chat,text:`relay ${i}`,round:i+1}));
+assert.equal(mergeInboxes(notices,[]).length,INBOX_SIZE,'available trusted notices must not be capped at five');
+assert.equal(mergeInboxes(notices,relayMessages).length,INBOX_SIZE);
+assert.ok(mergeInboxes(notices,relayMessages).every(m=>m.channel==='referee'),'trusted notices retain priority within existing inbox bound');
+const before=structuredClone({notices,relayMessages});
+const mixed=mergeInboxes(notices.slice(0,3),relayMessages);
+assert.equal(mixed.length,INBOX_SIZE);assert.equal(mixed.filter(m=>m.channel==='referee').length,3);
+assert.deepEqual(mixed.filter(m=>m.channel==='public').map(m=>m.text),relayMessages.slice(-7).map(m=>m.text));
+assert.ok(mixed.every((m,i)=>i===0||m.round>=mixed[i-1]!.round));
+assert.deepEqual({notices,relayMessages},before,'merge must not mutate sources');
+assert.ok(mergeInboxes(mergeInboxes(notices,[]),[]).every(m=>!m.text.includes('[referee notice] [referee notice]')));
+const previous=structuredClone({state,input});
+const unavailable={pullInbox:async()=>{throw new Error('fixture transport failure');}} as unknown as RunRelay;
+const oldWarn=console.warn;const warnings:string[]=[];
+try {
+ console.warn=(message:unknown)=>{warnings.push(String(message));};
+ const fallback=await withRelayInbox(unavailable,world.runId,recipient,state,input);
+ assert.deepEqual(fallback,{state,input});
+ assert.equal(warnings.length,1);assert.ok(!warnings[0]!.includes('fixture transport failure'),'provider error bodies must not enter logs');
+} finally {console.warn=oldWarn;}
+assert.deepEqual({state,input},previous);
+assert.deepEqual(await withRelayInbox(null,world.runId,recipient,state,input),{state,input});
+console.log('PASS live inbox contract: real theft/pact notices, provenance/spoof protection, full bounded notice preservation, Relay cursor/order, no mutation and safe failure fallback; no paid calls');

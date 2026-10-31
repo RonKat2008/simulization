@@ -9,7 +9,6 @@ import { MetricsBar } from "./metrics-bar";
 import { Roster } from "./roster";
 import { RunLegend } from "./run-legend";
 import { useStoredFlag } from "./run-prefs";
-import { useWealthVisibility } from "./use-run-info";
 import { RunSummary } from "./run-summary";
 import { buildRunCtx, RunProvider } from "./run-context";
 import { mergeAgents } from "./run-helpers";
@@ -28,9 +27,9 @@ const isTyping = (t: EventTarget | null) => {
 export function RunViewer({ id }: { id: string }) {
   const meta = useRunSource(id);
   const events = useEventStore((s) => s.events);
+  const storeRunId = useEventStore((s) => s.runId);
   const [view, setView] = useView();
 
-  const wealth = useWealthVisibility(id);
   // Guide is shown until dismissed; the choice is remembered. `ready` avoids a flash before storage is read.
   const guide = useStoredFlag("guide-dismissed", false);
   const { value: guideDismissed, set: setGuide } = guide;
@@ -80,25 +79,27 @@ export function RunViewer({ id }: { id: string }) {
   const round = meta.round ?? last?.round ?? null;
   const phase: Phase | null = meta.phase ?? last?.phase ?? null;
 
+  if (storeRunId !== id) return <p role="status" className="p-6 text-sm text-muted-foreground">Loading run...</p>;
+
   if (meta.error && events.length === 0) return <ErrorPanel message={meta.error} />;
 
   return (
     <RunProvider value={ctx}>
       <div className="flex min-h-dvh flex-col">
-        <TopBar status={meta.status} round={round} phase={phase} mode={meta.mode} wealth={wealth} helpOpen={guideOpen} onHelp={() => setGuide(guideOpen)} />
+        <TopBar status={meta.status} round={round} phase={phase} mode={meta.mode} wealthVisibility={meta.wealthVisibility} isMock={meta.isMock} reportStatus={meta.reportStatus} reportRunId={meta.reportRunId} helpOpen={guideOpen} onHelp={() => setGuide(guideOpen)} />
         {guideOpen ? <RunLegend onClose={() => setGuide(true)} /> : null}
         {ctx.blind ? <BlindBanner /> : null}
         {meta.status === "offline" ? <OfflineStrip eventCount={events.length} /> : null}
         <main className="mx-auto flex w-full max-w-[1600px] min-w-0 flex-1 flex-col gap-3 px-4 py-3 sm:px-6">
           {meta.status === "ended" && events.length > 0 ? <RunSummary events={events} isMock={meta.isMock} mode={meta.mode} /> : null}
-          <MetricsBar events={events} />
+          <details className="rounded-md border px-3 py-2"><summary className="cursor-pointer text-sm font-medium">Behavioral measures · counts and denominators</summary><div className="mt-3"><MetricsBar events={events} /></div></details>
           <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start">
             <div className="flex min-w-0 flex-col gap-3">
               <ViewTabs view={view} onChange={setView} />
               <div role="tabpanel" id={panelId(view)} aria-labelledby={tabId(view)} tabIndex={0} className="min-w-0 max-w-full overflow-x-auto outline-none focus-visible:ring-1 focus-visible:ring-primary">
                 {view === "game" ? (
                   <div className="overflow-hidden rounded-lg border bg-surface">
-                    <VillageCanvas agents={canvasAgents} />
+                    <VillageCanvas key={id} agents={canvasAgents} />
                   </div>
                 ) : view === "data" ? (
                   <DataView />
@@ -106,7 +107,7 @@ export function RunViewer({ id }: { id: string }) {
                   <ResearchView />
                 )}
               </div>
-              <AgentCard finalScores={meta.finalScores} />
+              <AgentCard finalScores={meta.finalScores} wealthVisibility={meta.wealthVisibility} />
               <Roster finalScores={meta.finalScores} />
             </div>
             <div className="flex min-h-[28rem] min-w-0 flex-col lg:sticky lg:top-3 lg:h-[calc(100dvh-1.5rem)] lg:min-h-0">

@@ -1,4 +1,4 @@
-// Owner: E. Mastra instance, server side only. Runs on Next.js / Vercel, never inside DOs.
+// Mastra runs server-side in Next.js. Terse owns durable delivery; Neon stores results.
 import { Mastra } from '@mastra/core/mastra';
 import { OPUS, reviewRun, reviewerAgent, synthesisAgent } from './agents';
 import { getCrossReviewer } from './crossJudgeAgent';

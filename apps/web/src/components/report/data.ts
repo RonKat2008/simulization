@@ -17,7 +17,8 @@ import {
 import labeledRun from '@simulization/shared/mock/mock-run.labeled.json';
 import blindRun from '@simulization/shared/mock/mock-run.blind.json';
 import { buildSampleClaims } from './sample-claims';
-import { relabelForDisplay } from '@/mastra/anonymize';
+import { relabelForDisplay } from '../../mastra/anonymize';
+import { runModeOf, wealthVisibilityOf } from '../../mastra/hierarchy';
 import { buildJudgeChecks } from './judge-check';
 import { toEvidence, type AgentLookup } from './summarize';
 import { loadNeonReport, type NeonReport } from './neon';
@@ -30,10 +31,13 @@ export interface LoadedRun {
   agents: { id: string; name: string; company: string }[];
   events: Event[];
   finalScores: Record<string, number>;
+  config?: { wealth_visibility?: string; mode?: string };
+  status?: string;
+  storedMetrics?: RunMetrics & { byCompany?: Record<string, RunMetrics> };
   /** runs.config.mode, e.g. 'live-model-relay' or 'deterministic-stub'; 'unknown' when not recorded. */
-  mode: string;
-  /** runs.config.wealth_visibility; 'unrecorded' for older runs. */
-  wealthVisibility: string;
+  mode?: string;
+  /** Normalized visibility; legacy runs use the original private default. */
+  wealthVisibility?: string;
 }
 
 /** The mock files are scripted stub runs with no recorded config. */
@@ -84,8 +88,8 @@ const mean = (xs: number[]) => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.l
 
 function conditionReport(condition: Condition, runs: LoadedRun[]): ConditionReport {
   const perRun = runs.map((r) => ({
-    metrics: computeRunMetrics(r.events, r.agents),
-    byCompany: computeCompanyMetrics(r.events, r.agents),
+    metrics: r.storedMetrics ?? computeRunMetrics(r.events, r.agents),
+    byCompany: r.storedMetrics?.byCompany ?? computeCompanyMetrics(r.events, r.agents),
     run: r,
   }));
   const companies = [...new Set(runs.flatMap((r) => r.agents.map((a) => a.company)))].sort();
@@ -162,7 +166,7 @@ function reviewClaimsFor(run: LoadedRun, claims: Review['claims']): ReportClaim[
   });
 }
 
-function realReview(runs: LoadedRun[], reviews: NeonReport['reviews'], extras: NeonReport['extras']): ReportReview {
+function realReview(runs: LoadedRun[], reviews: NeonReport['reviews'], extras: NonNullable<NeonReport['extras']>): ReportReview {
   // Stored reviews use the anonymized labels the judge saw ("Group 2"); map them back with each run's own groupMap.
   const show = (runId: string, text: string) => {
     const map = extras.get(runId)?.groupMap;
@@ -184,7 +188,9 @@ function realReview(runs: LoadedRun[], reviews: NeonReport['reviews'], extras: N
   };
 }
 
-const groupKey = (r: Pick<LoadedRun, 'mode' | 'wealthVisibility'>) => `${r.mode}/${r.wealthVisibility}`;
+const modeOf = (r: LoadedRun) => r.mode ?? runModeOf(r.config);
+const visibilityOf = (r: LoadedRun) => r.wealthVisibility ?? wealthVisibilityOf(r.config);
+const groupKey = (r: LoadedRun) => `${modeOf(r)}/${visibilityOf(r)}`;
 
 function groupLabel(mode: string, visibility: string, source: ReportData['source']): string {
   const who = source === 'mock' ? 'Mock (scripted stubs)' : isStubMode(mode) ? 'Stub agents' : mode === LIVE_MODE ? 'Live models' : `Mode: ${mode}`;
@@ -198,7 +204,8 @@ function groupsOf(runs: LoadedRun[], source: ReportData['source']): RunGroup[] {
   for (const r of runs) byKey.set(groupKey(r), [...(byKey.get(groupKey(r)) ?? []), r]);
   return [...byKey.entries()]
     .map(([key, list]) => {
-      const { mode, wealthVisibility } = list[0]!;
+      const mode = modeOf(list[0]!);
+      const wealthVisibility = visibilityOf(list[0]!);
       return {
         key,
         mode,
@@ -243,29 +250,59 @@ function mockReport(): ReportData {
   return assemble('mock', [parseMock(labeledRun), parseMock(blindRun)], sampleReview);
 }
 
-/**
- * The single data seam for /report.
- *
- * With DATABASE_URL set: completed runs from Neon (see neon.ts), split into groups by (mode, wealth
- * visibility) and never pooled across groups; one group is shown (`groupKeyParam`, else live models with
- * the most common visibility). Within the group, conditions present are reported (a single completed run
- * is enough; the label effect stays n/a until both conditions exist). Metrics recomputed here with the
- * shared functions, review = latest stored kind 'run' review per run (isSample false). If no run has
- * a stored review yet, claims are the flagged-event placeholders (isSample true) over the real events.
- * Falls back to the schema-validated mock for the whole report when DATABASE_URL is unset, the query
- * throws, or there is no completed run. Never throws.
- */
-export async function loadReportData(groupKeyParam?: string): Promise<ReportData> {
+export interface ReportOptions { runId?: string; wealthVisibility?: string; mode?: string; mock?: boolean; group?: string; }
+const emptyReview: ReportReview = {isSample:false,summary:'No stored review is available.',claims:[],limitations:[]};
+
+/** Explicit group selection never falls back to a different experiment. */
+export function selectReportRuns(runs: LoadedRun[], options: ReportOptions): LoadedRun[] {
+  if (options.runId) return runs.filter(r => r.id === options.runId);
+  if (options.group) return runs.filter(r => groupKey(r) === options.group);
+  const groups = groupsOf(runs, 'neon');
+  const fallback = groups.length ? defaultGroup(groups) : undefined;
+  const wealth = options.wealthVisibility ?? fallback?.wealthVisibility ?? 'private';
+  const mode = options.mode ?? fallback?.mode ?? 'unknown';
+  return runs.filter(r => visibilityOf(r) === wealth && modeOf(r) === mode);
+}
+
+function emptyReport(state: ReportData['state'], message: string, options: ReportOptions = {}): ReportData {
+  const [groupMode, groupWealth] = options.group?.split('/') ?? [];
+  const mode = options.mode ?? groupMode ?? 'unknown';
+  const wealthVisibility = options.wealthVisibility ?? groupWealth ?? 'unknown';
+  return {
+    source: 'neon', state, message,
+    selection: {runId: options.runId, wealthVisibility, mode},
+    group: {key: `${mode}/${wealthVisibility}`, mode, wealthVisibility, isStub: isStubMode(mode), labeledRuns: 0, blindRuns: 0, label: groupLabel(mode, wealthVisibility, 'neon')},
+    groups: [], labelEffect: labelEffectFromValues([], []), conditions: {}, review: emptyReview, judgeChecks: [],
+  };
+}
+
+export function assembleNeonReport(neon: NeonReport, options: ReportOptions): ReportData {
+  const runs = selectReportRuns(neon.runs, options);
+  const first = runs[0];
+  const groups = groupsOf(neon.runs, 'neon');
+  if (!first) return {...emptyReport('empty', options.runId ? 'Run not found in the reporting database yet. Open the live viewer to check initialization.' : 'No completed runs match this report selection.', options), groups};
+  const selection = {runId: options.runId, wealthVisibility: visibilityOf(first), mode: modeOf(first)};
+  if (first.status !== 'done') return {
+    ...emptyReport(first.status === 'failed' ? 'failed' : 'pending', first.status === 'failed' ? 'This run stopped before completion; no completed report is available.' : 'This run is still in progress. Its report will appear after completion.', {...options, ...selection}), groups,
+  };
+  const extras = neon.extras ?? new Map();
+  const reviewed = runs.filter(r => neon.reviews.has(r.id));
+  const review = realReview(runs, neon.reviews, extras);
+  if (!reviewed.length) review.summary = 'Metrics are available. No persisted model review is available yet; review generation may be pending or failed. Check the run status for delivery details.';
+  // The selected set is already one compatible group (or one run). New measures are
+  // derived from these same events; the original persisted metrics remain authoritative.
+  const data = assemble('neon', runs, () => review, undefined, selected => buildJudgeChecks(selected, extras));
+  return {...data, groups, state: 'ready', selection, pendingReview: reviewed.length < runs.length};
+}
+
+/** Explicit fixtures only; database errors never masquerade as a mock report. */
+export async function loadReportData(options: ReportOptions = {}): Promise<ReportData> {
+  if (options.mock) return mockReport();
   try {
-    const neon = await loadNeonReport();
-    if (neon && neon.runs.length > 0) {
-      const review = (runs: LoadedRun[]) =>
-        runs.some((r) => neon.reviews.has(r.id)) ? realReview(runs, neon.reviews, neon.extras) : sampleReview(runs);
-      return assemble('neon', neon.runs, review, groupKeyParam, (runs) => buildJudgeChecks(runs, neon.extras));
-    }
-    if (neon) console.error('[report] Neon has no completed runs. Showing mock data.');
-  } catch (err) {
-    console.error('[report] Neon read failed; showing mock data', err);
+    const neon = await loadNeonReport(options.runId);
+    if (!neon) return emptyReport('error', 'Reporting database is not configured. Use the explicitly labeled fixture report for an offline preview.', options);
+    return assembleNeonReport(neon, options);
+  } catch {
+    return emptyReport('error', 'The reporting database could not be read. Retry shortly; no fixture data has been substituted.', options);
   }
-  return mockReport();
 }

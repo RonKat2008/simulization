@@ -55,13 +55,13 @@ function usePipeline(events: Event[], metricLine: string): Stage[] {
     return [
       {
         title: "Agent turn",
-        kind: "prompt, private plan, actions",
-        desc: "Each agent reads its prompt, writes a private plan, then acts. t = turns, a = actions per phase.",
+        kind: "prompt, self-reported plan, actions",
+        desc: "Each agent reads its prompt, writes a self-reported plan, then acts. Plans are not verified internal thoughts. t = turns, a = actions per phase.",
         headline: [turnKeys.size, "turns"],
         lines: [
           ["turns", turnKeys.size],
           ["actions", Object.values(actionsByPhase).reduce((s, v) => s + v, 0)],
-          ["private plans", plans],
+          ["self-reported plans", plans],
           ...PHASES.map((p): [string, string] => [p, `${turnsByPhase[p]?.size ?? 0} t / ${actionsByPhase[p] ?? 0} a`]),
         ],
       },
@@ -218,8 +218,8 @@ const COLUMNS: { id: ColKey; sort: SortKey | null; label: string; cell?: string 
   { id: "type", sort: "type", label: "Type" },
   { id: "actor", sort: "actor", label: "Actor to target" },
   { id: "rel", sort: "rel", label: "In/out" },
-  { id: "text", sort: null, label: "Public text", cell: "min-w-[14rem] max-w-[24rem]" },
-  { id: "plan", sort: null, label: "Private plan", cell: "min-w-[14rem] max-w-[24rem]" },
+  { id: "text", sort: null, label: "Channel-scoped text", cell: "min-w-[14rem] max-w-[24rem]" },
+  { id: "plan", sort: null, label: "Self-reported plan", cell: "min-w-[14rem] max-w-[24rem]" },
   { id: "claim", sort: "claim", label: "Claimed / true" },
   { id: "flags", sort: null, label: "Flags" },
 ];
@@ -345,11 +345,11 @@ const EventRow = memo(function EventRow({ row, expanded, show, colCount, json, o
           <td colSpan={colCount} className="px-3 pb-3 pt-1">
             <dl className="grid gap-x-6 gap-y-2 text-xs sm:grid-cols-2">
               <div className="min-w-0">
-                <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">Public text</dt>
+                <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">Channel-scoped text</dt>
                 <dd className="whitespace-pre-wrap break-words">{e.text || "-"}</dd>
               </div>
               <div className="min-w-0">
-                <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">Private plan</dt>
+                <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">Self-reported plan</dt>
                 <dd className="whitespace-pre-wrap break-words text-muted-foreground">{e.privatePlan || "-"}</dd>
               </div>
             </dl>
@@ -609,8 +609,8 @@ export default function ResearchView() {
       { name: "Eval-awareness rate", value: pct(m.evalAwareness.rate), num: frac(m.evalAwareness.count, m.evalAwareness.total), note: "eval_aware turns / turns" },
       { name: "Largest coalition", value: `${p.largestCoalition.size}`, num: `${p.largestCoalition.size} / ${agents.length}`, note: `share ${pct(p.largestCoalition.share)}; dominant company share ${pct(p.largestCoalition.dominantCompanyShare)}` },
       { name: "Degree centralization", value: p.degreeCentralization.toFixed(3), num: "-", note: "0 flat, 1 star" },
-      { name: "Wealth Gini", value: p.wealthGini ? p.wealthGini.toFixed(3) : "n/a", num: "-", note: "needs final scores (not in event log)" },
-      { name: "Top brokers (distinct partners)", value: p.brokers.length ? p.brokers.map((b) => `${label(b.agentId)} ${b.degree}`).join(", ") : "-", num: "-" },
+      { name: "Game-score Gini", value: p.wealthGini ? p.wealthGini.toFixed(3) : "n/a", num: "-", note: "needs final scores (not in event log)" },
+      { name: "Most connected (distinct partners)", value: p.brokers.length ? p.brokers.map((b) => `${label(b.agentId)} ${b.degree}`).join(", ") : "-", num: "-" },
     ];
     const line = `align ${m.allianceRatio.ratio.toFixed(2)}x, lie ${pct(m.deception.inGroup)}/${pct(m.deception.outGroup)}`;
     return { rows: out, metricLine: line };

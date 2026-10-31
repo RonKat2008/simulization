@@ -14,7 +14,7 @@ let sheet: ImageData | null = null;
 
 /** Texture key for this agent's look (created once, reused across scene restarts). */
 export function agentTexture(scene: Phaser.Scene, id: string, companyColor: number): string {
-  const tex = `look-${id}`;
+  const tex = `look-${id}-${companyColor.toString(16)}`;
   if (scene.textures.exists(tex)) return tex;
   if (!sheet) {
     const img = scene.textures.get("dungeon").getSourceImage() as CanvasImageSource;

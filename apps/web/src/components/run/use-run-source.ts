@@ -5,8 +5,9 @@ import labeled from "@simulization/shared/mock/mock-run.labeled.json";
 import blind from "@simulization/shared/mock/mock-run.blind.json";
 import { useEventStore } from "@/store/eventStore";
 import type { RunAgent } from "./run-helpers";
+import { contiguousCursor, terminalDrained } from "./event-progress";
 
-export type RunStatus = "connecting" | "live" | "ended" | "offline";
+export type RunStatus = "connecting" | "live" | "draining" | "ended" | "failed" | "offline";
 
 export interface RunMeta {
   condition: Condition | null;
@@ -21,6 +22,10 @@ export interface RunMeta {
   mode: string | null;
   finalScores: Record<string, number> | null;
   isMock: boolean;
+  wealthVisibility: "private" | "public" | null;
+  reportStatus: string | null;
+  /** Original run id for a static recorded replay's persisted report. */
+  reportRunId: string | null;
 }
 
 const MOCKS = { mock: labeled, "mock-blind": blind } as const;
@@ -52,6 +57,7 @@ const parseEvents = (raw: unknown): Event[] =>
     : [];
 
 interface SimStatus {
+  id?: string;
   condition?: Condition;
   status?: string;
   round?: number;
@@ -62,16 +68,9 @@ interface SimStatus {
   mode?: string;
   /** Last committed event seq; terminal once status is done/failed. */
   seq?: number;
-}
-
-/** Highest seq such that every event 1..seq is in the store (gaps mean a read raced a write). */
-function contiguousCursor(events: readonly Event[]): number {
-  let cursor = 0;
-  for (const e of events) {
-    if (e.seq === cursor + 1) cursor = e.seq;
-    else if (e.seq > cursor + 1) break;
-  }
-  return cursor;
+  wealth_visibility?: "private" | "public";
+  reportStatus?: string;
+  setupError?: string | null;
 }
 
 function parseRoster(raw: unknown): RunAgent[] | null {
@@ -97,6 +96,9 @@ function mockMeta(id: string): RunMeta {
     mode: mock ? "recorded replay" : null,
     finalScores: mock ? (mock.run.finalScores as Record<string, number>) : null,
     isMock: Boolean(mock),
+    wealthVisibility: mock ? "private" : null,
+    reportStatus: null,
+    reportRunId: mock ? null : id,
   };
 }
 
@@ -106,7 +108,8 @@ export function useRunSource(id: string): RunMeta {
 
   useEffect(() => {
     const { reset, load, append } = useEventStore.getState();
-    reset();
+    reset(id);
+    setMeta(mockMeta(id));
     const mock = MOCKS[id as keyof typeof MOCKS];
     if (mock) {
       load(mock.events as Event[]);
@@ -121,7 +124,11 @@ export function useRunSource(id: string): RunMeta {
           if (stopped) return;
           const file = raw as { run?: SimStatus & { seed?: number }; events?: unknown };
           const s = file.run ?? {};
-          load(parseEvents(file.events));
+          const events = parseEvents(file.events).sort((a,b)=>a.seq-b.seq);
+          if (!s.id || events.some(e=>e.runId!==s.id) || !terminalDrained(s,events)) {
+            throw new Error('Recorded run is incomplete or inconsistent');
+          }
+          load(events);
           setMeta((m) => ({
             ...m,
             condition: s.condition ?? null,
@@ -131,6 +138,9 @@ export function useRunSource(id: string): RunMeta {
             finalScores: s.finalScores ?? null,
             roster: parseRoster(s.agents),
             mode: s.mode ? `recorded ${s.mode}` : "recorded run",
+            wealthVisibility: s.wealth_visibility ?? "private",
+            reportStatus: s.reportStatus ?? null,
+            reportRunId: s.id ?? null,
             error: null,
           }));
         })
@@ -147,35 +157,36 @@ export function useRunSource(id: string): RunMeta {
     const base = `${SIM_URL}/runs/${encodeURIComponent(id)}`;
 
     const tick = async () => {
+      if (stopped) return;
       let done = false;
+      let nextDelay = POLL_MS;
       try {
         // Status first: its seq is the target the event cursor must reach before we can stop.
         const s = (await getJson(base)) as SimStatus;
+        if (stopped) return;
         const after = contiguousCursor(useEventStore.getState().events);
         const evs = await getJson(`${base}/events?after=${after}`);
         if (stopped) return;
-        const events = parseEvents(evs);
+        const events = parseEvents(evs).filter(event => event.runId === id);
         if (events.length) append(events);
         fails = 0;
         loaded = true;
         const terminal = s.status === "done" || s.status === "failed" || s.stopped === true;
-        const caughtUp = typeof s.seq !== "number" || contiguousCursor(useEventStore.getState().events) >= s.seq;
-        done = terminal && caughtUp;
+        done = terminalDrained(s, useEventStore.getState().events);
         // Still behind a terminal seq (paged or raced read): fetch again right away.
-        if (terminal && !caughtUp && events.length > 0) {
-          setTimeout(tick, 0);
-          return;
-        }
+        if (terminal && !done && contiguousCursor(useEventStore.getState().events) > after) nextDelay = 0;
         setMeta((m) => ({
           ...m,
           condition: s.condition ?? m.condition,
-          status: done ? "ended" : "live",
+          status: s.setupError ? "failed" : done ? (s.status === "failed" || s.stopped ? "failed" : "ended") : terminal ? "draining" : s.mode === "initializing-live" ? "connecting" : "live",
           round: s.round ?? m.round,
           phase: s.phase ?? m.phase,
           finalScores: s.finalScores ?? m.finalScores,
           roster: parseRoster(s.agents) ?? m.roster,
           mode: s.mode ?? m.mode,
-          error: null,
+          error: s.setupError ? "Agent setup failed. Check the simulation runtime before retrying with a new run." : null,
+          wealthVisibility: s.wealth_visibility ?? m.wealthVisibility,
+          reportStatus: s.reportStatus ?? m.reportStatus,
         }));
       } catch (err) {
         if (stopped) return;
@@ -191,7 +202,7 @@ export function useRunSource(id: string): RunMeta {
           setMeta((m) => ({ ...m, status: "offline" }));
         }
       }
-      if (!stopped && !done) timer = setTimeout(tick, POLL_MS);
+      if (!stopped && !done) timer = setTimeout(tick, nextDelay);
     };
     void tick();
 

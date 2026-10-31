@@ -90,7 +90,6 @@ export function PastRuns({ refreshKey = 0 }: { refreshKey?: number }) {
         <div role="alert" className="flex flex-col gap-2 rounded-lg border border-dashed p-6 text-sm">
           <p className="font-semibold text-violation">Run history unavailable.</p>
           <p className="leading-relaxed text-muted-foreground">{state.message}</p>
-          
         </div>
       ) : null}
 
@@ -117,8 +116,9 @@ export function PastRuns({ refreshKey = 0 }: { refreshKey?: number }) {
             <tbody>
               {state.runs.map((run) => (
                 <tr key={run.id} className="border-t transition-colors hover:bg-surface-raised">
-                  <th scope="row" className="max-w-[10rem] truncate px-3 py-2.5 font-normal" title={`${run.id} · ${modeLabel(run.mode)} · ${run.wealth_visibility ?? "private"} wealth · ${formatCreated(run.createdAt)}`}>
-                    {run.id}
+                  <th scope="row" className="max-w-[10rem] px-3 py-2.5 font-normal" title={`${run.id} · ${formatCreated(run.createdAt)}`}>
+                    <span className="block truncate">{run.id}</span>
+                    <span className="block text-xs text-muted-foreground">{modeLabel(run.mode)} · {run.wealth_visibility ?? "private"} wealth</span>
                   </th>
                   <td className={`px-3 py-2.5 font-display tracking-widest ${run.condition === "BLIND" ? "text-accent" : "text-primary"}`}>
                     {run.condition}
@@ -131,7 +131,7 @@ export function PastRuns({ refreshKey = 0 }: { refreshKey?: number }) {
                       viewer
                     </Link>
                     <span className="mx-2 text-muted-foreground" aria-hidden="true">/</span>
-                    <Link href="/report" className={LINK}>
+                    <Link href={`/report?runId=${encodeURIComponent(run.id)}`} className={LINK}>
                       report
                     </Link>
                   </td>

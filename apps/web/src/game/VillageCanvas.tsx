@@ -7,7 +7,8 @@ import { ROUNDS } from "@simulization/shared";
 import type { AgentInfo } from "./scene";
 
 const btn = (on: boolean) => ({
-  padding: "2px 8px",
+  padding: "4px 8px",
+  minHeight: 28,
   borderRadius: 4,
   border: 0,
   cursor: "pointer",
@@ -25,13 +26,23 @@ export default function VillageCanvas({ agents }: { agents?: AgentInfo[] }) {
   };
 
   useEffect(() => {
-    let game: { destroy: (removeCanvas: boolean) => void } | null = null;
+    let game: { destroy: (removeCanvas: boolean) => void; scale: { getParentBounds: () => boolean; refresh: () => unknown } } | null = null;
+    let observer: ResizeObserver | null = null;
     let dead = false;
     import("./scene").then(({ createGame }) => {
-      if (!dead && ref.current) game = createGame(ref.current);
+      if (!dead && ref.current) {
+        game = createGame(ref.current);
+        observer = new ResizeObserver(() => {
+          // FIT uses cached parent bounds; refresh alone keeps the mobile size.
+          game?.scale.getParentBounds();
+          game?.scale.refresh();
+        });
+        observer.observe(ref.current);
+      }
     });
     return () => {
       dead = true;
+      observer?.disconnect();
       game?.destroy(true);
     };
   }, []);
@@ -48,7 +59,7 @@ export default function VillageCanvas({ agents }: { agents?: AgentInfo[] }) {
     // Inline styles on purpose: works whether or not Tailwind is wired up.
     <div style={{ position: "relative", width: "100%", aspectRatio: "16 / 9", background: "#0b0f1a" }}>
       <div ref={ref} style={{ position: "absolute", inset: 0 }} />
-      <div style={{ position: "absolute", right: 8, top: 8, display: "flex", gap: 4, font: "12px monospace" }}>
+      <div style={{ position: "absolute", right: 8, top: 8, display: "flex", flexWrap: "wrap", justifyContent: "flex-end", maxWidth: "95%", gap: 4, font: "12px monospace" }}>
         {Array.from({ length: ROUNDS }, (_, i) => i + 1).map((r) => (
           <button key={r} title={`Replay from round ${r}`} onClick={() => seek(r)} style={btn(round === r)}>
             R{r}

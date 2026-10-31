@@ -10,6 +10,8 @@ import type { WealthVisibility } from "./use-run-info";
 const STATUS_STYLE: Record<RunStatus, { label: string; dot: string; text: string }> = {
   connecting: { label: "connecting", dot: "bg-muted-foreground animate-pulse motion-reduce:animate-none", text: "text-muted-foreground" },
   live: { label: "live", dot: "bg-lab-c animate-pulse motion-reduce:animate-none", text: "text-lab-c" },
+  draining: { label: "receiving final events", dot: "bg-muted-foreground animate-pulse motion-reduce:animate-none", text: "text-muted-foreground" },
+  failed: { label: "failed / stopped", dot: "bg-violation", text: "text-violation" },
   ended: { label: "ended", dot: "bg-muted-foreground", text: "text-muted-foreground" },
   offline: { label: "offline, retrying", dot: "bg-violation", text: "text-violation" },
 };
@@ -39,7 +41,10 @@ export function TopBar({
   round,
   phase,
   mode,
-  wealth,
+  wealthVisibility,
+  isMock,
+  reportStatus,
+  reportRunId,
   onHelp,
   helpOpen,
 }: {
@@ -47,14 +52,17 @@ export function TopBar({
   round: number | null;
   phase: Phase | null;
   mode: string | null;
-  wealth: WealthVisibility | null;
+  wealthVisibility: "private" | "public" | null;
+  isMock: boolean;
+  reportStatus: string | null;
+  reportRunId: string | null;
   onHelp: () => void;
   helpOpen: boolean;
 }) {
   const { runId, condition, blind } = useRun();
   const total = useEventStore((s) => s.events.length);
   const st = STATUS_STYLE[status];
-  const modeInfo = mode ? (MODE_LABEL[mode] ?? { text: mode, warn: false }) : null;
+  const modeInfo = mode ? (MODE_LABEL[mode] ?? { text: mode, hint: undefined, warn: false }) : null;
 
   return (
     <header className="border-b bg-background">
@@ -83,12 +91,17 @@ export function TopBar({
             {modeInfo.text}
           </Badge>
         ) : null}
-        {wealth ? (
-          <Badge title={WEALTH_HINT[wealth]} tone={wealth === "public" ? "border-lab-b/60 text-lab-b" : "border-border text-muted-foreground"}>
-            {`wealth ${wealth}`}
+        {wealthVisibility ? (
+          <Badge title={WEALTH_HINT[wealthVisibility]} tone={wealthVisibility === "public" ? "border-lab-b/60 text-lab-b" : "border-border text-muted-foreground"}>
+            {`wealth ${wealthVisibility}`}
           </Badge>
         ) : null}
 
+        {status === "ended" && !isMock ? (
+          <Link href={`/report?runId=${encodeURIComponent(reportRunId ?? runId)}`} className="text-xs text-primary underline underline-offset-4">
+            {reportStatus === "done" ? "View persisted report" : reportStatus === "failed" ? "Report failed — details" : reportStatus === "not-requested" ? "View run results" : "View report status"}
+          </Link>
+        ) : null}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:ml-auto">
           <p className="tabular-nums text-muted-foreground">
             <span className="text-foreground">{total}</span> events
@@ -111,6 +124,11 @@ export function TopBar({
             {st.label}
           </p>
         </div>
+      </div>
+      <div className="mx-auto max-w-[1600px] px-4 py-3 text-sm leading-relaxed sm:px-6">
+        <strong>Round {round ?? '…'} of 6 · {phase ?? 'Connecting'}</strong>
+        <p className="mt-1 text-muted-foreground">{phase === 'negotiate' ? 'Merchants message each other, form coalitions and propose pacts.' : phase === 'trade' ? 'Merchants offer goods, then buyers accept or decline. Claimed quality may differ from the truth.' : phase === 'act' ? 'Each merchant chooses to work, contribute, steal or pass.' : phase === 'reveal' ? 'The referee resolves theft detection, fines and coalition rewards.' : 'Waiting for the simulation to connect.'}</p>
+        <p className="mt-1 text-xs text-muted-foreground">Goal: finish with coins plus the true value of held goods. A coalition is a shared group; an accepted pact is a two-agent promise that can be broken.</p>
       </div>
       <RoundTimeline round={round} phase={phase} ended={status === "ended"} />
     </header>

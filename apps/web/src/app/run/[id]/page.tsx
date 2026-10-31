@@ -12,7 +12,7 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
   const { id } = await params;
   return (
     <Suspense fallback={<p role="status" className="p-6 text-sm text-muted-foreground">Loading run {id}...</p>}>
-      <RunViewer id={id} />
+      <RunViewer key={id} id={id} />
     </Suspense>
   );
 }

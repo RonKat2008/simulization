@@ -81,7 +81,7 @@ export function FeedFilters() {
           ))}
         </select>
         <label htmlFor="feed-search" className="sr-only">
-          Search public text and private plans
+          Search public text and self-reported plans
         </label>
         <input
           id="feed-search"

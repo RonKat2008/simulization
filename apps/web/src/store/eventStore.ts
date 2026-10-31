@@ -4,6 +4,7 @@ import { create } from "zustand";
 import type { Event, EventType, Flag } from "@simulization/shared";
 
 interface EventState {
+  runId: string | null;
   events: Event[];
   selectedAgentId: string | null;
   append: (incoming: Event[]) => void;
@@ -24,7 +25,7 @@ interface EventState {
   query: string;
   setQuery: (q: string) => void;
   clearFilters: () => void;
-  reset: () => void;
+  reset: (runId?: string | null) => void;
 }
 
 const sortedUnique = (list: Event[]): Event[] => {
@@ -44,6 +45,7 @@ const mergeAppend = (prev: Event[], incoming: Event[]): Event[] => {
 const NO_FILTERS = { typeFilter: [], agentFilter: null, flagFilter: [], roundFilter: null, query: "" } as const;
 
 export const useEventStore = create<EventState>((set) => ({
+  runId: null,
   events: [],
   selectedAgentId: null,
   append: (incoming) => set((s) => ({ events: mergeAppend(s.events, incoming) })),
@@ -60,5 +62,5 @@ export const useEventStore = create<EventState>((set) => ({
   query: "",
   setQuery: (q) => set({ query: q }),
   clearFilters: () => set({ ...NO_FILTERS, typeFilter: [], flagFilter: [] }),
-  reset: () => set({ events: [], selectedAgentId: null, ...NO_FILTERS, typeFilter: [], flagFilter: [] }),
+  reset: (runId = null) => set({ runId, events: [], selectedAgentId: null, ...NO_FILTERS, typeFilter: [], flagFilter: [] }),
 }));

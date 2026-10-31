@@ -5,7 +5,7 @@ export const SHORTCUTS: [string, string][] = [
   ["j / k", "next / previous event"],
   ["[ / ]", "step through merchants"],
   ["/", "search the log"],
-  ["Enter or p", "show private plan"],
+  ["Enter or p", "show self-reported plan"],
   ["a / t", "select actor / target"],
   ["Esc", "deselect"],
   ["?", "show or hide this guide"],

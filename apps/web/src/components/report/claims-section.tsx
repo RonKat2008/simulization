@@ -51,6 +51,9 @@ export function ClaimsSection({ review }: { review: ReportReview }) {
       title={review.isSample ? 'Claims (placeholder, no Opus review yet)' : 'Opus review'}
       lead="Every claim cites events."
     >
+      <Disclosure summary="How to read the review">
+        <p>This model-generated interpretation can be mistaken; computed measures and cited events are the evidence. The reviewer reads anonymized logs (Group 1/2/3) and explains simulator flags; it does not compute metrics. Open a claim to compare recorded statements, self-reported plans and ground truth.</p>
+      </Disclosure>
       {review.isSample && (
         <p role="note" className="rounded-md border border-dashed border-accent/60 px-3 py-2.5 text-xs leading-relaxed text-accent sm:text-sm">
           Placeholder claims from simulator flags, not model output.

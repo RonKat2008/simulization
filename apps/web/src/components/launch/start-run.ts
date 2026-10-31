@@ -3,11 +3,12 @@ import { CreateRunResponseSchema, readErrorMessage, type CreateRunBody } from ".
 export type StartResult = { ok: true; runId: string } | { ok: false; message: string };
 
 /** POST /api/runs; maps 400/409/503/network/shape failures to readable messages. */
-export async function startRun(body: CreateRunBody): Promise<StartResult> {
+export async function startRun(body: CreateRunBody, requestId: string = crypto.randomUUID()): Promise<StartResult> {
   try {
     const res = await fetch("/api/runs", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "Idempotency-Key": requestId },
+      signal: AbortSignal.timeout(20000),
       body: JSON.stringify(body),
     });
     if (!res.ok) {

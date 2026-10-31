@@ -1,0 +1,108 @@
+{
+  "contract": "../../../UI_DESIGN.md — readable experiment controls and evidence-first observer UI around the existing pixel village. One UI implementation owner; separate read-only first-time-comprehension review; orchestrator fixes and final browser checks.",
+  "targetViewports": [
+    "375x812",
+    "430x932",
+    "768x1024",
+    "1440x900"
+  ],
+  "accessibility": {
+    "status": "pass",
+    "evidence": "Scoped manual/DOM checks: all launch inputs have labels; one main and h1 on report; seed error has alert/invalid association; keyboard Tab displays focus, modal Tab remains on Close and Escape closes. Measured launch muted text contrast 6.59:1 against its actual computed background. JS matchMedia emulation exercised Phaser reduced-motion branch (canvas data-reduced-motion=true, 329 fixture events); CSS reduced-motion rules inspected. This is not a full WCAG, axe, screen-reader or native OS reduced-motion certification."
+  },
+  "responsive": {
+    "status": "pass",
+    "evidence": "Actual browser layouts inspected at 375,430,768,1440 CSS px. No document horizontal overflow in checked launch/viewer/report. Fixed Phaser cached parent bounds: canvas341=parent341 at375, then canvas958=parent958 at1440 after resize. Tables retain local horizontal scrolling. Screenshots use preview-tool capture scaling; labels here describe CSS viewport."
+  },
+  "contentStates": {
+    "loading": {
+      "status": "pass",
+      "evidence": "Observed launch navigation and live viewer initializing/connecting while the authorized game started. Read-only ReportProgress showed checking/review-delivery while automatic review ran. Focused report-status-smoke and viewer-contract cover bounded busy/setup and delayed events."
+    },
+    "empty": {
+      "status": "pass",
+      "evidence": "Actual nonexistent-run report shows No report yet, unknown configuration, Run not found and Back to runs; no mock results or endless status retries. emptyFinal.png."
+    },
+    "error": {
+      "status": "pass",
+      "evidence": "Entered invalid seed through browser, verified field value then clicked Start run; inline whole-number error, no run launched. launchError.png. Report data injected unconfigured/failed checks passed without fixture substitution."
+    },
+    "partial": {
+      "status": "pass",
+      "evidence": "Observed authorized live run with partial event stream and later completed607-event viewer while review still pending; report page showed pending state without invented results. Targeted gapped/delayed terminal-drain and pending-review checks passed."
+    },
+    "success": {
+      "status": "pass",
+      "evidence": "Authorized UI-launched public/live run completed6 rounds. All18 initial model outputs successful; actual Relay delivery matched committed events;607 stable events accepted by village; Neon metrics432turns and schema-valid review30claims with resolvable citations. Actual report evidence drawer opened3 cited events."
+    },
+    "permission": {
+      "status": "not-applicable",
+      "reason": "Local configured demo has no permission/auth screen. Only the single previously authorized live run was launched; no extra live pair or synthesis call."
+    }
+  },
+  "renderedEvidence": [
+    {
+      "viewport": "430x932",
+      "artifact": "launchMobile.png",
+      "observation": "Final readable launch controls and explanatory copy, advanced configuration collapsed."
+    },
+    {
+      "viewport": "375x812",
+      "artifact": "mobileRun.png",
+      "observation": "Completed real public run, phase explanation, progress and responsive village."
+    },
+    {
+      "viewport": "375x812",
+      "artifact": "selectedMobile.png",
+      "observation": "Selected Moss: permitted knowledge, accepted pacts and observer truth separated; plans labeled self-reported."
+    },
+    {
+      "viewport": "375x812",
+      "artifact": "reportMobile.png",
+      "observation": "Persisted public/live report leads with own-run outcomes and limits; final grammar subsequently corrected."
+    },
+    {
+      "viewport": "768x1024",
+      "artifact": "evidenceTablet.png",
+      "observation": "Real report claim with3 underlying events; close focus ring; Tab trap and Escape checked."
+    },
+    {
+      "viewport": "768x1024",
+      "artifact": "launchError.png",
+      "observation": "Invalid seed rejected before any request, alert visible."
+    },
+    {
+      "viewport": "1440x900",
+      "artifact": "finalDesktop.png",
+      "observation": "Village fills available desktop panel after mobile resize;607 committed events accepted."
+    },
+    {
+      "viewport": "1440x900",
+      "artifact": "reportDesktop.png",
+      "observation": "Completed persisted report with public/live metadata, counts and cautious claims."
+    },
+    {
+      "viewport": "1440x900",
+      "artifact": "emptyFinal.png",
+      "observation": "Missing run has no fabricated configuration/results; explicit return path."
+    }
+  ],
+  "limitations": [
+    "No hosted deployment, hard-power-loss, screen-reader, automated axe or performance certification.",
+    "Mastra uses ephemeral workflow bookkeeping; final metrics/reviews are explicitly persisted to Neon and ReportJob retries are durable Terse state.",
+    "No new paid comparison/synthesis performed. Grouping tested with injected fixtures. One live run is integration evidence only."
+  ],
+  "liveVerification": {
+    "runId": "1e5c714e-e4bc-4d1d-aeb1-ff1eea922f94",
+    "condition": "LABELED",
+    "wealthVisibility": "public",
+    "mode": "live-model-relay",
+    "rounds": 6,
+    "events": 607,
+    "modelReceipts": 18,
+    "successfulInitialModels": 18,
+    "relayMessagesRead": 50,
+    "metricTurns": 432,
+    "reviewClaims": 30
+  }
+}

@@ -333,9 +333,9 @@ export function RunSummary({ events, isMock, mode }: { events: Event[]; isMock: 
               definition={
                 <>
                   The difference between the two cooperation rates, using exactly the events listed under Cooperation rate. Favoritism has two layers.
-                  Style-recognition bias is favoritism in BLIND runs measured against 0: agents cannot see labels, so any favoritism comes from recognizing
-                  their own family&apos;s writing. Label (social) bias is mean favoritism in LABELED minus BLIND: what seeing the company label adds. Both need
-                  several runs, so this single run reports them as n/a.
+                  The style-recognition indicator is favoritism in BLIND runs measured against 0. It may be consistent with recognizing a family&apos;s writing,
+                  but does not establish that mechanism. The label indicator is mean favoritism in LABELED minus BLIND for otherwise compatible runs.
+                  Both need repeated runs and uncertainty estimates, so this single run reports them as n/a.
                 </>
               }
               formula={[

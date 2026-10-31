@@ -144,6 +144,10 @@ export interface RunGroup {
 
 export interface ReportData {
   source: ReportSource;
+  state?: 'ready' | 'pending' | 'failed' | 'empty' | 'error';
+  message?: string;
+  selection?: { runId?: string; wealthVisibility: string; mode: string };
+  pendingReview?: boolean;
   /** The group shown; every number on the page comes from runs in this group only. */
   group: RunGroup;
   /** All groups available, for the selector. */
