@@ -11,3 +11,5 @@ export * from "./relayClient";
 export * from "./runRelay";
 export * from "./relayInbox";
 export * from "./telemetry";
+export * from "./stubModel";
+export * from "./memoryStore";

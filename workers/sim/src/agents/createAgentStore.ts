@@ -2,14 +2,20 @@
 import type { AgentStore } from "@simulization/shared";
 import type { AgentActor } from "./AgentActor";
 import { DoAgentStore } from "./doStore";
-import { GatewayModelClient } from "@simulization/agents";
+import { GatewayModelClient, StubModelClient } from "@simulization/agents";
 import { NeonAgentStore } from "./neonStore";
 import type { ModelClient } from "@simulization/agents";
 import { RelayClient } from "@simulization/agents";
 import { RunRelay } from "@simulization/agents";
 import { DurableActorsClient, TerseAgentStore } from "./terseStore";
 
+/** Stub (no network, seeded merchant bot) when AI_GATEWAY_API_KEY is unset or MODEL_MODE="stub". */
 export function createModelClient(env: Cloudflare.Env): ModelClient {
+  const mode = (env as unknown as { MODEL_MODE?: string }).MODEL_MODE;
+  if (mode === "stub" || !env.AI_GATEWAY_API_KEY) {
+    console.warn("[agents] using StubModelClient (no AI_GATEWAY_API_KEY or MODEL_MODE=stub): no real model calls");
+    return new StubModelClient();
+  }
   return new GatewayModelClient(env.AI_GATEWAY_API_KEY);
 }
 

@@ -7,7 +7,8 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "smoke:stub": "pnpm --filter sim exec tsx ../../packages/agents/scripts/smoke-stub.ts"
   },
   "dependencies": {
     "@simulization/shared": "workspace:*"

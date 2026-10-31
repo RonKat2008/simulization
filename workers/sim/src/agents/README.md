@@ -27,3 +27,9 @@ const results = await runAgentTurns(store, runId, agents.map(a => ({ agentId: a.
 
 ## Scripts (`pnpm --filter sim <name>`; keys in repo-root `.env`)
 `models` · `spike:gateway` · `spike:relay` · `validity` · `exec tsx scripts/smoke-relay-names.ts`
+
+## Running without API keys (stub model)
+- `createModelClient(env)` returns a `StubModelClient` when `AI_GATEWAY_API_KEY` is unset or `MODEL_MODE=stub` (one-line warning logged). The Neon/DO/Terse stores then run the real pipeline (prompt, parse, repair, pass) against a seeded merchant bot.
+- `StubModelClient({ seed, invalidRate, latencyMs })` (from `@simulization/agents`): deterministic per agent/round/phase; `invalidRate` returns garbage that fraction of the time to exercise repair/pass; the bot sometimes lies (claimedQuality off by >= 2), steals, forms coalitions, proposes pacts, using only legal actions and real ids.
+- `MemoryAgentStore` (Node, no DB): `await store.init(runId, agentId, state)` per agent, then `runAgentTurns(store, runId, turns)` as usual. Optional `onTurn(runId, meta)` gets attempts/passReason/tokens.
+- Smoke: `pnpm --filter @simulization/agents smoke:stub` (needs tsx, which lives in `sim`, hence the `--filter sim exec`).
