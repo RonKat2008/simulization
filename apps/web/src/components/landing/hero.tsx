@@ -29,8 +29,8 @@ export function Hero() {
             <PressLink href="/launch" className={buttonClass('primary')}>
               Launch
             </PressLink>
-            <PressLink href="/run/featured" className={buttonClass('secondary')}>
-              Replay
+            <PressLink href="/runs" className={buttonClass('secondary')}>
+              Runs
             </PressLink>
             <PressLink href="/report" className={buttonClass('secondary')}>
               Report

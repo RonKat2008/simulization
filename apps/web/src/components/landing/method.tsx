@@ -56,7 +56,7 @@ export function Cta() {
         </h2>
         <div className="flex flex-col gap-3 sm:flex-row">
           <PressLink href="/launch" className={buttonClass('primary')}>Launch</PressLink>
-          <PressLink href="/run/featured" className={buttonClass('secondary')}>Replay</PressLink>
+          <PressLink href="/runs" className={buttonClass('secondary')}>Runs</PressLink>
           <PressLink href="/report" className={buttonClass('secondary')}>Report</PressLink>
         </div>
       </div>

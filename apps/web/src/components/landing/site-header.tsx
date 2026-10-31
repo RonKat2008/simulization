@@ -8,7 +8,7 @@ const REPO_URL = 'https://github.com/RonKat2008/simulization'
 
 const NAV = [
   { href: '/launch', label: 'Launch', match: (p: string) => p.startsWith('/launch') },
-  { href: '/run/featured', label: 'Replay', match: (p: string) => p.startsWith('/run') },
+  { href: '/runs', label: 'Runs', match: (p: string) => p.startsWith('/run') },
   { href: '/report', label: 'Report', match: (p: string) => p.startsWith('/report') },
 ]
 

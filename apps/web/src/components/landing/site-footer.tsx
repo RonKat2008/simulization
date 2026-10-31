@@ -15,7 +15,7 @@ export function SiteFooter() {
         <nav aria-label="Footer">
           <ul className="flex flex-wrap gap-x-6 gap-y-0">
             <li><Link href="/launch" className={FOOT_LINK}>Launch</Link></li>
-            <li><Link href="/run/featured" className={FOOT_LINK}>Replay</Link></li>
+            <li><Link href="/runs" className={FOOT_LINK}>Runs</Link></li>
             <li><Link href="/report" className={FOOT_LINK}>Report</Link></li>
             <li>
               <a href="https://github.com/RonKat2008/simulization" target="_blank" rel="noopener noreferrer" className={FOOT_LINK}>
