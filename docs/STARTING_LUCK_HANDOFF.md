@@ -14,7 +14,7 @@ The scatter uses total initial goods true value and engine-flagged false claims 
 
 Starting value is independently available only from a verified persisted pre-action snapshot: matching run ID, phase `initial`, source reference, per-agent authoritative expected goods counts and complete inventories of unique goods with finite nonnegative true values. Malformed/missing inventory suppresses starting value and points but preserves valid behavior counts. Never normalize final holdings, regenerate a seed, use asking prices, or treat model text as historical initialization evidence. True quality may only be mapped to value if a historical engine valuation contract establishes equivalence. Snapshot provenance and checkpoint authenticity remain the adapter's responsibility.
 
-All seven `apps/web/public/runs/rec-*.json` recordings were checked. They have valid complete event logs against `run.seq` and valid behavior counts, but no persisted initial inventory evidence; initial values and scatter points are unavailable. Existing recordings' rosters lack exact models. The legacy shared mock fixtures also lack a terminal checkpoint, so the offline mock section honestly reports incomplete event evidence rather than deriving a checkpoint from array length. No historical evidence was invented.
+All eleven `apps/web/public/runs/rec-*.json` recordings were checked. They have valid complete event logs against `run.seq` and valid behavior counts, but no persisted initial inventory evidence; initial values and scatter points are unavailable. Existing recordings' rosters lack exact models. The legacy shared mock fixtures also lack a terminal checkpoint, so the offline mock section honestly reports incomplete event evidence rather than deriving a checkpoint from array length. No historical evidence was invented.
 
 ## Root integration
 
@@ -28,7 +28,7 @@ Read-only Neon verification: the 607-event public run has 18 verified initial va
 
 ## Verification
 
-- `pnpm --filter sim exec tsx scripts/starting-luck-contract.ts` passed: hand-calculated value 20 (distinct from quality 3 / price 30), 1/2 false claims, duplicate flags, no offers, missing inventory, ignored final holdings, unknown metadata, gaps and missing/mismatched checkpoints, shuffled log, duplicate/negative goods, wrong run, incomplete status, malformed flags/events/inventories, and all seven recordings.
+- `pnpm --filter sim exec tsx scripts/starting-luck-contract.ts` passed: hand-calculated value 20 (distinct from quality 3 / price 30), 1/2 false claims, duplicate flags, no offers, missing inventory, ignored final holdings, unknown metadata, gaps and missing/mismatched checkpoints, shuffled log, duplicate/negative goods, wrong run, incomplete status, malformed flags/events/inventories, and all eleven recordings.
 - The same contract script exercises `assembleNeonReport` with offline fixtures: separate results per run, selected single-run filtering, exact provider/model retention, conditions, live/stub isolation and pending status. No database loader is invoked.
 - `pnpm --filter @simulization/shared typecheck` passed.
 - `pnpm --filter web typecheck` passed.
