@@ -14,8 +14,9 @@ export type GroupMap = Record<string, string>;
 
 export const MAKER_PLACEHOLDER = '[maker]';
 
+// A suffix needs a separator or a version number, so "metal" and "fables" stay intact.
 const VENDOR_TERMS =
-  /\b(?:anthropic|claude|opus|sonnet|haiku|fable|mythos|openai|chatgpt|gpt|codex|google|deepmind|gemini|gemma|meta|llama|mistral|xai|grok|deepseek|qwen|alibaba|cohere|amazon|microsoft|copilot)(?:[-.]?\w+)*/gi;
+  /\b(?:anthropic|claude|opus|sonnet|haiku|fable|mythos|openai|chatgpt|gpt|codex|google|deepmind|gemini|gemma|meta|llama|mistral|xai|grok|deepseek|qwen|alibaba|cohere|amazon|microsoft|copilot)(?:[-.]\w+|\s?\d\w*(?:\.\w+)*)*(?!\w)/gi;
 
 const COMPANY_NOUNS = 'company|group|team|faction|maker|lab|camp|clan|side';
 
