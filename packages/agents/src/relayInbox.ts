@@ -12,11 +12,11 @@ const NOTICE_SLOTS = 5;
 export const REFEREE_CHANNEL = "referee";
 const REFEREE_PREFIX = "[referee notice] ";
 
-/** Engine-written pact proposal text (workers/sim/src/engine/rules.ts, pact_propose). */
-const PACT_PROPOSAL_PREFIX = "I propose a pact";
-
-/** Notices the world engine writes itself; merchant chat in the world inbox duplicates Relay and is dropped. */
-const isEngineNotice = (m: InboxMessage) => m.from === "world" || m.text.startsWith(PACT_PROPOSAL_PREFIX);
+/**
+ * Provenance only, never message text: the engine marks its pact/theft notices with channel "referee";
+ * from "world" covers legacy theft notices. Merchant chat in the world inbox duplicates Relay and is dropped.
+ */
+const isEngineNotice = (m: InboxMessage) => m.channel === REFEREE_CHANNEL || m.from === "world";
 
 /**
  * Engine notices from the world inbox (theft outcomes, pact proposals) are kept, moved to the "referee"
