@@ -1,0 +1,64 @@
+{
+  "contract": "Replay-first experiment viewer, genuine pixel world, readable proportional UI, one selected-agent panel above the village, observed prefix only, recorded model metadata and verified coins separate from score. No engine/rule/model-call changes.",
+  "targetViewports": [
+    "1440x900",
+    "768x1024",
+    "390x844"
+  ],
+  "accessibility": {
+    "status": "pass",
+    "evidence": "Scoped manual review: labeled buttons/tabs, arrow-key tab navigation, visible focus and Escape deselection passed. Text palette inspected from production build. This is not a full WCAG certification; axe/native screen reader and OS reduced-motion emulation were not run."
+  },
+  "responsive": {
+    "status": "pass",
+    "evidence": "Independent rendered desktop/tablet/mobile review plus production screenshots. No horizontal page overflow at390/768; narrow inspector uses accessible tabs. Preview screenshot service sometimes clips the desktop artifact; browser viewport was1440x900."
+  },
+  "contentStates": {
+    "loading": {
+      "status": "pass",
+      "evidence": "Existing source loading/connection labels retained; recorded JSON and Neon pages loaded into actual village after initial fetch. No fake live fallback."
+    },
+    "empty": {
+      "status": "pass",
+      "evidence": "Selected replay agent before first offer shows No claims yet and Not final, not a meaningful zero rate."
+    },
+    "error": {
+      "status": "pass",
+      "evidence": "Reviewer observed unavailable API503 with explicit error; public actor socket503 reported without substitution. No new paid request."
+    },
+    "partial": {
+      "status": "pass",
+      "evidence": "Selected replay at event13 shows only prefix, nonfinal score and partial-round coin chart. Missing/tampered event helper returns unavailable in regression."
+    },
+    "success": {
+      "status": "pass",
+      "evidence": "Recorded replay selects/deselects, seeksR1-R6-R1, preserves metadata and opens persisted run-specific report."
+    },
+    "permission": {
+      "status": "pass",
+      "evidence": "Production build served locally with VERCEL=1: missing operator token disables both start buttons; all five mutation routes returned403 before work."
+    }
+  },
+  "renderedEvidence": [
+    {
+      "viewport": "1440x900",
+      "artifact": "review-desktop.png",
+      "observation": "Independent desktop inspector review; actual recorded metadata, observer labels, chart and bounded activity."
+    },
+    {
+      "viewport": "768x1024",
+      "artifact": "after-chart-tablet.png",
+      "observation": "Tablet coin tab shows prefix balance and separate score; village remains below panel."
+    },
+    {
+      "viewport": "390x844",
+      "artifact": "after-launch-protected.png",
+      "observation": "Narrow operator-restricted launch with readable condition controls and replay recovery."
+    }
+  ],
+  "limitations": [
+    "New UI is local, not yet verified on public Vercel.",
+    "Native reduced-motion emulation, automated axe, Core Web Vitals, and screen-reader audit remain unverified.",
+    "Historical exact model metadata absent in other recordings is explicitly unavailable, not inferred."
+  ]
+}

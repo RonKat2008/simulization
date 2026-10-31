@@ -5,9 +5,11 @@ import {neon} from '@neondatabase/serverless';
 import {EventSchema,WealthVisibilitySchema} from '@simulization/shared';
 import {rowToEvent} from '@/mastra/db';
 import {reportDeliveryStatus} from './_report-status';
+import { reachableActorConfiguration } from '@/lib/execution-policy';
 
 export class ApiError extends Error { constructor(public status:number,message:string){super(message);} }
 export function actorOptions(){
+  if (!reachableActorConfiguration(process.env)) throw new ApiError(503,'Hosted actor backend is not configured');
   for(const key of ['DURABLE_ACTORS_SECRET','DURABLE_ACTORS_API_KEY'])if(process.env[key]==='')delete process.env[key];
   return {
   controlPlaneUrl:process.env.DURABLE_ACTORS_URL??'http://127.0.0.1:7100',
@@ -55,7 +57,7 @@ export async function runStatus(id:string){
     const rows=await sql`SELECT r.*,v.id AS review_id FROM runs r LEFT JOIN reviews v ON v.run_id=r.id AND v.kind='run' WHERE r.id=${id}`;
     if(rows.length){
       const row=rows[0]!;
-      const agents=await sql`SELECT agent_id AS id,name,company FROM agents WHERE run_id=${id} ORDER BY agent_id`;
+      const agents=await sql`SELECT agent_id AS id,name,company,provider,model FROM agents WHERE run_id=${id} ORDER BY agent_id`;
       const config=row.config as Record<string,unknown>;
       if(config?.mode==='initializing-live'){const current=await initializingStatus(id);if(current)return current;}
       const reportStatus=await reportDeliveryStatus(row.status,config?.mode,Boolean(row.review_id),()=>createActorTransport(actorOptions()).invoke('ReportJob',id,'status',[]));

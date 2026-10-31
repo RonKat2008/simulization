@@ -1,3 +1,4 @@
+import {executionDenied} from '@/lib/execution-policy';
 // Owner: E. Cross-run synthesis.
 import { synthesizeRuns } from "@/mastra/agents";
 import { loadEventIds, loadSynthesisRuns, saveSynthesis } from "@/mastra/db";
@@ -5,7 +6,9 @@ import { NoReviewsError, runSynthesis } from "@/mastra/pipeline";
 
 export const maxDuration = 300;
 
-export async function POST() {
+export async function POST(req: Request) {
+  const denied = executionDenied(req);
+  if (denied) return denied;
   try {
     const content = await runSynthesis({
       loadRuns: loadSynthesisRuns,

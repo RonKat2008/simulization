@@ -14,7 +14,7 @@ export class ReportJob extends Actor {
     const base=process.env.WEB_URL;
     try{
       if(!base)throw new Error('WEB_URL required');
-      const response=await fetch(`${base.replace(/\/$/,'')}/api/analyze/${encodeURIComponent(this.id)}`,{method:'POST',signal:AbortSignal.timeout(310000)});
+      const response=await fetch(`${base.replace(/\/$/,'')}/api/analyze/${encodeURIComponent(this.id)}`,{method:'POST',headers:process.env.SIM_OPERATOR_TOKEN?{'x-sim-operator-token':process.env.SIM_OPERATOR_TOKEN}:{},signal:AbortSignal.timeout(310000)});
       if(!response.ok)throw new Error('Report request failed');
       this.state='done';
       this.alarm.delete();

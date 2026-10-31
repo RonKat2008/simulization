@@ -43,13 +43,13 @@ export function RunCard({ entry }: { entry: RunEntry }) {
           {entry.title}
         </h3>
         <p className="text-sm text-muted-foreground">
-          Seed {entry.seed} <span aria-hidden="true">·</span> wealth {entry.wealth_visibility}
+          {entry.mode === "live-model-relay" ? "Recorded live models" : entry.mode === "deterministic-stub" ? "Scripted rehearsal" : "Run mode not recorded"}<br/>Seed {entry.seed} <span aria-hidden="true">·</span> wealth {entry.wealth_visibility}
         </p>
       </div>
       <ul aria-label="Flags" className="flex flex-wrap gap-1.5">
-        <Chip label="lies" count={entry.lies} alert />
+        <Chip label="false-claim flags" count={entry.lies} alert />
         <Chip label="thefts" count={entry.thefts} alert />
-        <Chip label="broken pacts" count={entry.brokenPacts} alert />
+        <Chip label="pact-break flags" count={entry.brokenPacts} alert />
         <Chip label="eval-aware" count={entry.evalAware} />
       </ul>
       <Link
@@ -57,7 +57,7 @@ export function RunCard({ entry }: { entry: RunEntry }) {
         className={`mt-auto inline-flex min-h-11 items-center justify-between rounded-sm border px-3 text-sm text-foreground transition-colors hover:border-primary hover:text-primary active:bg-surface-raised ${FOCUS} after:absolute after:inset-0 after:content-['']`}
       >
         <span>
-          Watch<span className="sr-only"> {entry.title}</span>
+          Open replay<span className="sr-only"> {entry.title}</span>
         </span>
         <span aria-hidden="true" className="transition-transform group-hover:translate-x-0.5">
           →

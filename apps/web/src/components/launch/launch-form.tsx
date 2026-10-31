@@ -30,8 +30,12 @@ type Phase =
   | { kind: "error"; message: string }
   | { kind: "pair"; labeled: string | null; blind: string | null; message?: string };
 
-export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
+export interface LaunchAvailability { mode: "live" | "stub"; enabled: boolean; requiresToken: boolean; reason: string | null }
+
+export function LaunchForm({ onStarted, availability }: { onStarted?: () => void; availability: LaunchAvailability }) {
   const router = useRouter();
+  const [operatorToken, setOperatorToken] = useState("");
+  const canStart = availability.enabled && (!availability.requiresToken || operatorToken.trim().length > 0);
   const seedId = useId();
   const seedRef = useRef<HTMLInputElement>(null);
   const seedHelpId = useId();
@@ -49,7 +53,7 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
     const key = JSON.stringify(body);
     const requestId = pendingRequests.current.get(key) ?? crypto.randomUUID();
     pendingRequests.current.set(key, requestId);
-    const result = await startRun(body, requestId);
+    const result = await startRun(body, requestId, operatorToken);
     // Retain successful halves too: retrying a partially failed pair must reuse its first run.
     return result;
   }
@@ -58,7 +62,7 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
-    if (pending) return;
+    if (pending || !canStart) return;
     const parsedSeed = parseSeed(seed);
     if (!parsedSeed.ok) {
       setSeedTouched(true);
@@ -77,7 +81,7 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
   }
 
   async function startPair() {
-    if (pending) return;
+    if (pending || !canStart) return;
     const parsedSeed = parseSeed(seed);
     if (!parsedSeed.ok) {
       setSeedTouched(true);
@@ -105,9 +109,11 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
 
   return (
     <form onSubmit={submit} className={`flex flex-col gap-6 ${CARD_CLASS}`} noValidate aria-label="Run options">
+      <div className="border-b pb-4 text-sm leading-relaxed"><p className="font-semibold">{availability.mode === "stub" ? "Scripted rehearsal" : "Live-model experiment"}</p><p className="mt-1 text-muted-foreground">{availability.mode === "stub" ? "Deterministic scripted agents. This does not test model behavior." : "Real model decisions and Relay messages. Starting a run incurs model usage."}</p>{!availability.enabled && <p role="note" className="mt-3 text-foreground">{availability.reason} <Link href="/run/featured" className="text-primary underline underline-offset-4">Explore the recorded live run</Link>.</p>}</div>
       <OptionGroup legend="Show agents’ company names" name="condition" options={CONDITION_OPTIONS} value={condition} onChange={setCondition} disabled={pending} />
       <OptionGroup legend="Show other agents’ coin balances" name="wealth_visibility" options={WEALTH_OPTIONS} value={wealth} onChange={setWealth} disabled={pending} />
 
+      {availability.requiresToken && availability.enabled && <label className="flex flex-col gap-2 text-sm font-medium">Operator access token<input type="password" autoComplete="off" value={operatorToken} onChange={e=>setOperatorToken(e.target.value)} className="h-11 rounded-md border bg-background px-3" /><span className="text-xs font-normal text-muted-foreground">Required to start paid runs. Used for this request only and never saved in this browser.</span></label>}
       <details className="rounded-md border px-4 py-3">
         <summary className="cursor-pointer py-1 text-sm font-medium">Advanced: seed and paired comparison</summary>
       <div className="flex flex-col gap-2">
@@ -148,7 +154,7 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
         <button
           type="button"
           onClick={startPair}
-          disabled={pending}
+          disabled={pending || !canStart}
           className={buttonClass("secondary")}
         >
           {phase.kind === "pending" && phase.what === "pair" ? "Starting pair…" : "Start matched pair"}
@@ -180,7 +186,7 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
       <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
         <button
           type="submit"
-          disabled={pending}
+          disabled={pending || !canStart}
           className={buttonClass("primary")}
         >
           {phase.kind === "pending" && phase.what === "single" ? (
@@ -189,12 +195,12 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
               Starting run…
             </>
           ) : (
-            "Start run"
+            availability.mode === "stub" ? "Start scripted rehearsal" : "Start live experiment"
           )}
         </button>
 
         <p className="text-xs text-muted-foreground" aria-live="polite">
-          {pending ? "Registering with the run service." : "The viewer will show whether this run uses live models or scripted agents."}
+          {pending ? "Registering with the run service." : !availability.enabled ? "Launching is unavailable on this deployment." : availability.requiresToken && !operatorToken ? "Enter your operator token to enable launch." : "Replay existing runs without new model calls."}
         </p>
       </div>
     </form>

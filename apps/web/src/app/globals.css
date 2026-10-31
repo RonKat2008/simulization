@@ -12,12 +12,12 @@
   --surface: #0b0e16;
   --surface-raised: #10141f;
   --foreground: #e6eaf4;
-  --muted-foreground: #8b93a7;
-  --border: #1a2030;
-  --primary: #2f7fff;
+  --muted-foreground: #a3adbf;
+  --border: #2b3548;
+  --primary: #6fa7ff;
   --primary-foreground: #03050a;
   --accent: #ff6fb3;
-  --violation: #ff3b3b;
+  --violation: #ff8585;
   --lab-a: #5aa8ff;
   --lab-b: #f5b13d;
   --lab-c: #2fd4bd;
@@ -58,6 +58,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    line-height: 1.5;
   }
   ::selection {
     background: color-mix(in oklab, var(--primary) 45%, transparent);

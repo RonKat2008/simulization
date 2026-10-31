@@ -27,7 +27,7 @@ export function OptionGroup<T extends string>({
   const groupId = useId();
   return (
     <fieldset className="flex flex-col gap-3" disabled={disabled} id={groupId}>
-      <legend className="mb-1 text-xs uppercase tracking-widest text-muted-foreground">{legend}</legend>
+      <legend className="mb-2 text-base font-semibold text-foreground">{legend}</legend>
       <div className="grid gap-3 sm:grid-cols-2">
         {options.map((o) => {
           const selected = value === o.value;
@@ -48,7 +48,7 @@ export function OptionGroup<T extends string>({
                 className="sr-only"
               />
               <span className="flex items-center justify-between gap-2">
-                <span className={`font-display text-xl font-semibold tracking-widest ${tone.text}`}>{o.title}</span>
+                <span className={`text-base font-medium ${tone.text}`}>{o.title}</span>
                 <span
                   aria-hidden="true"
                   className={`size-3 rounded-full border ${selected ? tone.dot : "border-muted-foreground/60"}`}

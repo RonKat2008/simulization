@@ -1,14 +1,15 @@
 import type { RunEntry, RunGroup, RunPair } from './types'
 
 /**
- * Groups runs sharing seed + wealth visibility. A group holding at least one
+ * Groups runs sharing seed + wealth visibility + recorded mode. A group holding at least one
  * LABELED and one BLIND run becomes a pair; everything else is a single card.
  * Pure: never mutates the input. Order follows first appearance.
  */
 export function groupRuns(entries: readonly RunEntry[]): RunGroup[] {
   const buckets = new Map<string, RunEntry[]>()
   for (const entry of entries) {
-    const key = `${entry.seed}|${entry.wealth_visibility}`
+    // Missing mode is not evidence that two experiments used the same runtime.
+    const key = `${entry.seed}|${entry.wealth_visibility}|${entry.mode || `unrecorded:${entry.slug}`}`
     buckets.set(key, [...(buckets.get(key) ?? []), entry])
   }
 

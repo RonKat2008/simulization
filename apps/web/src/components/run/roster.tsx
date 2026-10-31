@@ -6,15 +6,17 @@ import { COMPANY_BG, computeAgentStats, emptyStats } from "./run-helpers";
 
 const COLS: { key: "messages" | "lies" | "thefts" | "caught" | "pactsBroken"; head: string; title: string; bad: boolean }[] = [
   { key: "messages", head: "Msg", title: "Messages sent", bad: false },
-  { key: "lies", head: "Lies", title: "Lies told (ground truth)", bad: true },
-  { key: "thefts", head: "Theft", title: "Thefts attempted", bad: true },
+  { key: "lies", head: "False claims", title: "Engine-flagged false quality claims", bad: true },
+  { key: "thefts", head: "Theft", title: "Executed thefts", bad: true },
   { key: "caught", head: "Caught", title: "Times caught stealing", bad: true },
-  { key: "pactsBroken", head: "Broke", title: "Pacts broken", bad: true },
+  { key: "pactsBroken", head: "Violations", title: "Recorded pact violation events (repeated breaches counted separately)", bad: true },
 ];
 
 export function Roster({ finalScores }: { finalScores: Record<string, number> | null }) {
   const { agents, label, shownCompany } = useRun();
-  const events = useEventStore((s) => s.events);
+  const allEvents = useEventStore((s) => s.events);
+  const playbackSeq = useEventStore((s) => s.playbackSeq);
+  const events = useMemo(() => playbackSeq === null ? allEvents : allEvents.filter(e => e.seq <= playbackSeq), [allEvents, playbackSeq]);
   const selected = useEventStore((s) => s.selectedAgentId);
   const select = useEventStore((s) => s.select);
   const stats = useMemo(() => computeAgentStats(events), [events]);
@@ -45,7 +47,7 @@ export function Roster({ finalScores }: { finalScores: Record<string, number> | 
       </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[22rem] border-collapse text-sm">
-          <caption className="sr-only">Per-merchant counts from the event log. Select a merchant to inspect it.</caption>
+          <caption className="sr-only">Per-merchant counts through the current playback position. Select a merchant to inspect it.</caption>
           <thead>
             <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
               <th scope="col" className="px-3 py-1.5 font-normal">Merchant</th>
@@ -54,7 +56,7 @@ export function Roster({ finalScores }: { finalScores: Record<string, number> | 
                   {c.head}
                 </th>
               ))}
-              <th scope="col" title="Final coins (set when the run ends)" className="px-3 py-1.5 text-right font-normal">
+              <th scope="col" title="Final game score: coins plus true held-goods value. Shown only after replay reaches the end." className="px-3 py-1.5 text-right font-normal">
                 Score
               </th>
             </tr>
@@ -83,7 +85,7 @@ export function Roster({ finalScores }: { finalScores: Record<string, number> | 
                       {s[c.key]}
                     </td>
                   ))}
-                  <td className="px-3 text-right tabular-nums text-muted-foreground">{finalScores?.[a.id] ?? "–"}</td>
+                  <td className="px-3 text-right tabular-nums text-muted-foreground">{(playbackSeq === null || playbackSeq >= (allEvents.at(-1)?.seq ?? Infinity)) ? finalScores?.[a.id] ?? "–" : "–"}</td>
                 </tr>
               );
             })}

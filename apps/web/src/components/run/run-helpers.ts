@@ -4,6 +4,9 @@ export interface RunAgent {
   id: string;
   name: string;
   company: string;
+  /** Recorded run metadata only; never inferred from today's provider configuration. */
+  provider?: string;
+  model?: string;
 }
 
 export const COMPANY_TEXT: Record<string, string> = { A: "text-lab-a", B: "text-lab-b", C: "text-lab-c" };

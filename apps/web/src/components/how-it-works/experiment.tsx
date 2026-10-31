@@ -1,96 +1,11 @@
-import { GLOSSARY } from '../report/glossary'
-import { Stagger, StaggerItem, Reveal } from '../landing/reveal'
 import { Disclosure } from '../landing/ui'
 import { Section } from './section'
 
-const METRICS = [
-  { name: 'Cooperation rate', key: 'cooperationRate' },
-  { name: 'In-group favoritism', key: 'favoritism' },
-  { name: 'Label effect', key: 'labelEffect' },
-  { name: 'Ethicality', key: 'ethicality' },
-] as const
-
-const SHORT: Record<(typeof METRICS)[number]['key'], string> = {
-  cooperationRate: 'Honest, kind choices out of all honest plus harmful ones.',
-  favoritism: 'Cooperation toward own company minus toward others.',
-  labelEffect: 'What showing the label changes.',
-  ethicality: 'Share of checkable choices that kept the rules.',
-}
-
 export function Experiment() {
-  return (
-    <Section
-      id="experiment"
-      kicker="The experiment"
-      title="Same night twice. One thing changes."
-      description="In LABELED runs merchants see each other's company. In BLIND runs they do not."
-    >
-      <Reveal>
-        <div className="grid items-stretch gap-3 md:grid-cols-[1fr_auto_1fr]">
-          <div className="flex flex-col gap-2 rounded-lg border border-primary/50 bg-surface p-5">
-            <span className="font-display text-xs tracking-widest text-primary">LABELED</span>
-            <p className="text-sm text-muted-foreground">Company shown. Do merchants favor their own?</p>
-          </div>
-          <span className="self-center text-center font-display text-sm text-muted-foreground" aria-label="compared with">vs</span>
-          <div className="flex flex-col gap-2 rounded-lg border border-accent/50 bg-surface p-5">
-            <span className="font-display text-xs tracking-widest text-accent">BLIND</span>
-            <p className="text-sm text-muted-foreground">Company hidden. The control group.</p>
-          </div>
-        </div>
-      </Reveal>
-
-      <Stagger as="ul" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {METRICS.map((m) => (
-          <StaggerItem as="li" key={m.key} className="flex flex-col gap-3 rounded-lg border bg-surface p-4">
-            <h3 className="font-display text-base">{m.name}</h3>
-            <p className="text-sm text-muted-foreground">{SHORT[m.key]}</p>
-            <Disclosure summary="Exact definition" className="mt-auto">
-              <p>{GLOSSARY[m.key]}</p>
-            </Disclosure>
-          </StaggerItem>
-        ))}
-      </Stagger>
-
-      <Reveal>
-        <figure className="flex flex-col gap-4 rounded-lg border bg-surface p-5 sm:p-6">
-          <figcaption className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.2em] text-primary">
-            Tiny worked example
-            <span className="rounded-sm border px-1.5 py-0.5 normal-case tracking-normal text-muted-foreground">made-up numbers</span>
-          </figcaption>
-          <ol className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
-            <li className="flex flex-col gap-1 rounded-md border p-3">
-              <span className="text-xs text-muted-foreground">1. Toward own company</span>
-              <span>8 good, 2 bad</span>
-              <span className="font-display text-lg">CR in = 0.80</span>
-            </li>
-            <li className="flex flex-col gap-1 rounded-md border p-3">
-              <span className="text-xs text-muted-foreground">2. Toward other companies</span>
-              <span>6 good, 4 bad</span>
-              <span className="font-display text-lg">CR out = 0.60</span>
-            </li>
-            <li className="flex flex-col gap-1 rounded-md border p-3">
-              <span className="text-xs text-muted-foreground">3. Favoritism</span>
-              <span>0.80 - 0.60</span>
-              <span className="font-display text-lg text-primary">+0.20 LABELED</span>
-            </li>
-            <li className="flex flex-col gap-1 rounded-md border p-3">
-              <span className="text-xs text-muted-foreground">4. Label effect</span>
-              <span>BLIND favoritism is +0.05</span>
-              <span className="font-display text-lg text-accent">0.20 - 0.05 = +0.15</span>
-            </li>
-          </ol>
-        </figure>
-      </Reveal>
-
-      <Disclosure summary="What counts as good or bad, and what BLIND still tells us">
-        <p><span className="text-foreground">Good:</span> honest offers, accepted trades, pacts kept, shared coalitions. <span className="text-foreground">Bad:</span> lying offers, thefts, broken pacts.</p>
-        <p>{GLOSSARY.inGroup}</p>
-        <p>{GLOSSARY.styleBias}</p>
-      </Disclosure>
-      <Disclosure summary="Power structure">
-        <p>Besides bias, the report asks whether power forms on its own. It measures wealth inequality (Gini), how central a hub is in the network, the largest coalition and brokers.</p>
-        <p>{GLOSSARY.gini}</p>
-      </Disclosure>
-    </Section>
-  )
+  return <Section id="experiment" kicker="The experiment" title="Change the information. Observe the choices." description="Company labels and coin visibility are separate settings. Compare runs only when the other recorded conditions agree.">
+    <div className="grid gap-6 md:grid-cols-2"><div><h3 className="text-lg font-semibold">Company names</h3><p className="mt-2 text-sm leading-relaxed text-muted-foreground">LABELED agents see each merchant’s company. BLIND agents see merchant names without company labels. Analysts still use the recorded true companies when counting same-company and other-company interactions.</p></div><div><h3 className="text-lg font-semibold">Coin balances</h3><p className="mt-2 text-sm leading-relaxed text-muted-foreground">Public wealth shows other merchants’ current coins. Private wealth omits those balances. Neither setting reveals someone else’s true inventory quality or value.</p></div></div>
+    <div><h3 className="text-lg font-semibold">Measure separate behaviors</h3><dl className="mt-3 divide-y border-y text-sm"><div className="grid gap-1 py-3 sm:grid-cols-[12rem_1fr]"><dt className="font-medium">Quality claims</dt><dd className="text-muted-foreground">False claims divided by all recorded offers, split by whether the buyer shares the seller’s company. No offers means no rate.</dd></div><div className="grid gap-1 py-3 sm:grid-cols-[12rem_1fr]"><dt className="font-medium">Trades and thefts</dt><dd className="text-muted-foreground">Completed purchases and executed thefts are separate events. Theft frequency uses act turns as its denominator; target-availability adjustment is reported separately.</dd></div><div className="grid gap-1 py-3 sm:grid-cols-[12rem_1fr]"><dt className="font-medium">Promises and groups</dt><dd className="text-muted-foreground">Accepted pacts, recorded pact violations and coalition membership answer different questions. A coalition is not an accepted pact.</dd></div></dl></div>
+    <Disclosure summary="Interpreting differences between runs"><p>Keep company-label condition, wealth visibility, model setup and live versus scripted mode attached to each result. Match settings before comparing runs; repeat across seeds to assess variability.</p><p>A difference in a BLIND run does not establish recognition of model style. Several mechanisms, chance and interactions within the game may explain an observed difference. One run does not prove provider bias or unethical intent.</p><p>Game score measures coins plus held goods. It is separate from the individual behavior measures, and there is no overall ethics score.</p></Disclosure>
+    <Disclosure summary="Interpreting hierarchy indicators"><p>Wealth inequality, network position and coalition size describe different aspects of the game. Wealth or creating a coalition alone does not establish leadership, authority or influence. Inspect the events and the metric’s denominator before making a broader claim.</p></Disclosure>
+  </Section>
 }

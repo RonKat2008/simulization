@@ -27,18 +27,21 @@ const isTyping = (t: EventTarget | null) => {
 export function RunViewer({ id }: { id: string }) {
   const meta = useRunSource(id);
   const events = useEventStore((s) => s.events);
+  const playbackSeq = useEventStore((s) => s.playbackSeq);
+  const observedEvents = useMemo(() => playbackSeq === null ? events : events.filter(e => e.seq <= playbackSeq), [events, playbackSeq]);
   const storeRunId = useEventStore((s) => s.runId);
   const [view, setView] = useView();
+  useEffect(() => { if (view !== "game") useEventStore.getState().setPlaybackSeq(null); }, [view]);
 
-  // Guide is shown until dismissed; the choice is remembered. `ready` avoids a flash before storage is read.
-  const guide = useStoredFlag("guide-dismissed", false);
+  // Keep the village in the first viewport; the optional guide remembers explicit choices.
+  const guide = useStoredFlag("guide-dismissed", true);
   const { value: guideDismissed, set: setGuide } = guide;
   const guideOpen = guide.ready && !guideDismissed;
 
   const merged = useMemo(() => mergeAgents(meta.roster, events), [events, meta.roster]);
   // Keep the agents array identity stable while its contents are unchanged: every poll appends events,
   // and a new array would rebuild the run context and re-render every memoized log row.
-  const sigNow = merged.map((a) => `${a.id}\u0000${a.name}\u0000${a.company}`).join("\u0001");
+  const sigNow = merged.map((a) => `${a.id}\u0000${a.name}\u0000${a.company}\u0000${a.model ?? ""}`).join("\u0001");
   const [held, setHeld] = useState({ sig: sigNow, agents: merged });
   if (held.sig !== sigNow) setHeld({ sig: sigNow, agents: merged });
   const agents = held.agents;
@@ -75,9 +78,9 @@ export function RunViewer({ id }: { id: string }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [agents, guideDismissed, setGuide]);
 
-  const last = events.at(-1);
-  const round = meta.round ?? last?.round ?? null;
-  const phase: Phase | null = meta.phase ?? last?.phase ?? null;
+  const last = playbackSeq === null ? events.at(-1) : events.findLast(e => e.seq <= playbackSeq);
+  const round = playbackSeq === null ? meta.round ?? last?.round ?? null : last?.round ?? 1;
+  const phase: Phase | null = playbackSeq === null ? meta.phase ?? last?.phase ?? null : last?.phase ?? "negotiate";
 
   if (storeRunId !== id) return <p role="status" className="p-6 text-sm text-muted-foreground">Loading run...</p>;
 
@@ -91,8 +94,9 @@ export function RunViewer({ id }: { id: string }) {
         {ctx.blind ? <BlindBanner /> : null}
         {meta.status === "offline" ? <OfflineStrip eventCount={events.length} /> : null}
         <main className="mx-auto flex w-full max-w-[1600px] min-w-0 flex-1 flex-col gap-3 px-4 py-3 sm:px-6">
-          {meta.status === "ended" && events.length > 0 ? <RunSummary events={events} isMock={meta.isMock} mode={meta.mode} /> : null}
-          <details className="rounded-md border px-3 py-2"><summary className="cursor-pointer text-sm font-medium">Behavioral measures · counts and denominators</summary><div className="mt-3"><MetricsBar events={events} /></div></details>
+          {meta.status === "ended" && events.length > 0 ? <details className="rounded-md border px-3 py-2"><summary className="min-h-8 cursor-pointer py-1 text-sm font-medium">Completed run results · all rounds</summary><RunSummary events={events} isMock={meta.isMock} mode={meta.mode} /></details> : null}
+          <details className="rounded-md border px-3 py-2"><summary className="cursor-pointer text-sm font-medium">Behavioral measures · counts and denominators</summary><div className="mt-3"><MetricsBar events={observedEvents} /></div></details>
+          <AgentCard finalScores={meta.finalScores} wealthVisibility={meta.wealthVisibility} />
           <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start">
             <div className="flex min-w-0 flex-col gap-3">
               <ViewTabs view={view} onChange={setView} />
@@ -107,7 +111,6 @@ export function RunViewer({ id }: { id: string }) {
                   <ResearchView />
                 )}
               </div>
-              <AgentCard finalScores={meta.finalScores} wealthVisibility={meta.wealthVisibility} />
               <Roster finalScores={meta.finalScores} />
             </div>
             <div className="flex min-h-[28rem] min-w-0 flex-col lg:sticky lg:top-3 lg:h-[calc(100dvh-1.5rem)] lg:min-h-0">

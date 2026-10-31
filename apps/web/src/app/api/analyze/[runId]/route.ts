@@ -1,3 +1,4 @@
+import {executionDenied} from '@/lib/execution-policy';
 // Owner: E. Mastra post-run workflow.
 import { getRun } from "@/mastra/db";
 import { mastra } from "@/mastra";
@@ -6,6 +7,8 @@ import { mastra } from "@/mastra";
 export const maxDuration = 300;
 
 export async function POST(_req: Request, { params }: { params: Promise<{ runId: string }> }) {
+  const denied = executionDenied(_req);
+  if (denied) return denied;
   const { runId } = await params;
   try {
     const row = await getRun(runId);

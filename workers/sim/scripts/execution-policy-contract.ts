@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import { executionDenied, launchAvailability, reachableActorConfiguration } from '../../../apps/web/src/lib/execution-policy';
+
+const local = { DATABASE_URL: 'test', AI_GATEWAY_API_KEY: 'test', AGENTRELAY_API_KEY: 'test' };
+assert.equal(launchAvailability(local).enabled, true);
+assert.equal(executionDenied(new Request('http://localhost:3000/api/runs'), local), null);
+assert.equal(executionDenied(new Request('http://localhost:3000/api/runs', { headers: { origin: 'https://elsewhere.invalid' } }), local)?.status, 403);
+assert.equal(executionDenied(new Request('https://public.invalid/api/runs'), local)?.status, 403);
+const hosted = { ...local, VERCEL: '1' };
+assert.equal(launchAvailability(hosted).enabled, false);
+assert.equal(executionDenied(new Request('http://localhost/api/runs'), hosted)?.status, 403);
+assert.equal(reachableActorConfiguration({ ...hosted, DURABLE_ACTORS_URL: 'https://127.0.0.1:7100', DURABLE_ACTORS_PROJECT_ID: 'local' }), false);
+const configured = { ...hosted, DURABLE_ACTORS_URL: 'https://actors.example.test', DURABLE_ACTORS_PROJECT_ID: 'demo', SIM_OPERATOR_TOKEN: 'fixture-key' };
+assert.equal(launchAvailability(configured).enabled, true);
+assert.equal(launchAvailability(configured).requiresToken, true);
+assert.equal(executionDenied(new Request('https://public.invalid/api/runs'), configured)?.status, 403);
+assert.equal(executionDenied(new Request('https://public.invalid/api/runs', { headers: { 'x-sim-operator-token': 'fixture-key' } }), configured), null);
+assert.equal(executionDenied(new Request('https://public.invalid/api/runs', { headers: { 'x-sim-operator-token': 'wrong-key!!' } }), configured)?.status, 403);
+assert.equal(launchAvailability({ ...local, MODEL_MODE: 'stub' }).enabled, false);
+console.log('PASS: execution policy rejects public/unconfigured, cross-origin, and incorrect-key mutations; permits configured operator and local launcher. No remote requests.');

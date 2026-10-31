@@ -7,9 +7,9 @@ import { useEffect, useState } from 'react'
 const REPO_URL = 'https://github.com/RonKat2008/simulization'
 
 const NAV = [
+  { href: '/runs', label: 'Recorded runs', match: (p: string) => p.startsWith('/run') },
+  { href: '/launch', label: 'Experiment settings', match: (p: string) => p.startsWith('/launch') },
   { href: '/how-it-works', label: 'How it works', match: (p: string) => p.startsWith('/how-it-works') },
-  { href: '/launch', label: 'Launch', match: (p: string) => p.startsWith('/launch') },
-  { href: '/runs', label: 'Runs', match: (p: string) => p.startsWith('/run') },
   { href: '/report', label: 'Report', match: (p: string) => p.startsWith('/report') },
 ]
 

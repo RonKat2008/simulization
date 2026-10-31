@@ -12,13 +12,13 @@ export default async function RunsPage() {
   return (
     <>
       <SiteHeader />
-      <main id="main" className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-4 py-12 sm:px-6 lg:py-20">
+      <main id="main" className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6 lg:py-10">
         <div className="flex flex-col gap-4">
-          <h1 className="font-display text-4xl font-semibold leading-tight text-balance sm:text-6xl">
+          <h1 className="font-display text-3xl font-semibold leading-tight text-balance sm:text-4xl">
             Recorded runs
           </h1>
           <p className="max-w-xl text-base text-muted-foreground text-pretty">
-            Real games, replayed event by event. Matched seeds, labeled vs blind.
+            Saved experiments, replayed event by event with no new model calls. Each recording keeps its company-label setting, coin visibility and model mode.
           </p>
         </div>
         {runs.length === 0 ? (

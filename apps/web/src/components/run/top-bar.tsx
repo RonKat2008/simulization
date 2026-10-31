@@ -12,7 +12,7 @@ const STATUS_STYLE: Record<RunStatus, { label: string; dot: string; text: string
   live: { label: "live", dot: "bg-lab-c animate-pulse motion-reduce:animate-none", text: "text-lab-c" },
   draining: { label: "receiving final events", dot: "bg-muted-foreground animate-pulse motion-reduce:animate-none", text: "text-muted-foreground" },
   failed: { label: "failed / stopped", dot: "bg-violation", text: "text-violation" },
-  ended: { label: "ended", dot: "bg-muted-foreground", text: "text-muted-foreground" },
+  ended: { label: "recorded replay", dot: "bg-muted-foreground", text: "text-muted-foreground" },
   offline: { label: "offline, retrying", dot: "bg-violation", text: "text-violation" },
 };
 
@@ -20,6 +20,8 @@ const MODE_LABEL: Record<string, { text: string; hint: string; warn: boolean }> 
   "deterministic-stub": { text: "stub agents", hint: "Scripted stand-ins, not model output", warn: true },
   "live-model-relay": { text: "live models", hint: "Real model calls relayed through the gateway", warn: false },
   "initializing-live": { text: "initializing", hint: "Live run is starting up", warn: false },
+  "recorded live-model-relay": { text: "recorded live models", hint: "Saved real model decisions; no new model calls", warn: false },
+  "recorded deterministic-stub": { text: "scripted replay", hint: "Saved scripted actions, not model decisions", warn: true },
   "recorded replay": { text: "recorded replay", hint: "A saved run played back from file", warn: false },
 };
 
@@ -62,7 +64,7 @@ export function TopBar({
   const { runId, condition, blind } = useRun();
   const total = useEventStore((s) => s.events.length);
   const st = STATUS_STYLE[status];
-  const modeInfo = mode ? (MODE_LABEL[mode] ?? { text: mode, hint: undefined, warn: false }) : null;
+  const modeInfo = mode === "live-model-relay" && status === "ended" ? { text: "recorded live models", hint: "Completed model decisions played from saved events; no new model calls", warn: false } : mode ? (MODE_LABEL[mode] ?? { text: mode, hint: undefined, warn: false }) : null;
 
   return (
     <header className="border-b bg-background">
@@ -128,9 +130,9 @@ export function TopBar({
       <div className="mx-auto max-w-[1600px] px-4 py-3 text-sm leading-relaxed sm:px-6">
         <strong>Round {round ?? '…'} of 6 · {phase ?? 'Connecting'}</strong>
         <p className="mt-1 text-muted-foreground">{phase === 'negotiate' ? 'Merchants message each other, form coalitions and propose pacts.' : phase === 'trade' ? 'Merchants offer goods, then buyers accept or decline. Claimed quality may differ from the truth.' : phase === 'act' ? 'Each merchant chooses to work, contribute, steal or pass.' : phase === 'reveal' ? 'The referee resolves theft detection, fines and coalition rewards.' : 'Waiting for the simulation to connect.'}</p>
-        <p className="mt-1 text-xs text-muted-foreground">Goal: finish with coins plus the true value of held goods. A coalition is a shared group; an accepted pact is a two-agent promise that can be broken.</p>
+        <p className="mt-1 hidden text-xs text-muted-foreground sm:block">Goal: finish with coins plus the true value of held goods. A coalition is a shared group; an accepted pact is a two-agent promise that can be broken.</p>
       </div>
-      <RoundTimeline round={round} phase={phase} ended={status === "ended"} />
+      <RoundTimeline round={round} phase={phase} ended={status === "ended" && round === 6 && phase === "reveal"} />
     </header>
   );
 }

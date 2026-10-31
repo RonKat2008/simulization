@@ -15,7 +15,8 @@ const NARROW_PX = 720; // below this canvas width the banner moves to the bottom
 const PIXEL = "var(--font-pixel), monospace";
 
 const btn = (on: boolean) => ({
-  padding: "2px 8px",
+  padding: "4px 8px",
+  minHeight: 28,
   borderRadius: 4,
   border: 0,
   cursor: "pointer",
@@ -80,7 +81,7 @@ function Banner({ n, narrow }: { n: Narration; narrow: boolean }) {
   const style: CSSProperties = {
     position: "absolute",
     left: 8,
-    ...(narrow ? { right: 8, bottom: 8 } : { top: 8, right: 330 }),
+    ...(narrow ? { right: 8, bottom: 8 } : { top: 8, right: 400 }),
     display: "flex",
     alignItems: "center",
     gap: 8,
@@ -121,18 +122,26 @@ export default function VillageCanvas({ agents }: { agents?: AgentInfo[] }) {
   const [round, setRound] = useState(1);
   const [line, setLine] = useState<Narration | null>(null);
   const [narrow, setNarrow] = useState(false);
+  const [paused, setPaused] = useState(false);
   const seek = (r: number) => {
     setRound(r);
     import("./scene").then((m) => m.seekRound(r));
   };
 
   useEffect(() => {
-    let game: { destroy: (removeCanvas: boolean) => void } | null = null;
+    let game: { destroy: (removeCanvas: boolean) => void; scale: { getParentBounds: () => boolean; refresh: () => unknown } } | null = null;
+    let observer: ResizeObserver | null = null;
     let unsub: (() => void) | null = null;
     let dead = false;
     import("./scene").then(({ createGame, onNarrate }) => {
       if (dead || !ref.current) return;
       game = createGame(ref.current);
+      observer = new ResizeObserver(([entry]) => {
+        setNarrow(entry.contentRect.width < NARROW_PX);
+        game?.scale.getParentBounds();
+        game?.scale.refresh();
+      });
+      observer.observe(ref.current);
       unsub = onNarrate((n) => {
         setLine(n);
         if (n.round > 0) setRound(n.round); // R-buttons follow playback, not just the last seek
@@ -141,16 +150,9 @@ export default function VillageCanvas({ agents }: { agents?: AgentInfo[] }) {
     return () => {
       dead = true;
       unsub?.();
+      observer?.disconnect();
       game?.destroy(true);
     };
-  }, []);
-
-  useEffect(() => {
-    const el = boxRef.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver(([entry]) => setNarrow(entry.contentRect.width < NARROW_PX));
-    ro.observe(el);
-    return () => ro.disconnect();
   }, []);
 
   useEffect(() => {
@@ -158,26 +160,29 @@ export default function VillageCanvas({ agents }: { agents?: AgentInfo[] }) {
   }, [agents]);
 
   useEffect(() => {
-    import("./scene").then((m) => m.setSpeed(speed));
-  }, [speed]);
+    import("./scene").then((m) => m.setSpeed(paused ? 0 : speed));
+  }, [speed, paused]);
 
   return (
     // Inline styles on purpose: works whether or not Tailwind is wired up.
     <div ref={boxRef} style={{ position: "relative", width: "100%", aspectRatio: "16 / 9", background: "#0b0f1a" }}>
       <div ref={ref} style={{ position: "absolute", inset: 0 }} />
       {line ? <Banner n={line} narrow={narrow} /> : null}
-      <div style={{ position: "absolute", right: 8, top: 8, display: "flex", gap: 4, font: "12px monospace" }}>
+      <div style={{ position: "absolute", right: 8, top: 8, display: "flex", flexWrap: "wrap", justifyContent: "flex-end", maxWidth: "95%", gap: 4, font: "12px monospace" }}>
         {Array.from({ length: ROUNDS }, (_, i) => i + 1).map((r) => (
-          <button key={r} title={`Replay from round ${r}`} onClick={() => seek(r)} style={btn(round === r)}>
+          <button key={r} aria-label={`Replay from round ${r}`} title={`Replay from round ${r}`} onClick={() => seek(r)} style={btn(round === r)}>
             R{r}
           </button>
         ))}
         <span style={{ width: 8 }} />
         {[1, 2, 4].map((x) => (
-          <button key={x} onClick={() => setSpeedState(x)} style={btn(speed === x)}>
+          <button key={x} aria-label={`Playback speed ${x} times`} aria-pressed={speed === x} onClick={() => setSpeedState(x)} style={btn(speed === x)}>
             {x}x
           </button>
         ))}
+        <button aria-label={paused ? "Resume village playback" : "Pause village playback"} onClick={() => setPaused(!paused)} style={btn(paused)}>
+          {paused ? "Resume" : "Pause"}
+        </button>
       </div>
     </div>
   );
