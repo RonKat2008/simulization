@@ -90,7 +90,6 @@ export function PastRuns({ refreshKey = 0 }: { refreshKey?: number }) {
         <div role="alert" className="flex flex-col gap-2 rounded-lg border border-dashed p-6 text-sm">
           <p className="font-semibold text-violation">Run history unavailable.</p>
           <p className="leading-relaxed text-muted-foreground">{state.message}</p>
-          
         </div>
       ) : null}
 
