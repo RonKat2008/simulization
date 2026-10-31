@@ -2,6 +2,30 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { startingLuck, type StartingLuckInput } from '../../../packages/shared/src/starting-luck';
 import type { Event } from '../../../packages/shared/src/schemas';
+import type { ReportData } from '../../../apps/web/src/components/report/types';
+// Next entrypoints are typechecked by the web project, rather than applying the
+// sim project's compiler flags to their entire database/judge dependency graph.
+// The actual implementations are exercised below, matching report-ui-contract.ts.
+const neonModulePath = '../../../apps/web/src/components/report/neon';
+const { persistedTerminalSeq } = await import(neonModulePath) as {
+  persistedTerminalSeq: (config: unknown, status: unknown) => number | undefined;
+};
+import { initialEvidenceForRun } from '../../../apps/web/src/components/report/initial-evidence';
+
+assert.equal(persistedTerminalSeq({ projectedSeq: 596 }, 'done'), 596);
+for (const value of [undefined, null, '596', -1, 0, 1.5, Infinity]) {
+  assert.equal(persistedTerminalSeq({ projectedSeq: value }, 'done'), undefined);
+}
+assert.equal(persistedTerminalSeq({ projectedSeq: 596 }, 'running'), undefined);
+assert.equal(initialEvidenceForRun('unknown-run', {}), undefined);
+assert.equal(initialEvidenceForRun('unknown-run', {initialInventory:{runId:'unknown-run', phase:'initial'}}), undefined);
+for (const runId of ['track-a-live-20261031-1','1e5c714e-e4bc-4d1d-aeb1-ff1eea922f94']) {
+  const initial = initialEvidenceForRun(runId, {});
+  assert.ok(initial);
+  assert.equal(Object.keys(initial.inventories).length,18);
+  assert.equal(Object.values(initial.inventories).flat().length,54);
+  assert.ok(initial.source.includes('snapshot SHA-256'));
+}
 const fixture: StartingLuckInput = {
   runId: 'fixture', status: 'done', agents: [{ id: 'a', name: 'A', model: 'exact-model' }, { id: 'b', name: 'B' }], terminalSeq: 2,
   initial: { runId: 'fixture', phase: 'initial', source: 'hand-calculated fixture', expectedGoods: { a: 2, b: 0 }, inventories: { a: [{ goodId: 'x', trueValue: 12 }, { goodId: 'y', trueValue: 8 }], b: [] } },
@@ -69,7 +93,10 @@ for (const events of [null, [null], [{}], [...fixture.events, fixture.events[0]]
 console.log('PASS no offers, checkpoint mismatch, event ordering and malformed inventories/events');
 
 // Exercise the real report adapter without invoking its database loader.
-const { assembleNeonReport } = await import('../../../apps/web/src/components/report/data');
+const reportModulePath = '../../../apps/web/src/components/report/data';
+const { assembleNeonReport } = await import(reportModulePath) as {
+  assembleNeonReport: (source: { runs: unknown[]; reviews: Map<string, unknown> }, options: { runId?: string }) => ReportData;
+};
 const loaded = {
   id: fixture.runId, condition: 'LABELED' as const, status: 'done',
   agents: fixture.agents.map(a => ({...a, company: 'A', provider: 'recorded-provider'})),

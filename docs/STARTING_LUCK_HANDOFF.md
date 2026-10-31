@@ -16,12 +16,15 @@ Starting value is independently available only from a verified persisted pre-act
 
 All seven `apps/web/public/runs/rec-*.json` recordings were checked. They have valid complete event logs against `run.seq` and valid behavior counts, but no persisted initial inventory evidence; initial values and scatter points are unavailable. Existing recordings' rosters lack exact models. The legacy shared mock fixtures also lack a terminal checkpoint, so the offline mock section honestly reports incomplete event evidence rather than deriving a checkpoint from array length. No historical evidence was invented.
 
-## Root integration requirements
+## Root integration
 
 1. Optional package export: `export * from './starting-luck';` in `packages/shared/src/index.ts`. Current relative typed imports work and pass build; root can switch them after exporting.
-2. The owned report `LoadedRun` type now accepts `terminalSeq?: number`, `initial?: StartingLuckInput['initial']`, and agent `provider?` / `model?`. Root's `apps/web/src/components/report/neon.ts` loader must preserve these. Its current SELECT drops provider/model, and its run mapping supplies neither terminal checkpoint nor initial evidence. Until corrected, real Neon reports explicitly mark these fields unavailable. Never set terminalSeq from `events.length` or last loaded sequence. Preserve raw full log validation; no dropped malformed rows.
-3. Root independently owns engine initialization evidence, Neon projection and shared schemas. Only populate `initial` after authenticating persisted pre-action provenance and complete allocation coverage. Existing recordings need no backfill from inference. The adapter is ready to accept verified evidence when available.
-4. Root owns rendered desktop/mobile and keyboard verification on its port 3100 server. No server was started or accessed here.
+2. The Neon loader now retains provider/model and reads the independent terminal checkpoint from `runs.config.projectedSeq` only for completed runs. It never derives that checkpoint from loaded events. All event rows are validated, with no silently discarded rows.
+3. Original local Terse snapshots supplied verified pre-action inventories for `track-a-live-20261031-1` and `1e5c714e-e4bc-4d1d-aeb1-ff1eea922f94`. The sanitized `src/data/initial-inventories.json` archive contains only goods and provenance, no credentials or private plans. Both snapshot-2 checkpoints have seq 0, empty events/committed keys, 18 agents and 54 unique goods. Audit verified LTX checksums, snapshot-chain hashes, SQLite integrity, roster continuity and the historical quality-as-value scoring contract. No historical event logs or database rows were changed. Other historical runs remain unavailable.
+4. Future fresh checkpoints atomically capture `initial-inventory-v1` / `quality-as-value-v1` evidence once. Commit/retry/recovery retain it, and Neon projects it into `runs.config.initialInventory`. Legacy checkpoints are never backfilled from later holdings or seeds. The report accepts this versioned evidence through its server-side adapter.
+5. Root uses a separate local report preview on port 3102 for rendered checks; the original port 3100 preview stays running. No new paid calls are required.
+
+Read-only Neon verification: the 607-event public run has 18 verified initial values, 12 plotted agents, six agents with no offers, 77 offers and nine false claims. The 596-event featured run retains 62 offers/four false claims while correctly reporting initial values unavailable.
 
 ## Verification
 
@@ -32,4 +35,4 @@ All seven `apps/web/public/runs/rec-*.json` recordings were checked. They have v
 - `pnpm --filter web build` passed, including Next TypeScript and static generation. Existing Mastra in-memory-storage warning remains.
 - `git diff --check` passed.
 
-Dependencies were installed from the existing lockfile with scripts disabled. No credentials, model/Relay calls, simulation runs, external database mutation, production changes, push or PR. Browser screenshots and interactive verification remain unperformed.
+Root rendered verification: the 607-event public report displays 12 plotted agents with exact model names and six “No offers” rows. The featured report displays “Starting value unavailable” while retaining offer counts. Desktop and 375px mobile screenshots inspected; a long provenance hash overflow was found and fixed with wrapping. No model/Relay calls, external database mutation, or production changes were used for this feature. Future capture additionally passes `initial-evidence-contract.ts` (SQLite reload, rollback/retry, legacy absence and mocked atomic Neon projection).

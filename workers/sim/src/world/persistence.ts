@@ -1,7 +1,7 @@
 // Owner: Person A. Durable checkpointing for one run. Dependency-free (no durable-actors import).
 // Storage backends: any async get/put (tests), or Terse actor SQLite via createTerseCheckpointStorage(this.db).
 // See PERSISTENCE.md for the contract and limitations.
-import { EventSchema, type Event } from '@simulization/shared';
+import { EventSchema, START_GOODS, type Event } from '@simulization/shared';
 import { phaseKey, type WorldState } from '../engine/types';
 
 /** Minimal key/value storage surface. `put` must be all-or-nothing for a single call. */
@@ -73,6 +73,18 @@ export interface Checkpoint {
   events: Event[];
   /** Phase keys (phaseKey of the state BEFORE resolution) already committed, in commit order. */
   committedKeys: string[];
+  /** Captured once before any action; absent on legacy checkpoints, never reconstructed. */
+  initialInventory?: InitialInventoryEvidence;
+}
+
+export interface InitialInventoryEvidence {
+  version: 'initial-inventory-v1';
+  valuation: 'quality-as-value-v1';
+  runId: string;
+  phase: 'initial';
+  source: 'Terse checkpoint initialization at seq 0';
+  expectedGoods: Record<string, number>;
+  inventories: Record<string, { goodId: string; trueValue: number }[]>;
 }
 
 export type PersistenceErrorCode = 'uninitialized' | 'stale' | 'invalid' | 'corrupt' | 'mismatch';
@@ -91,6 +103,46 @@ interface Snapshot extends Checkpoint {
 }
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
+
+/** Validate saved allocation metadata without deriving it from later holdings. */
+export function validateInitialInventoryEvidence(value: unknown, state: WorldState, code: PersistenceErrorCode = 'invalid'): InitialInventoryEvidence {
+  const fail = (): never => { throw new PersistenceError(code, 'invalid initial inventory evidence'); };
+  if (!value || typeof value !== 'object') return fail();
+  const e = value as InitialInventoryEvidence;
+  if (e.version !== 'initial-inventory-v1' || e.valuation !== 'quality-as-value-v1'
+    || e.runId !== state.runId || e.phase !== 'initial' || e.source !== 'Terse checkpoint initialization at seq 0'
+    || !e.expectedGoods || typeof e.expectedGoods !== 'object' || Array.isArray(e.expectedGoods)
+    || !e.inventories || typeof e.inventories !== 'object' || Array.isArray(e.inventories)) return fail();
+  const ids = Object.keys(state.agents).sort();
+  if (!ids.length || JSON.stringify(Object.keys(e.expectedGoods).sort()) !== JSON.stringify(ids)
+    || JSON.stringify(Object.keys(e.inventories).sort()) !== JSON.stringify(ids)) return fail();
+  const seen = new Set<string>();
+  for (const id of ids) {
+    const goods = e.inventories[id];
+    if (e.expectedGoods[id] !== START_GOODS || !Array.isArray(goods) || goods.length !== START_GOODS) return fail();
+    for (const good of goods) {
+      if (!good || typeof good.goodId !== 'string' || !good.goodId.trim() || seen.has(good.goodId)
+        || !Number.isInteger(good.trueValue) || good.trueValue < 1 || good.trueValue > 10) return fail();
+      seen.add(good.goodId);
+    }
+    // At initialization only, check the source allocation exactly. Later ownership and quality may change.
+    if (state.seq === 0 && JSON.stringify(goods) !== JSON.stringify(state.agents[id]!.inventory.map(g => ({ goodId: g.goodId, trueValue: g.trueQuality })))) return fail();
+  }
+  return clone(e);
+}
+
+function captureInitialInventory(state: WorldState): InitialInventoryEvidence {
+  if (state.round !== 1 || state.phase !== 'negotiate' || state.status !== 'running' || state.tradeStep !== undefined) {
+    throw new PersistenceError('invalid', 'initial inventory capture requires the pre-action round 1 state');
+  }
+  const ids = Object.keys(state.agents).sort();
+  return validateInitialInventoryEvidence({
+    version: 'initial-inventory-v1', valuation: 'quality-as-value-v1', runId: state.runId,
+    phase: 'initial', source: 'Terse checkpoint initialization at seq 0',
+    expectedGoods: Object.fromEntries(ids.map(id => [id, START_GOODS])),
+    inventories: Object.fromEntries(ids.map(id => [id, state.agents[id]!.inventory.map(g => ({ goodId: g.goodId, trueValue: g.trueQuality }))])),
+  }, state);
+}
 
 /** Throws 'invalid' unless `events` are schema-valid, belong to runId, and have ids/seqs contiguous from startSeq+1. */
 function validateEvents(runId: string, startSeq: number, events: readonly Event[], code: PersistenceErrorCode): Event[] {
@@ -136,9 +188,10 @@ export class RunPersistence {
       }
       if (!state.runId) throw new PersistenceError('invalid', 'state.runId is empty');
       if (state.seq !== 0) throw new PersistenceError('invalid', `initial state.seq must be 0 (event stream starts at 1), got ${state.seq}`);
-      const snap: Snapshot = { version: 1, state: clone(state), events: [], committedKeys: [] };
+      const snap: Snapshot = { version: 1, state: clone(state), events: [], committedKeys: [], initialInventory: captureInitialInventory(state) };
       await this.storage.put(this.key, snap);
-      return clone({ state: snap.state, events: snap.events, committedKeys: snap.committedKeys });
+      const { version: _v, ...checkpoint } = clone(snap);
+      return checkpoint;
     });
   }
 
@@ -172,6 +225,7 @@ export class RunPersistence {
         state: clone(state),
         events: [...cur.events, ...clone(validated)],
         committedKeys: [...cur.committedKeys, expectedKey],
+        ...(cur.initialInventory ? { initialInventory: clone(cur.initialInventory) } : {}),
       };
       await this.storage.put(this.key, next); // single atomic write
       const { version: _v, ...checkpoint } = clone(next);
@@ -188,7 +242,8 @@ export class RunPersistence {
     if (snap.state.seq !== events.length) {
       throw new PersistenceError('corrupt', `state.seq ${snap.state.seq} != ${events.length} stored events`);
     }
-    return clone({ state: snap.state, events, committedKeys: snap.committedKeys });
+    const initialInventory = snap.initialInventory === undefined ? undefined : validateInitialInventoryEvidence(snap.initialInventory, snap.state, 'corrupt');
+    return clone({ state: snap.state, events, committedKeys: snap.committedKeys, ...(initialInventory ? { initialInventory } : {}) });
   }
 
   private enqueue<T>(fn: () => Promise<T>): Promise<T> {

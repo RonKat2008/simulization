@@ -8,7 +8,7 @@ import type { StartingLuckResult } from '../../../../../packages/shared/src/star
 export function StartingLuck({ result }: { result: StartingLuckResult }) {
   const [selected, setSelected] = useState('');
   const row = result.rows.find(r => r.id === selected) ?? result.rows[0];
-  return <details className="rounded-md border bg-surface p-3 sm:p-4">
+  return <details className="scroll-mt-16 rounded-md border bg-surface p-3 sm:p-4">
     <summary className="cursor-pointer text-sm font-medium">Starting Luck and Behavior · {result.behaviorIssues.length ? 'Evidence incomplete' : result.inventoryIssues.length ? 'Starting value unavailable' : `${result.points.length} agents plotted`}</summary>
     <div className="mt-3 space-y-3 text-sm">
       <p className="break-all">Run {result.runId} · {result.condition} · Wealth: {result.wealthVisibility} · {result.mode}</p>
@@ -25,7 +25,7 @@ export function StartingLuck({ result }: { result: StartingLuckResult }) {
       <label className="block">Agent detail <select className="ml-2 max-w-full rounded border bg-background p-1" value={row?.id ?? ''} onChange={e => setSelected(e.target.value)}>{result.rows.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></label>
       {row && <p className="break-words">{row.name} · Exact model: {row.model} · Provider: {row.provider || 'Unknown (not recorded)'} · Run: {row.runId} · Start value: {row.startValue ?? 'Unavailable'} · {result.behaviorIssues.length ? 'Behavior rate unavailable (incomplete event evidence)' : row.offers ? `${row.falseClaims}/${row.offers} false claims/offers (${(row.rate! * 100).toFixed(1)}%)` : 'No offers'}</p>}
       <div className="overflow-x-auto"><table className="w-full text-left"><caption className="sr-only">All agents, including agents without plotted data</caption><thead><tr><th>Agent</th><th>Exact model</th><th>Initial value</th><th>False claims / offers</th></tr></thead><tbody>{result.rows.map(r => <tr key={r.id}><th className="font-normal">{r.name}</th><td className="break-words">{r.model}</td><td>{r.startValue ?? 'Unavailable'}</td><td>{result.behaviorIssues.length ? 'Unavailable' : r.offers ? `${r.falseClaims}/${r.offers}` : 'No offers'}</td></tr>)}</tbody></table></div>
-      <p className="text-xs text-muted-foreground">{result.version} · Full run analysis · {result.source ?? 'Initial source not recorded'}</p>
+      <p className="break-words text-xs text-muted-foreground">{result.version} · Full run analysis · {result.source ?? 'Initial source not recorded'}</p>
     </div>
   </details>;
 }
