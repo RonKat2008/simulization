@@ -1,5 +1,6 @@
 import { CHANCE, type InOutRate, type RunMetrics } from '@simulization/shared';
 import { Section } from './section';
+import { Term } from './term';
 import { inText, outText, pct, times, withCount } from './format';
 import { RateChart, type ChartRow } from './rate-chart';
 import type { ReportData } from './types';
@@ -49,7 +50,7 @@ export function ChartsSection({ data }: { data: ReportData }) {
         </li>
         <li className="flex items-center gap-2">
           <span className="w-4 border-t border-dashed border-foreground" aria-hidden="true" />
-          chance
+          <Term k="chance">chance</Term> (dashed line)
         </li>
       </ul>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

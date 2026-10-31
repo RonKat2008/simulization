@@ -1,6 +1,9 @@
 import Link from 'next/link'
 import { Logo } from './site-header'
 
+const FOOT_LINK =
+  'inline-flex min-h-10 items-center rounded-sm transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
+
 export function SiteFooter() {
   return (
     <footer className="border-t">
@@ -10,12 +13,12 @@ export function SiteFooter() {
           <p>Haunted Hacks 2026. Early signals, not a finished study.</p>
         </div>
         <nav aria-label="Footer">
-          <ul className="flex flex-wrap gap-x-6 gap-y-2">
-            <li><Link href="/launch" className="hover:text-foreground">Launch</Link></li>
-            <li><Link href="/run/mock" className="hover:text-foreground">Replay</Link></li>
-            <li><Link href="/report" className="hover:text-foreground">Report</Link></li>
+          <ul className="flex flex-wrap gap-x-6 gap-y-0">
+            <li><Link href="/launch" className={FOOT_LINK}>Launch</Link></li>
+            <li><Link href="/run/mock" className={FOOT_LINK}>Replay</Link></li>
+            <li><Link href="/report" className={FOOT_LINK}>Report</Link></li>
             <li>
-              <a href="https://github.com/RonKat2008/simulization" target="_blank" rel="noopener noreferrer" className="hover:text-foreground">
+              <a href="https://github.com/RonKat2008/simulization" target="_blank" rel="noopener noreferrer" className={FOOT_LINK}>
                 GitHub
               </a>
             </li>

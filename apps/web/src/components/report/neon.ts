@@ -1,16 +1,29 @@
 import { neon } from '@neondatabase/serverless';
 import { ReviewSchema, type Review } from '@simulization/shared';
+import { z } from 'zod';
+import { CrossJudgeSchema, type CrossJudge } from '../../mastra/crossJudge';
 import { rowToEvent } from '../../mastra/db';
+import { runModeOf, wealthVisibilityOf } from '../../mastra/hierarchy';
 import type { LoadedRun } from './data';
 
-/** Newest completed runs kept per condition, so a long history cannot bloat the page. */
+/** Newest completed runs kept per condition and compatible group, so a long history cannot bloat the page. */
 const MAX_RUNS_PER_CONDITION = 12;
 
 export interface NeonReport {
   runs: LoadedRun[];
   /** Latest stored kind='run' review per run id; runs without a valid one are absent. */
   reviews: Map<string, Review>;
+  /** Extra stored fields ReviewSchema strips: the anonymization map and the optional cross judge. */
+  extras?: Map<string, StoredExtras>;
 }
+
+export interface StoredExtras {
+  /** Anonymized group label -> company id ("Group 1" -> "A"). */
+  groupMap: Record<string, string>;
+  crossJudge?: CrossJudge;
+}
+
+const GroupMapSchema = z.record(z.string(), z.string());
 
 const asScores = (v: unknown): Record<string, number> => {
   if (typeof v !== 'object' || v === null) return {};
@@ -34,7 +47,7 @@ export async function loadNeonReport(runId?: string): Promise<NeonReport | null>
           row_number() OVER (PARTITION BY condition,COALESCE(config->>'wealth_visibility','private'),config->>'mode' ORDER BY created_at DESC) AS rn
         FROM runs WHERE status='done'
       ) t WHERE rn <= ${MAX_RUNS_PER_CONDITION} ORDER BY created_at`;
-  if (runRows.length === 0) return { runs: [], reviews: new Map() };
+  if (runRows.length === 0) return { runs: [], reviews: new Map(), extras: new Map() };
   const ids = runRows.map((r) => r.id as string);
 
   const [agentRows, eventRows, reviewRows, metricRows] = await sql.transaction([
@@ -56,13 +69,33 @@ export async function loadNeonReport(runId?: string): Promise<NeonReport | null>
       .map((a) => ({ id: a.agent_id as string, name: a.name as string, company: a.company as string })),
     events: eventRows.filter((e) => e.run_id === r.id).map(rowToEvent),
     finalScores: asScores(r.final_scores),
+    // Kept per run so the report never pools stub with live or public with private wealth.
+    mode: runModeOf(r.config),
+    wealthVisibility: wealthVisibilityOf(r.config),
   }));
 
   const reviews = new Map<string, Review>();
+  const extras = new Map<string, StoredExtras>();
   for (const row of reviewRows) {
     const parsed = ReviewSchema.safeParse(row.content);
-    if (parsed.success) reviews.set(row.run_id as string, parsed.data);
-    else console.error(`[report] review for run ${String(row.run_id)} failed validation; ignoring it`, parsed.error.message);
+    if (parsed.success) {
+      reviews.set(row.run_id as string, parsed.data);
+      const extra = readExtras(row.content, String(row.run_id));
+      if (extra) extras.set(row.run_id as string, extra);
+    } else console.error(`[report] review for run ${String(row.run_id)} failed validation; ignoring it`, parsed.error.message);
   }
-  return { runs, reviews };
+  return { runs, reviews, extras };
+}
+
+/** groupMap and crossJudge are read from the raw content; a bad cross judge is dropped, never fatal. */
+function readExtras(content: unknown, runId: string): StoredExtras | null {
+  if (typeof content !== 'object' || content === null) return null;
+  const raw = content as { groupMap?: unknown; crossJudge?: unknown };
+  const groupMap = GroupMapSchema.safeParse(raw.groupMap);
+  if (!groupMap.success) return null;
+  if (raw.crossJudge === undefined || raw.crossJudge === null) return { groupMap: groupMap.data };
+  const cross = CrossJudgeSchema.safeParse(raw.crossJudge);
+  if (cross.success) return { groupMap: groupMap.data, crossJudge: cross.data };
+  console.error(`[report] cross judge for run ${runId} failed validation; ignoring it`, cross.error.message);
+  return { groupMap: groupMap.data };
 }

@@ -24,9 +24,13 @@ export interface RunMeta {
   isMock: boolean;
   wealthVisibility: "private" | "public" | null;
   reportStatus: string | null;
+  /** Original run id for a static recorded replay's persisted report. */
+  reportRunId: string | null;
 }
 
 const MOCKS = { mock: labeled, "mock-blind": blind } as const;
+/** Recorded real runs served as static files from public/runs, so they replay without the sim (e.g. on Vercel). */
+const RECORDED: Record<string, string> = { featured: "/runs/featured.json" };
 const SIM_URL = (process.env.NEXT_PUBLIC_SIM_URL ?? "/api").replace(/\/$/, "");
 const POLL_MS = 1000;
 const FETCH_TIMEOUT_MS = 5000;
@@ -53,6 +57,7 @@ const parseEvents = (raw: unknown): Event[] =>
     : [];
 
 interface SimStatus {
+  id?: string;
   condition?: Condition;
   status?: string;
   round?: number;
@@ -93,6 +98,7 @@ function mockMeta(id: string): RunMeta {
     isMock: Boolean(mock),
     wealthVisibility: mock ? "private" : null,
     reportStatus: null,
+    reportRunId: mock ? null : id,
   };
 }
 
@@ -111,6 +117,40 @@ export function useRunSource(id: string): RunMeta {
     }
 
     let stopped = false;
+    const recorded = RECORDED[id];
+    if (recorded) {
+      getJson(recorded)
+        .then((raw) => {
+          if (stopped) return;
+          const file = raw as { run?: SimStatus & { seed?: number }; events?: unknown };
+          const s = file.run ?? {};
+          const events = parseEvents(file.events).sort((a,b)=>a.seq-b.seq);
+          if (!s.id || events.some(e=>e.runId!==s.id) || !terminalDrained(s,events)) {
+            throw new Error('Recorded run is incomplete or inconsistent');
+          }
+          load(events);
+          setMeta((m) => ({
+            ...m,
+            condition: s.condition ?? null,
+            status: "ended",
+            round: s.round ?? null,
+            phase: s.phase ?? null,
+            finalScores: s.finalScores ?? null,
+            roster: parseRoster(s.agents),
+            mode: s.mode ? `recorded ${s.mode}` : "recorded run",
+            wealthVisibility: s.wealth_visibility ?? "private",
+            reportStatus: s.reportStatus ?? null,
+            reportRunId: s.id ?? null,
+            error: null,
+          }));
+        })
+        .catch(() => {
+          if (!stopped) setMeta((m) => ({ ...m, status: "offline", error: `Recorded run "${id}" could not be loaded.` }));
+        });
+      return () => {
+        stopped = true;
+      };
+    }
     let timer: ReturnType<typeof setTimeout> | undefined;
     let fails = 0;
     let loaded = false;

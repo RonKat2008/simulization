@@ -34,13 +34,21 @@ const sortedUnique = (list: Event[]): Event[] => {
   return [...bySeq.values()].sort((a, b) => a.seq - b.seq);
 };
 
+/** Append fast path: live polls almost always deliver strictly newer events, so skip the full re-sort. */
+const mergeAppend = (prev: Event[], incoming: Event[]): Event[] => {
+  if (incoming.length === 0) return prev;
+  const lastSeq = prev.length ? prev[prev.length - 1]!.seq : 0;
+  const ordered = incoming.every((e, i) => e.seq > (i === 0 ? lastSeq : incoming[i - 1]!.seq));
+  return ordered ? [...prev, ...incoming] : sortedUnique([...prev, ...incoming]);
+};
+
 const NO_FILTERS = { typeFilter: [], agentFilter: null, flagFilter: [], roundFilter: null, query: "" } as const;
 
 export const useEventStore = create<EventState>((set) => ({
   runId: null,
   events: [],
   selectedAgentId: null,
-  append: (incoming) => set((s) => ({ events: sortedUnique([...s.events, ...incoming]) })),
+  append: (incoming) => set((s) => ({ events: mergeAppend(s.events, incoming) })),
   load: (events) => set({ events: sortedUnique(events) }),
   select: (id) => set({ selectedAgentId: id }),
   typeFilter: [],

@@ -5,22 +5,36 @@ import { useEventStore } from "@/store/eventStore";
 import { useRun } from "./run-context";
 import { RoundTimeline } from "./round-timeline";
 import type { RunStatus } from "./use-run-source";
+import type { WealthVisibility } from "./use-run-info";
 
 const STATUS_STYLE: Record<RunStatus, { label: string; dot: string; text: string }> = {
-  connecting: { label: "connecting", dot: "bg-muted-foreground animate-pulse", text: "text-muted-foreground" },
+  connecting: { label: "connecting", dot: "bg-muted-foreground animate-pulse motion-reduce:animate-none", text: "text-muted-foreground" },
   live: { label: "live", dot: "bg-lab-c animate-pulse motion-reduce:animate-none", text: "text-lab-c" },
-  draining: { label: "receiving final events", dot: "bg-muted-foreground animate-pulse", text: "text-muted-foreground" },
+  draining: { label: "receiving final events", dot: "bg-muted-foreground animate-pulse motion-reduce:animate-none", text: "text-muted-foreground" },
   failed: { label: "failed / stopped", dot: "bg-violation", text: "text-violation" },
   ended: { label: "ended", dot: "bg-muted-foreground", text: "text-muted-foreground" },
   offline: { label: "sim unreachable, retrying", dot: "bg-violation", text: "text-violation" },
 };
 
-const MODE_LABEL: Record<string, { text: string; warn: boolean }> = {
-  "deterministic-stub": { text: "stub agents, not model output", warn: true },
-  "live-model-relay": { text: "live models", warn: false },
-  "initializing-live": { text: "initializing", warn: false },
-  "recorded replay": { text: "recorded replay", warn: false },
+const MODE_LABEL: Record<string, { text: string; hint: string; warn: boolean }> = {
+  "deterministic-stub": { text: "stub agents", hint: "Scripted stand-ins, not model output", warn: true },
+  "live-model-relay": { text: "live models", hint: "Real model calls relayed through the gateway", warn: false },
+  "initializing-live": { text: "initializing", hint: "Live run is starting up", warn: false },
+  "recorded replay": { text: "recorded replay", hint: "A saved run played back from file", warn: false },
 };
+
+const WEALTH_HINT: Record<WealthVisibility, string> = {
+  private: "Wealth private: merchants could not see each other's coin balances",
+  public: "Wealth public: every merchant could see everyone's coin balances",
+};
+
+function Badge({ children, tone, title }: { children: string; tone: string; title?: string }) {
+  return (
+    <span title={title} className={`rounded-sm border px-2 py-0.5 text-[11px] ${tone}`}>
+      {children}
+    </span>
+  );
+}
 
 export function TopBar({
   status,
@@ -30,6 +44,9 @@ export function TopBar({
   wealthVisibility,
   isMock,
   reportStatus,
+  reportRunId,
+  onHelp,
+  helpOpen,
 }: {
   status: RunStatus;
   round: number | null;
@@ -38,11 +55,14 @@ export function TopBar({
   wealthVisibility: "private" | "public" | null;
   isMock: boolean;
   reportStatus: string | null;
+  reportRunId: string | null;
+  onHelp: () => void;
+  helpOpen: boolean;
 }) {
   const { runId, condition, blind } = useRun();
   const total = useEventStore((s) => s.events.length);
   const st = STATUS_STYLE[status];
-  const modeInfo = mode ? (MODE_LABEL[mode] ?? { text: mode, warn: false }) : null;
+  const modeInfo = mode ? (MODE_LABEL[mode] ?? { text: mode, hint: undefined, warn: false }) : null;
 
   return (
     <header className="border-b bg-background">
@@ -67,12 +87,18 @@ export function TopBar({
           </span>
         ) : null}
         {modeInfo ? (
-          <span className={`text-xs ${modeInfo.warn ? "text-violation" : "text-muted-foreground"}`}>{modeInfo.text}</span>
+          <Badge title={modeInfo.hint} tone={modeInfo.warn ? "border-violation/60 text-violation" : "border-border text-muted-foreground"}>
+            {modeInfo.text}
+          </Badge>
+        ) : null}
+        {wealthVisibility ? (
+          <Badge title={WEALTH_HINT[wealthVisibility]} tone={wealthVisibility === "public" ? "border-lab-b/60 text-lab-b" : "border-border text-muted-foreground"}>
+            {`wealth ${wealthVisibility}`}
+          </Badge>
         ) : null}
 
-        {wealthVisibility ? <span className="text-xs text-muted-foreground">{wealthVisibility} wealth</span> : null}
         {status === "ended" && !isMock ? (
-          <Link href={`/report?runId=${encodeURIComponent(runId)}`} className="text-xs text-primary underline underline-offset-4">
+          <Link href={`/report?runId=${encodeURIComponent(reportRunId ?? runId)}`} className="text-xs text-primary underline underline-offset-4">
             {reportStatus === "done" ? "View persisted report" : reportStatus === "failed" ? "Report failed — details" : reportStatus === "not-requested" ? "View run results" : "View report status"}
           </Link>
         ) : null}
@@ -80,6 +106,19 @@ export function TopBar({
           <p className="tabular-nums text-muted-foreground">
             <span className="text-foreground">{total}</span> events
           </p>
+          <button
+            type="button"
+            onClick={onHelp}
+            aria-pressed={helpOpen}
+            aria-keyshortcuts="?"
+            title="What you're looking at, and keyboard shortcuts"
+            className={`flex items-center gap-1.5 rounded-sm border px-2 py-0.5 transition-colors hover:border-primary/60 hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary active:bg-border ${
+              helpOpen ? "border-primary/60 text-foreground" : "text-muted-foreground"
+            }`}
+          >
+            <kbd className="font-display text-[11px] text-foreground">?</kbd>
+            Guide
+          </button>
           <p role="status" className={`flex items-center gap-2 ${st.text}`}>
             <span className={`size-2 rounded-full ${st.dot}`} aria-hidden="true" />
             {st.label}
@@ -102,7 +141,7 @@ export function BlindBanner() {
       <p className="mx-auto max-w-[1600px] px-4 py-1.5 text-xs text-accent sm:px-6">
         <span className="font-display tracking-widest">BLIND</span>
         <span className="mx-2 opacity-60" aria-hidden="true">/</span>
-        Company labels and colors are hidden in this view. The metrics below are still computed from true companies.
+        Company labels and colors are hidden here. Metrics still use true companies.
       </p>
     </div>
   );

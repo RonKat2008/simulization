@@ -21,6 +21,16 @@ for(const mode of ['deterministic-stub','live-model-relay'])for(const wealthVisi
  assert.ok(selected.every((r:any)=>r.config.mode===mode&&r.config.wealth_visibility===wealthVisibility));
 }
 assert.equal(selectReportRuns(runs,{}).length,2);
+// Main's group selector and integration's per-run URL must coexist without pooling.
+const grouped=assembleNeonReport(source,{group:'live-model-relay/public'});
+assert.equal(grouped.conditions.LABELED.runs,1);
+assert.equal(grouped.conditions.BLIND.runs,1);
+assert.equal(grouped.group.key,'live-model-relay/public');
+assert.equal(assembleNeonReport(source,{group:'missing/group'}).state,'empty');
+const precedence=assembleNeonReport(source,{runId:target.id,group:'deterministic-stub/private'});
+assert.deepEqual(precedence.selection,single.selection);
+assert.equal(precedence.conditions.BLIND.mean.evalAwareness.total,123);
+assert.ok(precedence.conditions.BLIND.cooperation,'new metrics coexist with older persisted metrics');
 assert.equal(assembleNeonReport(source,{runId:'missing'}).state,'empty');
 for(const [status,expected] of [['running','pending'],['failed','failed']]){
  const data=assembleNeonReport({runs:[{...target,status}],reviews:new Map()},{runId:target.id});

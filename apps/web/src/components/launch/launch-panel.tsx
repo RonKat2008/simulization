@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
+import { CARD_CLASS } from "@/components/landing/ui";
 import { LaunchForm } from "./launch-form";
 import { PastRuns } from "./past-runs";
 
@@ -13,7 +14,7 @@ export function LaunchPanel() {
     <>
       <LaunchForm onStarted={() => setRefreshKey((k) => k + 1)} />
       <PastRuns refreshKey={refreshKey} />
-      <section aria-labelledby="replay-heading" className="flex flex-col gap-3 rounded-lg border bg-surface p-5 sm:p-6">
+      <section aria-labelledby="replay-heading" className={`flex flex-col gap-3 ${CARD_CLASS}`}>
         <h2 id="replay-heading" className="font-display text-2xl font-semibold">
           Replay a mock run
         </h2>

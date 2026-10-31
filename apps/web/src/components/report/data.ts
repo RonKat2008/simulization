@@ -4,7 +4,11 @@ import {
   aggregateMetrics,
   computeCompanyMetrics,
   computeRunMetrics,
+  ethicality,
+  inGroupFavoritism,
+  labelEffectFromValues,
   powerStructure,
+  type EthicalityBucket,
   type Condition,
   type Event,
   type Review,
@@ -13,9 +17,12 @@ import {
 import labeledRun from '@simulization/shared/mock/mock-run.labeled.json';
 import blindRun from '@simulization/shared/mock/mock-run.blind.json';
 import { buildSampleClaims } from './sample-claims';
+import { relabelForDisplay } from '../../mastra/anonymize';
+import { runModeOf, wealthVisibilityOf } from '../../mastra/hierarchy';
+import { buildJudgeChecks } from './judge-check';
 import { toEvidence, type AgentLookup } from './summarize';
 import { loadNeonReport, type NeonReport } from './neon';
-import type { ConditionReport, ReportClaim, ReportData, ReportReview } from './types';
+import type { ConditionReport, EthicalitySplit, Frac, ReportClaim, ReportData, ReportReview, RunCooperation, RunEthicality, RunGroup } from './types';
 
 /** A finished run as the report needs it. Neon rows map onto this one-to-one. */
 export interface LoadedRun {
@@ -27,7 +34,16 @@ export interface LoadedRun {
   config?: { wealth_visibility?: string; mode?: string };
   status?: string;
   storedMetrics?: RunMetrics & { byCompany?: Record<string, RunMetrics> };
+  /** runs.config.mode, e.g. 'live-model-relay' or 'deterministic-stub'; 'unknown' when not recorded. */
+  mode?: string;
+  /** Normalized visibility; legacy runs use the original private default. */
+  wealthVisibility?: string;
 }
+
+/** The mock files are scripted stub runs with no recorded config. */
+const MOCK_MODE = 'deterministic-stub';
+const LIVE_MODE = 'live-model-relay';
+const isStubMode = (mode: string) => mode.includes('stub');
 
 const MockSchema = z.object({
   run: z.object({ id: z.string(), condition: z.enum(['LABELED', 'BLIND']), finalScores: z.record(z.string(), z.number()) }),
@@ -37,7 +53,35 @@ const MockSchema = z.object({
 
 function parseMock(raw: unknown): LoadedRun {
   const m = MockSchema.parse(raw);
-  return { id: m.run.id, condition: m.run.condition, agents: m.agents, events: m.events, finalScores: m.run.finalScores };
+  return {
+    id: m.run.id,
+    condition: m.run.condition,
+    agents: m.agents,
+    events: m.events,
+    finalScores: m.run.finalScores,
+    mode: MOCK_MODE,
+    wealthVisibility: 'unrecorded',
+  };
+}
+
+const frac = (good: number, total: number): Frac => ({ good, total, rate: total > 0 ? good / total : null });
+const ethFrac = (b: EthicalityBucket): Frac => frac(b.ethical, b.total);
+
+function runCooperation(r: LoadedRun): RunCooperation {
+  const f = inGroupFavoritism(r.events, r.agents);
+  const { inGroup: i, outGroup: o } = f.cooperation;
+  return { runId: r.id, crIn: frac(i.cooperative, i.total), crOut: frac(o.cooperative, o.total), favoritism: f.value };
+}
+
+function runEthicality(r: LoadedRun): RunEthicality {
+  const e = ethicality(r.events, r.agents);
+  return { runId: r.id, overall: ethFrac(e.overall), inGroup: ethFrac(e.inGroup), outGroup: ethFrac(e.outGroup) };
+}
+
+function poolEthicality(list: RunEthicality[]): EthicalitySplit {
+  const pool = (pick: (x: RunEthicality) => Frac) =>
+    frac(list.reduce((s, x) => s + pick(x).good, 0), list.reduce((s, x) => s + pick(x).total, 0));
+  return { overall: pool((x) => x.overall), inGroup: pool((x) => x.inGroup), outGroup: pool((x) => x.outGroup) };
 }
 
 const mean = (xs: number[]) => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : 0);
@@ -54,6 +98,7 @@ function conditionReport(condition: Condition, runs: LoadedRun[]): ConditionRepo
   const byCompany = Object.fromEntries(
     companies.map((c) => [c, agg(perRun.map((p) => p.byCompany[c]).filter((m): m is RunMetrics => m !== undefined))]),
   );
+  const eth = runs.map(runEthicality);
   const meanScore = Object.fromEntries(
     companies.map((c) => [
       c,
@@ -68,6 +113,8 @@ function conditionReport(condition: Condition, runs: LoadedRun[]): ConditionRepo
     byCompany,
     meanScore,
     power: runs.map((r) => powerStructure(r.events, r.agents, r.finalScores)),
+    cooperation: runs.map(runCooperation),
+    ethicality: { perRun: eth, pooled: poolEthicality(eth) },
   };
 }
 
@@ -119,64 +166,143 @@ function reviewClaimsFor(run: LoadedRun, claims: Review['claims']): ReportClaim[
   });
 }
 
-function realReview(runs: LoadedRun[], reviews: NeonReport['reviews']): ReportReview {
+function realReview(runs: LoadedRun[], reviews: NeonReport['reviews'], extras: NonNullable<NeonReport['extras']>): ReportReview {
+  // Stored reviews use the anonymized labels the judge saw ("Group 2"); map them back with each run's own groupMap.
+  const show = (runId: string, text: string) => {
+    const map = extras.get(runId)?.groupMap;
+    return map ? relabelForDisplay(text, map) : text;
+  };
   const reviewed = runs.filter((r) => reviews.has(r.id));
-  const single = reviewed.length === 1 ? reviews.get(reviewed[0]!.id)! : undefined;
+  const single = reviewed.length === 1 ? { ...reviews.get(reviewed[0]!.id)!, summary: show(reviewed[0]!.id, reviews.get(reviewed[0]!.id)!.summary) } : undefined;
   const summary =
     single?.summary ??
     `Opus reviews for ${reviewed.length} of ${runs.length} runs, shown together. Runs without a stored review contribute no claims.`;
-  const limitations = [...new Set(reviewed.flatMap((r) => reviews.get(r.id)!.limitations))];
+  const limitations = [...new Set(reviewed.flatMap((r) => reviews.get(r.id)!.limitations.map((l) => show(r.id, l))))];
   return {
     isSample: false,
-    summary: reviewed.length > 1 ? `${summary}\n\n${reviewed.map((r) => reviews.get(r.id)!.summary).join('\n\n')}` : summary,
-    claims: reviewed.flatMap((r) => reviewClaimsFor(r, reviews.get(r.id)!.claims)),
+    summary: reviewed.length > 1 ? `${summary}\n\n${reviewed.map((r) => show(r.id, reviews.get(r.id)!.summary)).join('\n\n')}` : summary,
+    claims: reviewed.flatMap((r) =>
+      reviewClaimsFor(r, reviews.get(r.id)!.claims.map((c) => ({ ...c, text: show(r.id, c.text) }))),
+    ),
     limitations,
   };
 }
 
-function assemble(source: ReportData['source'], runs: LoadedRun[], review: ReportReview): ReportData {
+const modeOf = (r: LoadedRun) => r.mode ?? runModeOf(r.config);
+const visibilityOf = (r: LoadedRun) => r.wealthVisibility ?? wealthVisibilityOf(r.config);
+const groupKey = (r: LoadedRun) => `${modeOf(r)}/${visibilityOf(r)}`;
+
+function groupLabel(mode: string, visibility: string, source: ReportData['source']): string {
+  const who = source === 'mock' ? 'Mock (scripted stubs)' : isStubMode(mode) ? 'Stub agents' : mode === LIVE_MODE ? 'Live models' : `Mode: ${mode}`;
+  const wealth = visibility === 'unrecorded' ? 'wealth visibility unrecorded' : `${visibility} wealth`;
+  return `${who} · ${wealth}`;
+}
+
+/** One entry per (mode, wealth visibility) present, live groups first, then by run count. */
+function groupsOf(runs: LoadedRun[], source: ReportData['source']): RunGroup[] {
+  const byKey = new Map<string, LoadedRun[]>();
+  for (const r of runs) byKey.set(groupKey(r), [...(byKey.get(groupKey(r)) ?? []), r]);
+  return [...byKey.entries()]
+    .map(([key, list]) => {
+      const mode = modeOf(list[0]!);
+      const wealthVisibility = visibilityOf(list[0]!);
+      return {
+        key,
+        mode,
+        wealthVisibility,
+        isStub: source === 'mock' || isStubMode(mode),
+        labeledRuns: list.filter((r) => r.condition === 'LABELED').length,
+        blindRuns: list.filter((r) => r.condition === 'BLIND').length,
+        label: groupLabel(mode, wealthVisibility, source),
+      };
+    })
+    .sort((a, b) => Number(a.isStub) - Number(b.isStub) || b.labeledRuns + b.blindRuns - (a.labeledRuns + a.blindRuns));
+}
+
+/**
+ * Default group: live models with the most common wealth visibility among live runs (ties: more runs).
+ * Without live runs, the group with the most runs.
+ */
+function defaultGroup(groups: RunGroup[]): RunGroup {
+  const live = groups.filter((g) => !g.isStub);
+  if (live.length === 0) return groups[0]!;
+  const runsByVisibility = new Map<string, number>();
+  for (const g of live) runsByVisibility.set(g.wealthVisibility, (runsByVisibility.get(g.wealthVisibility) ?? 0) + g.labeledRuns + g.blindRuns);
+  const [visibility] = [...runsByVisibility.entries()].sort((a, b) => b[1] - a[1])[0]!;
+  return live.filter((g) => g.wealthVisibility === visibility).sort((a, b) => Number(b.mode === LIVE_MODE) - Number(a.mode === LIVE_MODE) || b.labeledRuns + b.blindRuns - (a.labeledRuns + a.blindRuns))[0]!;
+}
+
+function assemble(source: ReportData['source'], allRuns: LoadedRun[], review: (runs: LoadedRun[]) => ReportReview, requested?: string, judge: (runs: LoadedRun[]) => ReportData['judgeChecks'] = () => []): ReportData {
+  const groups = groupsOf(allRuns, source);
+  const group = groups.find((g) => g.key === requested) ?? defaultGroup(groups);
+  const runs = allRuns.filter((r) => groupKey(r) === group.key);
   const conditions: ReportData['conditions'] = {};
   for (const condition of ['LABELED', 'BLIND'] as const) {
     const ofCondition = runs.filter((r) => r.condition === condition);
     if (ofCondition.length > 0) conditions[condition] = conditionReport(condition, ofCondition);
   }
-  return { source, conditions, review };
+  const values = (c: ConditionReport | undefined) => (c?.cooperation ?? []).map((x) => ({ runId: x.runId, value: x.favoritism }));
+  const labelEffect = labelEffectFromValues(values(conditions.LABELED), values(conditions.BLIND));
+  return { source, group, groups, labelEffect, conditions, review: review(runs), judgeChecks: judge(runs) };
 }
 
 function mockReport(): ReportData {
-  const runs = [parseMock(labeledRun), parseMock(blindRun)];
-  return assemble('mock', runs, sampleReview(runs));
+  return assemble('mock', [parseMock(labeledRun), parseMock(blindRun)], sampleReview);
 }
 
-export interface ReportOptions { runId?: string; wealthVisibility?: string; mode?: string; mock?: boolean; }
+export interface ReportOptions { runId?: string; wealthVisibility?: string; mode?: string; mock?: boolean; group?: string; }
 const emptyReview: ReportReview = {isSample:false,summary:'No stored review is available.',claims:[],limitations:[]};
+
+/** Explicit group selection never falls back to a different experiment. */
 export function selectReportRuns(runs: LoadedRun[], options: ReportOptions): LoadedRun[] {
-  if(options.runId) return runs.filter(r=>r.id===options.runId);
-  const latest=runs.at(-1);
-  const wealth=options.wealthVisibility ?? latest?.config?.wealth_visibility ?? 'private';
-  const mode=options.mode ?? latest?.config?.mode ?? 'unknown';
-  return runs.filter(r=>(r.config?.wealth_visibility??'private')===wealth&&(r.config?.mode??'unknown')===mode);
+  if (options.runId) return runs.filter(r => r.id === options.runId);
+  if (options.group) return runs.filter(r => groupKey(r) === options.group);
+  const groups = groupsOf(runs, 'neon');
+  const fallback = groups.length ? defaultGroup(groups) : undefined;
+  const wealth = options.wealthVisibility ?? fallback?.wealthVisibility ?? 'private';
+  const mode = options.mode ?? fallback?.mode ?? 'unknown';
+  return runs.filter(r => visibilityOf(r) === wealth && modeOf(r) === mode);
 }
+
+function emptyReport(state: ReportData['state'], message: string, options: ReportOptions = {}): ReportData {
+  const [groupMode, groupWealth] = options.group?.split('/') ?? [];
+  const mode = options.mode ?? groupMode ?? 'unknown';
+  const wealthVisibility = options.wealthVisibility ?? groupWealth ?? 'unknown';
+  return {
+    source: 'neon', state, message,
+    selection: {runId: options.runId, wealthVisibility, mode},
+    group: {key: `${mode}/${wealthVisibility}`, mode, wealthVisibility, isStub: isStubMode(mode), labeledRuns: 0, blindRuns: 0, label: groupLabel(mode, wealthVisibility, 'neon')},
+    groups: [], labelEffect: labelEffectFromValues([], []), conditions: {}, review: emptyReview, judgeChecks: [],
+  };
+}
+
 export function assembleNeonReport(neon: NeonReport, options: ReportOptions): ReportData {
-  const runs=selectReportRuns(neon.runs,options);
-  const first=runs[0];
-  const selection={runId:options.runId,wealthVisibility:first?.config?.wealth_visibility??options.wealthVisibility??(first?'private':'unknown'),mode:first?.config?.mode??options.mode??'unknown'};
-  if(!runs.length)return {source:'neon',state:'empty',message:options.runId?'Run not found in the reporting database yet. Open the live viewer to check initialization.':'No completed runs match this report selection.',selection,conditions:{},review:emptyReview};
-  if(first?.status!=='done')return {source:'neon',state:first?.status==='failed'?'failed':'pending',message:first?.status==='failed'?'This run stopped before completion; no completed report is available.':'This run is still in progress. Its report will appear after completion.',selection,conditions:{},review:emptyReview};
-  const reviewed=runs.filter(r=>neon.reviews.has(r.id));
-  const pendingReview=reviewed.length<runs.length;
-  const review=realReview(runs,neon.reviews);
-  if(!reviewed.length)review.summary='Metrics are available. No persisted model review is available yet; review generation may be pending or failed. Check the run status for delivery details.';
-  return {...assemble('neon',runs,review),state:'ready',selection,pendingReview};
+  const runs = selectReportRuns(neon.runs, options);
+  const first = runs[0];
+  const groups = groupsOf(neon.runs, 'neon');
+  if (!first) return {...emptyReport('empty', options.runId ? 'Run not found in the reporting database yet. Open the live viewer to check initialization.' : 'No completed runs match this report selection.', options), groups};
+  const selection = {runId: options.runId, wealthVisibility: visibilityOf(first), mode: modeOf(first)};
+  if (first.status !== 'done') return {
+    ...emptyReport(first.status === 'failed' ? 'failed' : 'pending', first.status === 'failed' ? 'This run stopped before completion; no completed report is available.' : 'This run is still in progress. Its report will appear after completion.', {...options, ...selection}), groups,
+  };
+  const extras = neon.extras ?? new Map();
+  const reviewed = runs.filter(r => neon.reviews.has(r.id));
+  const review = realReview(runs, neon.reviews, extras);
+  if (!reviewed.length) review.summary = 'Metrics are available. No persisted model review is available yet; review generation may be pending or failed. Check the run status for delivery details.';
+  // The selected set is already one compatible group (or one run). New measures are
+  // derived from these same events; the original persisted metrics remain authoritative.
+  const data = assemble('neon', runs, () => review, undefined, selected => buildJudgeChecks(selected, extras));
+  return {...data, groups, state: 'ready', selection, pendingReview: reviewed.length < runs.length};
 }
+
 /** Explicit fixtures only; database errors never masquerade as a mock report. */
 export async function loadReportData(options: ReportOptions = {}): Promise<ReportData> {
-  if(options.mock)return mockReport();
+  if (options.mock) return mockReport();
   try {
-    const neon=await loadNeonReport(options.runId);
-    if(!neon)return {source:'neon',state:'error',message:'Reporting database is not configured. Use the explicitly labeled fixture report for an offline preview.',conditions:{},review:emptyReview};
-    return assembleNeonReport(neon,options);
-  }catch{
-    return {source:'neon',state:'error',message:'The reporting database could not be read. Retry shortly; no fixture data has been substituted.',conditions:{},review:emptyReview};
+    const neon = await loadNeonReport(options.runId);
+    if (!neon) return emptyReport('error', 'Reporting database is not configured. Use the explicitly labeled fixture report for an offline preview.', options);
+    return assembleNeonReport(neon, options);
+  } catch {
+    return emptyReport('error', 'The reporting database could not be read. Retry shortly; no fixture data has been substituted.', options);
   }
 }

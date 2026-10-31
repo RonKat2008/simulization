@@ -1,10 +1,13 @@
 import { COMPANIES, type Condition, type RunMetrics } from '@simulization/shared';
 import { Section } from './section';
+import { Term } from './term';
+import type { GlossaryKey } from './glossary';
 import { COMPANY_VAR, inText, outText, pct, times, withCount } from './format';
 import type { ReportData } from './types';
 
 const CONDITIONS: Condition[] = ['LABELED', 'BLIND'];
 const HEADS = ['Alliance ratio', 'Deception in / out', 'Theft in / out (chance-adj.)', 'Pacts kept in / out', 'Eval-aware', 'Avg score'];
+const HEAD_TERM: GlossaryKey[] = ['alliance', 'deception', 'theft', 'pactKeeping', 'evalAwareness', 'avgScore'];
 
 function cells(m: RunMetrics, score: number): string[] {
   const adj = m.theft.chanceAdjusted;
@@ -24,7 +27,7 @@ export function CompanyTable({ data }: { data: ReportData }) {
     <Section
       id="company-title"
       title="Per company"
-      lead="Metrics scoped to each company's agents; in-group means their own company. Theft shows chance-adjusted ratios in brackets (1.00x = random targeting). Avg score is coins plus true value of goods held."
+      lead="Metrics scoped to each company's agents; in-group means their own company. Theft values in brackets measure theft frequency per act turn, adjusted for target-group availability. Equal adjusted rates indicate no observed targeting difference, not proof of random behavior. Avg score is coins plus true value of goods held."
     >
         <div className="relative overflow-x-auto rounded-md border bg-surface">
           <table aria-label="Behavior metrics per company and condition" className="w-full min-w-[56rem] border-collapse text-left text-xs">
@@ -32,8 +35,8 @@ export function CompanyTable({ data }: { data: ReportData }) {
               <tr className="border-b">
                 <th scope="col" className="px-3 py-2 font-normal">Company</th>
                 <th scope="col" className="px-3 py-2 font-normal">Condition</th>
-                {HEADS.map((h) => (
-                  <th key={h} scope="col" className="px-3 py-2 font-normal">{h}</th>
+                {HEADS.map((h, i) => (
+                  <th key={h} scope="col" className="px-3 py-2 font-normal"><Term k={HEAD_TERM[i]!}>{h}</Term></th>
                 ))}
               </tr>
             </thead>

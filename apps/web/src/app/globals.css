@@ -265,3 +265,44 @@ button, summary, a { touch-action: manipulation; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
+
+/* Landing hero market visual (anime.js). Initial hidden states have a reduced-motion static fallback. */
+.mvx-seq {
+  opacity: 0;
+}
+.mvx-ring {
+  opacity: 0;
+}
+[data-mvx="pending"] .mvx-node {
+  opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mvx-seq {
+    opacity: 1;
+  }
+  [data-mvx="pending"] .mvx-node {
+    opacity: 1;
+  }
+}
+.mvx-svg text {
+  font-family: var(--font-body), ui-monospace, monospace;
+}
+
+/* Mobile menu entrance (disabled under reduced motion by the global animation-duration override). */
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Better wrapping for headings and short copy; numerals do not jitter. */
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}

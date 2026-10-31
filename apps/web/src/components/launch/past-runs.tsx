@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ROUNDS } from "@simulization/shared";
+import { Badge } from "@/components/landing/ui";
 import { RunListSchema, readErrorMessage, type RunSummary } from "./schemas";
 
 type State =
@@ -24,10 +25,6 @@ function modeLabel(mode: RunSummary["mode"]): string {
   if (mode.includes("stub")) return "stub";
   if (mode.includes("live")) return "live";
   return mode;
-}
-
-function Badge({ children }: { children: React.ReactNode }) {
-  return <span className="rounded-sm border px-1.5 py-0.5 text-xs">{children}</span>;
 }
 
 function statusTone(status: string): string {
@@ -78,7 +75,7 @@ export function PastRuns({ refreshKey = 0 }: { refreshKey?: number }) {
             setNonce((n) => n + 1);
           }}
           disabled={state.kind === "loading"}
-          className="rounded-sm border px-3 py-1.5 text-xs transition-colors hover:border-primary hover:text-primary active:bg-surface-raised disabled:opacity-50"
+          className="inline-flex min-h-10 items-center rounded-md border px-4 text-xs transition-colors hover:border-primary hover:text-primary active:bg-surface-raised disabled:opacity-50"
         >
           {state.kind === "loading" ? "Loading…" : "Refresh"}
         </button>
@@ -133,7 +130,7 @@ export function PastRuns({ refreshKey = 0 }: { refreshKey?: number }) {
                     {run.condition}
                   </td>
                   <td className="px-3 py-2.5"><Badge>{modeLabel(run.mode)}</Badge></td>
-                  <td className="px-3 py-2.5"><Badge>{run.wealth_visibility ?? "private"}</Badge></td>
+                  <td className="px-3 py-2.5"><Badge tone={run.wealth_visibility === "public" ? "accent" : "neutral"}>{run.wealth_visibility ?? "private"}</Badge></td>
                   <td className="px-3 py-2.5 tabular-nums">{run.seed ?? "–"}</td>
                   <td className={`px-3 py-2.5 ${statusTone(run.status)}`}>{run.status}</td>
                   <td className="px-3 py-2.5 tabular-nums">{run.round ?? "–"}/{ROUNDS}</td>

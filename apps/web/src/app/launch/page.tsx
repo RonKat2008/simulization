@@ -12,6 +12,7 @@ export default function LaunchPage() {
       <SiteHeader />
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-10 px-4 py-12 sm:px-6 lg:py-20">
         <div className="flex flex-col gap-4">
+          <p className="text-xs uppercase tracking-[0.2em] text-primary">New experiment</p>
           <h1 className="font-display text-4xl font-semibold leading-tight sm:text-5xl">Launch a run</h1>
           <p className="max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
             Eighteen AI merchants try to finish six rounds with the most coins and valuable goods. Change what they can see, then watch how they trade, cooperate and steal; one run is an observation, not proof of provider bias.

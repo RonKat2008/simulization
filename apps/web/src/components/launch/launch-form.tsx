@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Badge, buttonClass, CARD_CLASS } from "@/components/landing/ui";
 import { OptionGroup, type Option } from "./option-group";
 import {
   DEFAULT_SEED,
@@ -32,8 +33,11 @@ type Phase =
 export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
   const router = useRouter();
   const seedId = useId();
+  const seedRef = useRef<HTMLInputElement>(null);
   const seedHelpId = useId();
   const errorId = useId();
+  const seedErrorId = useId();
+  const [seedTouched, setSeedTouched] = useState(false);
   const [condition, setCondition] = useState<Condition>("LABELED");
   const [wealth, setWealth] = useState<WealthVisibility>(DEFAULT_WEALTH_VISIBILITY);
   const [seed, setSeed] = useState(String(DEFAULT_SEED));
@@ -49,13 +53,17 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
     // Retain successful halves too: retrying a partially failed pair must reuse its first run.
     return result;
   }
+  const seedCheck = parseSeed(seed);
+  const seedError = seedTouched && !seedCheck.ok ? seedCheck.message : null;
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (pending) return;
     const parsedSeed = parseSeed(seed);
     if (!parsedSeed.ok) {
-      setPhase({ kind: "error", message: parsedSeed.message });
+      setSeedTouched(true);
+      seedRef.current?.closest("details")?.setAttribute("open", "");
+      seedRef.current?.focus();
       return;
     }
     setPhase({ kind: "pending", what: "single" });
@@ -72,7 +80,9 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
     if (pending) return;
     const parsedSeed = parseSeed(seed);
     if (!parsedSeed.ok) {
-      setPhase({ kind: "error", message: parsedSeed.message });
+      setSeedTouched(true);
+      seedRef.current?.closest("details")?.setAttribute("open", "");
+      seedRef.current?.focus();
       return;
     }
     setPhase({ kind: "pending", what: "pair" });
@@ -94,7 +104,7 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-6 rounded-lg border bg-surface p-5 sm:p-6" noValidate>
+    <form onSubmit={submit} className={`flex flex-col gap-6 ${CARD_CLASS}`} noValidate aria-label="Run options">
       <OptionGroup legend="Show agents’ company names" name="condition" options={CONDITION_OPTIONS} value={condition} onChange={setCondition} disabled={pending} />
       <OptionGroup legend="Show other agents’ coin balances" name="wealth_visibility" options={WEALTH_OPTIONS} value={wealth} onChange={setWealth} disabled={pending} />
 
@@ -105,27 +115,38 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
           Seed
         </label>
         <input
+          ref={seedRef}
           id={seedId}
           inputMode="numeric"
           autoComplete="off"
           spellCheck={false}
           value={seed}
           onChange={(e) => setSeed(e.target.value)}
+          onBlur={() => setSeedTouched(true)}
           disabled={pending}
-          aria-describedby={`${seedHelpId} ${phase.kind === "error" ? errorId : ""}`.trim()}
-          aria-invalid={phase.kind === "error" && !parseSeed(seed).ok ? true : undefined}
+          aria-describedby={`${seedHelpId} ${seedError ? seedErrorId : ""}`.trim()}
+          aria-invalid={seedError ? true : undefined}
           className="h-11 w-full max-w-xs rounded-md border bg-background px-3 text-base tabular-nums transition-colors hover:border-muted-foreground/60 focus-visible:border-primary focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-60 aria-[invalid=true]:border-violation"
         />
-        <p id={seedHelpId} className="text-xs leading-relaxed text-muted-foreground">
-          Signed 32-bit integer. Use the same seed in both conditions for a paired comparison. The world is deterministic given the seed; model outputs are not.
+        {seedError ? (
+          <p id={seedErrorId} role="alert" className="text-sm text-violation">
+            {seedError}
+          </p>
+        ) : null}
+        <p id={seedHelpId} className="max-w-prose text-xs leading-relaxed text-muted-foreground text-pretty">
+          Signed 32-bit integer (default {DEFAULT_SEED}). The seed fixes the world: names, goods and their hidden quality. Model outputs are not deterministic, so the same seed gives a comparable world, not identical behavior.
         </p>
       </div>
 
+        <div className="my-4 text-sm leading-relaxed text-muted-foreground">
+          <p>Matched pair <Badge tone="primary">for comparisons</Badge></p>
+          <p className="mt-2">Compare LABELED and BLIND runs with the same seed and coin visibility to explore a possible label effect. Model outputs still vary; one pair cannot establish bias or distinguish all causes of behavior.</p>
+        </div>
         <button
           type="button"
           onClick={startPair}
           disabled={pending}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-md border px-5 text-sm font-semibold transition-colors hover:border-primary hover:text-primary active:bg-surface-raised disabled:cursor-wait disabled:opacity-60"
+          className={buttonClass("secondary")}
         >
           {phase.kind === "pending" && phase.what === "pair" ? "Starting pair…" : "Start matched pair"}
         </button><p className="mt-2 text-xs text-muted-foreground">A matched pair starts two paid runs with the same seed and coin visibility, one with company names and one without.</p>
@@ -143,11 +164,12 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
       ) : null}
 
       {phase.kind === "pair" ? (
-        <div role="status" className="flex flex-col gap-2 rounded-md border border-primary/60 bg-primary/10 px-3 py-2.5 text-sm leading-relaxed">
+        <div role="status" className="flex flex-col gap-3 rounded-md border border-primary/60 bg-primary/10 px-4 py-3 text-sm leading-relaxed">
           <p className="font-semibold">Matched pair started (same seed and wealth visibility).</p>
-          <ul className="flex flex-wrap gap-x-6 gap-y-1">
-            {phase.labeled ? <li><Link href={`/run/${encodeURIComponent(phase.labeled)}`} className="underline underline-offset-4 hover:text-accent">LABELED run: {phase.labeled}</Link></li> : null}
-            {phase.blind ? <li><Link href={`/run/${encodeURIComponent(phase.blind)}`} className="underline underline-offset-4 hover:text-accent">BLIND run: {phase.blind}</Link></li> : null}
+          <p className="text-muted-foreground">Open each run to watch it live. Compare them on the report once both finish.</p>
+          <ul className="flex flex-col gap-2 sm:flex-row">
+            {phase.labeled ? <li><Link href={`/run/${encodeURIComponent(phase.labeled)}`} className={buttonClass("secondary", "w-full break-all py-2 sm:w-auto")}>Open LABELED run</Link></li> : null}
+            {phase.blind ? <li><Link href={`/run/${encodeURIComponent(phase.blind)}`} className={buttonClass("secondary", "w-full break-all py-2 sm:w-auto")}>Open BLIND run</Link></li> : null}
           </ul>
           {phase.message ? <p role="alert" className="text-violation">{phase.message}</p> : null}
         </div>
@@ -157,7 +179,7 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
         <button
           type="submit"
           disabled={pending}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-6 text-sm font-semibold text-primary-foreground transition-[background-color,transform] hover:bg-primary/85 active:scale-[0.98] disabled:cursor-wait disabled:opacity-70"
+          className={buttonClass("primary")}
         >
           {phase.kind === "pending" && phase.what === "single" ? (
             <>

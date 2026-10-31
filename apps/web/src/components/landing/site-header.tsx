@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 const REPO_URL = 'https://github.com/RonKat2008/simulization'
 
@@ -29,7 +29,7 @@ export function Logo() {
 }
 
 function linkClass(active: boolean) {
-  return `inline-flex min-h-10 items-center border-b-2 px-1 text-sm transition-colors ${
+  return `inline-flex min-h-10 items-center rounded-sm border-b-2 px-1 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
     active
       ? 'border-primary text-foreground'
       : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -38,12 +38,27 @@ function linkClass(active: boolean) {
 
 export function SiteHeader() {
   const pathname = usePathname() ?? '/'
-  const [open, setOpen] = useState(false)
+  // Menu is open only for the pathname it was opened on, so navigating closes it without an effect.
+  const [openAt, setOpenAt] = useState<string | null>(null)
+  const open = openAt === pathname
+  const setOpen = (next: boolean | ((v: boolean) => boolean)) => {
+    const value = typeof next === 'function' ? next(open) : next
+    setOpenAt(value ? pathname : null)
+  }
+
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpenAt(null)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open])
 
   return (
-    <header className="sticky top-0 z-40 border-b bg-background">
+    <header className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/75">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-        <Link href="/" aria-label="Simulization home" onClick={() => setOpen(false)}>
+        <Link href="/" aria-label="Simulization home" onClick={() => setOpen(false)} className="rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
           <Logo />
         </Link>
 
@@ -71,14 +86,15 @@ export function SiteHeader() {
           aria-expanded={open}
           aria-controls="mobile-nav"
           onClick={() => setOpen((v) => !v)}
-          className="inline-flex min-h-10 items-center rounded-md border px-3 text-sm text-foreground md:hidden"
+          aria-label={open ? 'Close menu' : 'Open menu'}
+          className="inline-flex min-h-11 min-w-16 items-center justify-center rounded-md border px-3 text-sm text-foreground transition-colors hover:border-primary hover:text-primary active:bg-surface-raised md:hidden"
         >
           {open ? 'Close' : 'Menu'}
         </button>
       </div>
 
       {open && (
-        <nav id="mobile-nav" aria-label="Primary mobile" className="border-t bg-background md:hidden">
+        <nav id="mobile-nav" aria-label="Primary mobile" className="border-t bg-background motion-safe:animate-[menu-in_150ms_ease-out] md:hidden">
           <ul className="mx-auto flex max-w-6xl flex-col px-4 py-2 sm:px-6">
             {NAV.map((item) => {
               const active = item.match(pathname)
@@ -88,10 +104,11 @@ export function SiteHeader() {
                     href={item.href}
                     aria-current={active ? 'page' : undefined}
                     onClick={() => setOpen(false)}
-                    className={`flex min-h-11 items-center text-sm ${
+                    className={`flex min-h-12 items-center gap-3 rounded-sm text-sm focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary ${
                       active ? 'text-primary' : 'text-foreground'
                     }`}
                   >
+                    <span aria-hidden="true" className={`size-1.5 ${active ? 'bg-primary' : 'bg-transparent'}`} />
                     {item.label}
                   </Link>
                 </li>
@@ -102,9 +119,10 @@ export function SiteHeader() {
                 href={REPO_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex min-h-11 items-center text-sm text-foreground"
+                className="flex min-h-12 items-center gap-3 rounded-sm text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary"
               >
-                GitHub
+                <span aria-hidden="true" className="size-1.5" />
+                GitHub<span className="sr-only"> (opens in a new tab)</span>
               </a>
             </li>
           </ul>

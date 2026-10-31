@@ -6,7 +6,7 @@ export default function Loading() {
       aria-live="polite"
     >
       <span className="size-2 bg-primary motion-safe:animate-pulse" aria-hidden="true" />
-      Loading
+      Loading…
     </main>
   )
 }
