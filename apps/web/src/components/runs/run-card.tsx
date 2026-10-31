@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Badge } from '@/components/landing/ui'
+import { settingBadges } from './settings'
 import type { RunEntry } from './types'
 
 const FOCUS =
@@ -24,7 +25,12 @@ export function RunCard({ entry }: { entry: RunEntry }) {
   return (
     <article className="group relative flex h-full flex-col gap-5 rounded-lg border bg-surface p-5 shadow-raised transition-colors duration-150 hover:border-border-strong hover:bg-surface-raised focus-within:border-primary/60 sm:p-6">
       <header className="flex items-center justify-between gap-3">
-        <Badge tone={entry.condition === 'LABELED' ? 'primary' : 'accent'}>{entry.condition}</Badge>
+        <span className="flex flex-wrap items-center gap-1.5">
+          <Badge tone={entry.condition === 'LABELED' ? 'primary' : 'accent'}>{entry.condition}</Badge>
+          {settingBadges(entry).map((b) => (
+            <Badge key={b}>{b}</Badge>
+          ))}
+        </span>
         <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-subtle-foreground tabular-nums">{entry.events} events</span>
       </header>
       <div className="flex flex-col gap-1.5">

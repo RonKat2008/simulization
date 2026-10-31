@@ -18,7 +18,7 @@ import labeledRun from '@simulization/shared/mock/mock-run.labeled.json';
 import blindRun from '@simulization/shared/mock/mock-run.blind.json';
 import { buildSampleClaims } from './sample-claims';
 import { relabelForDisplay } from '../../mastra/anonymize';
-import { runModeOf, wealthVisibilityOf } from '../../mastra/hierarchy';
+import { labelModeOf, monitoringOf, runModeOf, wealthVisibilityOf } from '../../mastra/hierarchy';
 import { buildJudgeChecks } from './judge-check';
 import { toEvidence, type AgentLookup } from './summarize';
 import { loadNeonReport, type NeonReport } from './neon';
@@ -31,13 +31,17 @@ export interface LoadedRun {
   agents: { id: string; name: string; company: string }[];
   events: Event[];
   finalScores: Record<string, number>;
-  config?: { wealth_visibility?: string; mode?: string };
+  config?: { wealth_visibility?: string; mode?: string; label_mode?: string; monitoring?: string; label_mapping?: Record<string, string> | null };
   status?: string;
   storedMetrics?: RunMetrics & { byCompany?: Record<string, RunMetrics> };
   /** runs.config.mode, e.g. 'live-model-relay' or 'deterministic-stub'; 'unknown' when not recorded. */
   mode?: string;
   /** Normalized visibility; legacy runs use the original private default. */
   wealthVisibility?: string;
+  /** 'true' | 'swapped'; legacy runs = 'true'. */
+  labelMode?: string;
+  /** 'standard' | 'unmonitored'; legacy runs = 'standard'. */
+  monitoring?: string;
 }
 
 /** The mock files are scripted stub runs with no recorded config. */
@@ -190,12 +194,18 @@ function realReview(runs: LoadedRun[], reviews: NeonReport['reviews'], extras: N
 
 const modeOf = (r: LoadedRun) => r.mode ?? runModeOf(r.config);
 const visibilityOf = (r: LoadedRun) => r.wealthVisibility ?? wealthVisibilityOf(r.config);
-const groupKey = (r: LoadedRun) => `${modeOf(r)}/${visibilityOf(r)}`;
+const labelModeOfRun = (r: LoadedRun) => (r.labelMode === 'swapped' ? 'swapped' : r.labelMode === 'true' ? 'true' : labelModeOf(r.config));
+const monitoringOfRun = (r: LoadedRun) => (r.monitoring === 'unmonitored' ? 'unmonitored' : r.monitoring === 'standard' ? 'standard' : monitoringOf(r.config));
+/** '' for default settings, so historical group keys (`mode/wealth`) are unchanged. */
+const settingsSuffix = (labelMode: string, monitoring: string) =>
+  `${labelMode === 'swapped' ? '/swapped' : ''}${monitoring === 'unmonitored' ? '/unmonitored' : ''}`;
+const groupKey = (r: LoadedRun) => `${modeOf(r)}/${visibilityOf(r)}${settingsSuffix(labelModeOfRun(r), monitoringOfRun(r))}`;
 
-function groupLabel(mode: string, visibility: string, source: ReportData['source']): string {
+function groupLabel(mode: string, visibility: string, source: ReportData['source'], labelMode = 'true', monitoring = 'standard'): string {
   const who = source === 'mock' ? 'Mock (scripted stubs)' : isStubMode(mode) ? 'Stub agents' : mode === LIVE_MODE ? 'Live models' : `Mode: ${mode}`;
   const wealth = visibility === 'unrecorded' ? 'wealth visibility unrecorded' : `${visibility} wealth`;
-  return `${who} · ${wealth}`;
+  const extras = `${labelMode === 'swapped' ? ' · swapped labels' : ''}${monitoring === 'unmonitored' ? ' · told unmonitored' : ''}`;
+  return `${who} · ${wealth}${extras}`;
 }
 
 /** One entry per (mode, wealth visibility) present, live groups first, then by run count. */
@@ -206,14 +216,18 @@ function groupsOf(runs: LoadedRun[], source: ReportData['source']): RunGroup[] {
     .map(([key, list]) => {
       const mode = modeOf(list[0]!);
       const wealthVisibility = visibilityOf(list[0]!);
+      const labelMode = labelModeOfRun(list[0]!);
+      const monitoring = monitoringOfRun(list[0]!);
       return {
         key,
         mode,
         wealthVisibility,
+        labelMode,
+        monitoring,
         isStub: source === 'mock' || isStubMode(mode),
         labeledRuns: list.filter((r) => r.condition === 'LABELED').length,
         blindRuns: list.filter((r) => r.condition === 'BLIND').length,
-        label: groupLabel(mode, wealthVisibility, source),
+        label: groupLabel(mode, wealthVisibility, source, labelMode, monitoring),
       };
     })
     .sort((a, b) => Number(a.isStub) - Number(b.isStub) || b.labeledRuns + b.blindRuns - (a.labeledRuns + a.blindRuns));
@@ -223,7 +237,10 @@ function groupsOf(runs: LoadedRun[], source: ReportData['source']): RunGroup[] {
  * Default group: live models with the most common wealth visibility among live runs (ties: more runs).
  * Without live runs, the group with the most runs.
  */
-function defaultGroup(groups: RunGroup[]): RunGroup {
+function defaultGroup(all: RunGroup[]): RunGroup {
+  // Default-settings runs come first; swapped-label / unmonitored groups are only shown when selected or alone.
+  const standard = all.filter((g) => (g.labelMode ?? 'true') === 'true' && (g.monitoring ?? 'standard') === 'standard');
+  const groups = standard.length > 0 ? standard : all;
   const live = groups.filter((g) => !g.isStub);
   if (live.length === 0) return groups[0]!;
   const runsByVisibility = new Map<string, number>();
@@ -261,7 +278,9 @@ export function selectReportRuns(runs: LoadedRun[], options: ReportOptions): Loa
   const fallback = groups.length ? defaultGroup(groups) : undefined;
   const wealth = options.wealthVisibility ?? fallback?.wealthVisibility ?? 'private';
   const mode = options.mode ?? fallback?.mode ?? 'unknown';
-  return runs.filter(r => visibilityOf(r) === wealth && modeOf(r) === mode);
+  const labelMode = fallback?.labelMode ?? 'true';
+  const monitoring = fallback?.monitoring ?? 'standard';
+  return runs.filter(r => visibilityOf(r) === wealth && modeOf(r) === mode && labelModeOfRun(r) === labelMode && monitoringOfRun(r) === monitoring);
 }
 
 function emptyReport(state: ReportData['state'], message: string, options: ReportOptions = {}): ReportData {

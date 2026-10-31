@@ -1,8 +1,8 @@
 // Track A. Serialized Terse actor; never mark this class or its methods @Interleave.
 import { Actor, Persisted, type ActorSocket } from 'durable-actors';
 import {createActorTransport} from 'durable-actors/backend';
-import { PHASE_DELAY_MS, stubTurn, createRng } from '@simulization/shared';
-import type { Event, WealthVisibility } from '@simulization/shared';
+import { PHASE_DELAY_MS, stubTurn, createRng, runLabelMapping } from '@simulization/shared';
+import type { Event, LabelMode, Monitoring, WealthVisibility } from '@simulization/shared';
 import { createWorld } from '../engine/world';
 import { stepWorld, turnSeed } from '../engine/runner';
 import { phaseKey } from '../engine/types';
@@ -25,19 +25,21 @@ export class WorldActor extends Actor<null, { after: number }, unknown> {
   @Persisted private setupError: string | null = null;
 
   /** Idempotent product entrypoint, also replayed by bootstrap's durable run directory. */
-  async startRun(runId:string, seed:number, condition:'BLIND'|'LABELED', mode:'live'|'stub', agentCount=18, wealth_visibility:WealthVisibility='private'):Promise<string> {
+  async startRun(runId:string, seed:number, condition:'BLIND'|'LABELED', mode:'live'|'stub', agentCount=18, wealth_visibility:WealthVisibility='private', label_mode:LabelMode='true', monitoring:Monitoring='standard'):Promise<string> {
     if (!['private','public'].includes(wealth_visibility))throw new Error('Invalid wealth visibility');
+    if (!['true','swapped'].includes(label_mode))throw new Error('Invalid label mode');
+    if (!['standard','unmonitored'].includes(monitoring))throw new Error('Invalid monitoring');
     if (!['live','stub'].includes(mode)) throw new Error('Invalid run mode');
     const existing=await new RunPersistence(createTerseCheckpointStorage(this.db)).load();
     if(existing){
-      if(existing.state.runId!==runId||existing.state.seed!==seed||existing.state.condition!==condition||Object.keys(existing.state.agents).length!==agentCount||this.requestedLive!==(mode==='live')||(existing.state.wealth_visibility??'private')!==wealth_visibility)throw new Error('Run registration conflict');
+      if(existing.state.runId!==runId||existing.state.seed!==seed||existing.state.condition!==condition||Object.keys(existing.state.agents).length!==agentCount||this.requestedLive!==(mode==='live')||(existing.state.wealth_visibility??'private')!==wealth_visibility||(existing.state.label_mode??'true')!==label_mode||(existing.state.monitoring??'standard')!==monitoring)throw new Error('Run registration conflict');
       if(!this.setupError)this.alarm.set(Date.now()+PHASE_DELAY_MS);
       return this.status();
     }
     if (mode==='live' && (!process.env.DATABASE_URL || !process.env.AI_GATEWAY_API_KEY || !process.env.AGENTRELAY_API_KEY || process.env.MODEL_MODE==='stub')) throw new Error('Live runs require DATABASE_URL, AI_GATEWAY_API_KEY, AGENTRELAY_API_KEY and MODEL_MODE unset');
     if(runId!==this.id||!Number.isInteger(seed)||seed<-2147483648||seed>2147483647||!['BLIND','LABELED'].includes(condition)||![6,18].includes(agentCount))throw new Error('Invalid run options');
     await this.db.transaction(async()=>{
-      await new RunPersistence(createTerseCheckpointStorage(this.db)).initialize(createWorld({runId,seed,condition,agentCount,wealth_visibility,epoch:Date.now()}));
+      await new RunPersistence(createTerseCheckpointStorage(this.db)).initialize(createWorld({runId,seed,condition,agentCount,wealth_visibility,label_mode,monitoring,epoch:Date.now()}));
       this.requestedLive=mode==='live';
       this.projectionEnabled=Boolean(process.env.DATABASE_URL);
       this.automatic=true;
@@ -100,7 +102,7 @@ export class WorldActor extends Actor<null, { after: number }, unknown> {
     // Terse local restart can restore the checkpoint without its scheduled alarm.
     // Reconcile on access; never advance state during a status read.
     if (this.automatic && !this.stopped && !this.setupError && s.status === 'running' && this.alarm.get() === null) this.alarm.set(Date.now() + PHASE_DELAY_MS);
-    return JSON.stringify({id:s.runId,condition:s.condition,wealth_visibility:s.wealth_visibility??'private',seed:s.seed,status:this.stopped?'failed':s.status,round:s.round,phase:s.phase,tradeStep:s.tradeStep,finalScores:s.finalScores,agents:Object.values(s.agents).map(({id,name,company})=>({id,name,company})),stopped:this.stopped,setupError:this.setupError,mode:this.requestedLive && !this.live ? 'initializing-live' : this.live ? 'live-model-relay' : this.stalledStub ? 'stalled-stub-test' : 'deterministic-stub',projection:this.projectionEnabled?(this.projectedSeq===s.seq&&this.projectedStopped===this.stopped?'synced':'pending'):'disabled',reportStatus:this.reportStatus,nextKey:phaseKey(s),seq:s.seq,nextAlarm:this.alarm.get()});
+    return JSON.stringify({id:s.runId,condition:s.condition,wealth_visibility:s.wealth_visibility??'private',label_mode:s.label_mode??'true',monitoring:s.monitoring??'standard',label_mapping:runLabelMapping(s.condition,s.label_mode),seed:s.seed,status:this.stopped?'failed':s.status,round:s.round,phase:s.phase,tradeStep:s.tradeStep,finalScores:s.finalScores,agents:Object.values(s.agents).map(({id,name,company})=>({id,name,company})),stopped:this.stopped,setupError:this.setupError,mode:this.requestedLive && !this.live ? 'initializing-live' : this.live ? 'live-model-relay' : this.stalledStub ? 'stalled-stub-test' : 'deterministic-stub',projection:this.projectionEnabled?(this.projectedSeq===s.seq&&this.projectedStopped===this.stopped?'synced':'pending'):'disabled',reportStatus:this.reportStatus,nextKey:phaseKey(s),seq:s.seq,nextAlarm:this.alarm.get()});
   }
 
   /** expectedKey makes client retries safe even after the next phase has begun. */

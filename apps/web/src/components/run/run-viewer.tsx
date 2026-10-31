@@ -117,7 +117,7 @@ export function RunViewer({ id }: { id: string }) {
   return (
     <RunProvider value={ctx}>
       <div className="flex min-h-dvh flex-col">
-        <TopBar status={meta.status} round={round} phase={phase} mode={meta.mode} wealthVisibility={meta.wealthVisibility} isMock={meta.isMock} reportStatus={meta.reportStatus} reportRunId={meta.reportRunId} seed={meta.seed} helpOpen={guideOpen} onHelp={() => setGuide(guideOpen)} />
+        <TopBar status={meta.status} round={round} phase={phase} mode={meta.mode} wealthVisibility={meta.wealthVisibility} labelMode={meta.labelMode} monitoring={meta.monitoring} isMock={meta.isMock} reportStatus={meta.reportStatus} reportRunId={meta.reportRunId} seed={meta.seed} helpOpen={guideOpen} onHelp={() => setGuide(guideOpen)} />
         {guideOpen ? <RunLegend onClose={() => setGuide(true)} /> : guide.ready ? <GuideLine onOpen={() => setGuide(false)} /> : null}
         {meta.status === "offline" ? <OfflineStrip eventCount={events.length} /> : null}
         <main className="mx-auto flex w-full max-w-[1600px] min-w-0 flex-1 flex-col gap-4 px-4 py-4 sm:px-6">

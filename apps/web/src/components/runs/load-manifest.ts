@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
+import { labelModeOf, monitoringOf } from './settings'
 import type { RunEntry } from './types'
 
 const RUNS_DIR = path.join(process.cwd(), 'public', 'runs')
@@ -19,6 +20,8 @@ function normalize(raw: unknown): RunEntry | null {
     condition,
     seed: num(r.seed),
     wealth_visibility: typeof r.wealth_visibility === 'string' ? r.wealth_visibility : 'private',
+    label_mode: labelModeOf(r.label_mode),
+    monitoring: monitoringOf(r.monitoring),
     mode: typeof r.mode === 'string' ? r.mode : undefined,
     events: num(r.events),
     lies: num(r.lies),
@@ -52,6 +55,8 @@ async function featuredEntry(): Promise<RunEntry[]> {
       condition: run.condition,
       seed: run.seed,
       wealth_visibility: run.wealth_visibility,
+      label_mode: run.label_mode,
+      monitoring: run.monitoring,
       mode: run.mode,
       events: events.length,
       lies: countFlag(events, 'lie'),

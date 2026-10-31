@@ -30,6 +30,8 @@ Recovery: RunDirectory journals creation before initialization. Startup re-arms 
 
 ## Wealth visibility contract for E/B/D
 
+`label_mode` (`true | swapped`, default `true`, LABELED only) and `monitoring` (`standard | unmonitored`, default `standard`) follow the same path as `wealth_visibility`: POST /api/runs body, RunDirectory registration, `WorldActor.startRun` args 7-8, WorldState checkpoint (keys written only when non-default), `runs.config.{label_mode,monitoring,label_mapping}`, status/list responses. Swap is applied only in `buildTurnInput`; the unmonitored line only in `buildSystemPrompt` via `AgentState.monitoring` set at MerchantAgent init. Smokes: `smoke:labels`, `smoke:monitoring`, next-api-smoke.
+
 `wealth_visibility` is `private | public`, defaults to `private`, and is immutable per run. It is accepted by POST /api/runs, stored in the Terse checkpoint/directory and `runs.config.wealth_visibility`, and returned in status/list metadata. Historical missing values mean private. `WealthVisibilitySchema` is exported from shared schemas; `AgentTurnInputSchema.otherAgents[].coins` is optional. Engine input construction emits it only for public mode, using each peer's current coin balance at that phase's observation snapshot. Self balances/inventory remain unchanged.
 
 Other merchants' true inventory quality/value is never added. Observer event/UI visibility remains separate, and EventSchema, starting coins, rewards, penalties, resolution order and scores are unchanged. E should keep wealth visibility as a grouping dimension in future experiment comparisons instead of pooling policies silently. The existing completed live verification run used private visibility. D owns any UI selector; omission already selects private.

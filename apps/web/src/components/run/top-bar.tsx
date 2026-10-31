@@ -87,6 +87,8 @@ type TopBarProps = {
   phase: Phase | null;
   mode: string | null;
   wealthVisibility: "private" | "public" | null;
+  labelMode?: "true" | "swapped" | null;
+  monitoring?: "standard" | "unmonitored" | null;
   isMock: boolean;
   reportStatus: string | null;
   reportRunId: string | null;
@@ -95,7 +97,7 @@ type TopBarProps = {
   helpOpen: boolean;
 };
 
-export function TopBar({ status, round, phase, mode, wealthVisibility, isMock, reportStatus, reportRunId, seed, onHelp, helpOpen }: TopBarProps) {
+export function TopBar({ status, round, phase, mode, wealthVisibility, labelMode = null, monitoring = null, isMock, reportStatus, reportRunId, seed, onHelp, helpOpen }: TopBarProps) {
   const { condition, blind } = useRun();
   const st = STATUS_STYLE[status];
   const cond = condition ? CONDITION_TEXT[condition] : null;
@@ -119,6 +121,18 @@ export function TopBar({ status, round, phase, mode, wealthVisibility, isMock, r
           >
             <span className={`font-mono text-[10.5px] uppercase tracking-[0.08em] ${blind ? "text-accent" : "text-primary"}`}>{cond.name}</span>
             <span className="text-muted-foreground">{cond.meaning}</span>
+          </span>
+        ) : null}
+        {labelMode === "swapped" ? (
+          <span title="Merchants saw company labels, but every other merchant's label was deliberately wrong (rotated)." className="inline-flex min-h-6 items-center gap-1.5 rounded-full border border-border-strong px-2.5 py-0.5 text-xs">
+            <span className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-foreground">Swapped</span>
+            <span className="text-muted-foreground">labels shown are wrong</span>
+          </span>
+        ) : null}
+        {monitoring === "unmonitored" ? (
+          <span title="Merchants were told no one would review the game logs." className="inline-flex min-h-6 items-center gap-1.5 rounded-full border border-border-strong px-2.5 py-0.5 text-xs">
+            <span className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-foreground">Unmonitored</span>
+            <span className="text-muted-foreground">told nobody is watching</span>
           </span>
         ) : null}
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs sm:ml-auto">
