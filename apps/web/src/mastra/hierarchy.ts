@@ -27,6 +27,16 @@ export const NOT_RECORDED = {
 
 export type WealthVisibility = 'public' | 'private' | 'unrecorded';
 
+/** What must match for runs to be pooled: anything across strata is a comparison, never a mean. */
+export interface RunStratum {
+  condition: Condition;
+  wealthVisibility: WealthVisibility;
+  mode: string;
+}
+
+export const stratumKey = ({ condition, wealthVisibility, mode }: RunStratum) =>
+  `${condition}/${wealthVisibility}/${mode}`;
+
 const inSeqOrder = (events: Event[]) => [...events].sort((a, b) => a.seq - b.seq);
 
 /**
@@ -265,12 +275,9 @@ export interface TopTally {
   byCompany: Record<string, CompanyTopCount>;
 }
 
-export interface CrossRunInput {
+export interface CrossRunInput extends RunStratum {
   id: string;
-  condition: Condition;
   seed: number;
-  mode: string;
-  wealthVisibility: WealthVisibility;
   hierarchy: RunHierarchy;
 }
 
@@ -394,9 +401,10 @@ export interface CrossRunHierarchy {
   caveat: string;
   excludedRuns: { runId: string; reason: string }[];
   providers: Record<string, string>;
-  /** Top-of-measure counts per condition, then per condition and wealth visibility. Each tally shows its run count. */
+  /** Top-of-measure counts per stratum (see stratumKey). Each tally shows its run count. */
   tops: Record<string, Record<TopMeasure, TopTally>>;
-  invalidTurnsByCompany: Record<string, number>;
+  /** Invalid turns per stratum, then per company. */
+  invalidTurnsByCompany: Record<string, Record<string, number>>;
   visibility: VisibilityComparison;
   notRecorded: typeof NOT_RECORDED;
 }
@@ -412,16 +420,16 @@ export function crossRunHierarchy(runs: CrossRunInput[], excludedRuns: CrossRunH
   const tops: CrossRunHierarchy['tops'] = {};
   const strata = new Map<string, CrossRunInput[]>();
   for (const run of live) {
-    for (const key of [run.condition, `${run.condition}/${run.wealthVisibility}`]) {
-      strata.set(key, [...(strata.get(key) ?? []), run]);
-    }
+    const key = stratumKey(run);
+    strata.set(key, [...(strata.get(key) ?? []), run]);
   }
   for (const [key, group] of strata) tops[key] = tallyTops(group);
 
-  const invalidTurnsByCompany: Record<string, number> = {};
+  const invalidTurnsByCompany: CrossRunHierarchy['invalidTurnsByCompany'] = {};
   for (const run of live) {
+    const totals = (invalidTurnsByCompany[stratumKey(run)] ??= {});
     for (const [company, n] of Object.entries(run.hierarchy.invalidTurnsByCompany)) {
-      invalidTurnsByCompany[company] = (invalidTurnsByCompany[company] ?? 0) + n;
+      totals[company] = (totals[company] ?? 0) + n;
     }
   }
 

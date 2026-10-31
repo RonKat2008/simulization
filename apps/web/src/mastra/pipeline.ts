@@ -15,10 +15,12 @@ import {
   computeRunHierarchy,
   crossRunHierarchy,
   runModeOf,
+  stratumKey,
   wealthVisibilityOf,
   type CrossRunHierarchy,
   type CrossRunInput,
   type RunHierarchy,
+  type RunStratum,
 } from './hierarchy';
 
 export type Reviewer = (prompt: string) => Promise<Review>;
@@ -41,8 +43,28 @@ export interface StoredSynthesis extends StoredReview {
   label: 'early signal';
   runIds: string[];
   skippedRuns: SkippedRun[];
-  aggregated: ReturnType<typeof aggregateMetrics>;
+  aggregated: StratumAggregates;
   hierarchy: CrossRunHierarchy;
+}
+
+/** Means per stratum (see stratumKey); runs are never pooled across condition, wealth visibility or mode. */
+export type StratumAggregates = Record<string, RunStratum & { runs: number; runIds: string[]; mean: RunMetrics }>;
+
+export function aggregateByStratum(runs: (RunStratum & { id: string; metrics: RunMetrics })[]): StratumAggregates {
+  const strata = new Map<string, typeof runs>();
+  for (const run of runs) {
+    const key = stratumKey(run);
+    strata.set(key, [...(strata.get(key) ?? []), run]);
+  }
+  const result: StratumAggregates = {};
+  for (const [key, group] of strata) {
+    const [first] = group;
+    const mean = first && aggregateMetrics(group)[first.condition]?.mean;
+    if (!first || !mean) continue;
+    const { condition, wealthVisibility, mode } = first;
+    result[key] = { condition, wealthVisibility, mode, runs: group.length, runIds: group.map((r) => r.id), mean };
+  }
+  return result;
 }
 
 export function computeStoredMetrics(
@@ -128,7 +150,7 @@ export class NoReviewsError extends Error {
  * different runs. Reviews are moved onto one shared labeling before the agent reads them.
  */
 export function buildSynthesisPrompt(
-  runs: { id: string; condition: Condition; review: StoredReview }[],
+  runs: (RunStratum & { id: string; seed: number; review: StoredReview })[],
   aggregated: StoredSynthesis['aggregated'],
   sharedGroups: GroupMap,
   hierarchy: CrossRunHierarchy,
@@ -138,11 +160,14 @@ export function buildSynthesisPrompt(
     const group = sharedGroupOf.get(company) ?? company;
     return { group, idPrefix: group.replace('Group ', 'G') };
   };
-  const reviews = runs.map(({ id, condition, review }) => {
+  const reviews = runs.map(({ id, condition, wealthVisibility, mode, seed, review }) => {
     const relabel = (text: string) => relabelGroups(text, review.groupMap, labelOf);
     return {
       runId: id,
       condition,
+      wealthVisibility,
+      mode,
+      seed,
       summary: relabel(review.summary),
       claims: review.claims.map((c) => ({ ...c, text: relabel(c.text) })),
       limitations: review.limitations.map(relabel),
@@ -151,13 +176,13 @@ export function buildSynthesisPrompt(
   // Provider names stay out of the prompt; company keys become the shared group labels.
   const { providers: _providers, ...measured } = hierarchy;
   const { scrubDeep } = createAnonymizer([], undefined, sharedGroups);
-  return `Aggregated metrics by condition (authoritative):\n${JSON.stringify(aggregated)}\n\nExploratory hierarchy measures (authoritative counts):\n${JSON.stringify(scrubDeep(measured))}\n\nRun reviews (JSON lines):\n${reviews
+  return `Aggregated metrics by condition, wealth visibility and run mode (authoritative):\n${JSON.stringify(aggregated)}\n\nExploratory hierarchy measures (authoritative counts):\n${JSON.stringify(scrubDeep(measured))}\n\nRun reviews (JSON lines):\n${reviews
     .map((r) => JSON.stringify(r))
     .join('\n')}`;
 }
 
 export async function runSynthesis(deps: SynthesisDeps): Promise<StoredSynthesis> {
-  const included: (SynthesisRunInput & { review: StoredReview; metrics: StoredMetrics })[] = [];
+  const included: (SynthesisRunInput & RunStratum & { review: StoredReview; metrics: StoredMetrics })[] = [];
   const skippedRuns: SkippedRun[] = [];
 
   for (const run of await deps.loadRuns()) {
@@ -168,28 +193,29 @@ export async function runSynthesis(deps: SynthesisDeps): Promise<StoredSynthesis
     else {
       const review = StoredReviewSchema.safeParse(run.review);
       if (!review.success) skip('stored review does not match the expected shape');
-      else included.push({ ...run, review: review.data, metrics: run.metrics as StoredMetrics });
+      else {
+        included.push({
+          ...run,
+          wealthVisibility: wealthVisibilityOf(run.config),
+          mode: runModeOf(run.config),
+          review: review.data,
+          metrics: run.metrics as StoredMetrics,
+        });
+      }
     }
   }
   if (included.length === 0) throw new NoReviewsError(skippedRuns);
 
-  const aggregated = aggregateMetrics(included.map((r) => ({ condition: r.condition, metrics: r.metrics })));
+  const aggregated = aggregateByStratum(included);
   const companies = included.flatMap((r) => Object.values(r.review.groupMap));
   const groupMap = assignGroups(companies, deps.random);
   const runIds = included.map((r) => r.id);
 
   const hierarchyRuns: CrossRunInput[] = [];
   const noHierarchy: SkippedRun[] = [];
-  for (const { id, condition, seed, config, metrics } of included) {
+  for (const { id, condition, seed, wealthVisibility, mode, metrics } of included) {
     if (metrics.hierarchy) {
-      hierarchyRuns.push({
-        id,
-        condition,
-        seed,
-        mode: runModeOf(config),
-        wealthVisibility: wealthVisibilityOf(config),
-        hierarchy: metrics.hierarchy,
-      });
+      hierarchyRuns.push({ id, condition, seed, wealthVisibility, mode, hierarchy: metrics.hierarchy });
     } else noHierarchy.push({ runId: id, reason: 'analyzed before hierarchy measures existed; re-run analysis' });
   }
   const hierarchy = crossRunHierarchy(hierarchyRuns, noHierarchy);
