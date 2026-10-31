@@ -2,11 +2,11 @@
 import type { AgentStore } from "@simulization/shared";
 import type { AgentActor } from "./AgentActor";
 import { DoAgentStore } from "./doStore";
-import { GatewayModelClient } from "./gatewayModel";
+import { GatewayModelClient } from "@simulization/agents";
 import { NeonAgentStore } from "./neonStore";
-import type { ModelClient } from "./types";
-import { RelayClient } from "../relay/relayClient";
-import { RunRelay } from "../relay/runRelay";
+import type { ModelClient } from "@simulization/agents";
+import { RelayClient } from "@simulization/agents";
+import { RunRelay } from "@simulization/agents";
 
 export function createModelClient(env: Cloudflare.Env): ModelClient {
   return new GatewayModelClient(env.AI_GATEWAY_API_KEY);

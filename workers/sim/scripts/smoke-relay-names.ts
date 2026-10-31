@@ -4,7 +4,7 @@ const assert = {
   deepEqual(a: unknown, b: unknown) { if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error(`deepEqual: ${JSON.stringify(a)} != ${JSON.stringify(b)}`); },
   match(a: string, re: RegExp) { if (!re.test(a)) throw new Error(`${a} !~ ${re}`); },
 };
-import { agentIdFromRelayName, channelName, parseCursor, relayAgentName, serializeCursor } from "../src/relay/runRelay";
+import { agentIdFromRelayName, channelName, parseCursor, relayAgentName, serializeCursor } from "@simulization/agents";
 
 const run = "AB12-xyz_Run";
 assert.match(relayAgentName("ab12", "A-04"), /^run-ab12-[a-z0-9]+-a-04$/);

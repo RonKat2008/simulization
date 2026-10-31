@@ -1,6 +1,6 @@
 // Owner: Person B. Replaces the world-built inbox with the AgentRelay inbox when available.
 import type { AgentState, AgentTurnInput } from "@simulization/shared";
-import type { RunRelay } from "../relay/runRelay";
+import type { RunRelay } from "./runRelay";
 
 /** Never blocks a turn: on any relay problem the input/state are returned unchanged. */
 export async function withRelayInbox(

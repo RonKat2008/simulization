@@ -1,8 +1,8 @@
 // Offline smoke test for the turn pipeline (no keys): repair retry, illegal-action filtering, failure → pass.
 import { createRng, stubTurn, type AgentState, type AgentStore, type AgentTurnInput } from "@simulization/shared";
-import { runAgentTurns } from "../src/agents/runAgentTurns";
-import { takeTurn } from "../src/agents/takeTurn";
-import type { ModelClient } from "../src/agents/types";
+import { runAgentTurns } from "@simulization/agents";
+import { takeTurn } from "@simulization/agents";
+import type { ModelClient } from "@simulization/agents";
 import { SCENARIOS } from "./fixtures";
 
 const check = (cond: boolean, msg: string): void => {

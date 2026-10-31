@@ -1,11 +1,11 @@
 // Owner: Person B. AGENT_STORE=neon: each agent's state is a jsonb column in the `agents` table.
 import { neon } from "@neondatabase/serverless";
 import { AgentStateSchema, type AgentState, type AgentStore, type AgentTurnInput, type AgentTurnOutput } from "@simulization/shared";
-import type { RunRelay } from "../relay/runRelay";
-import { withRelayInbox } from "./relayInbox";
-import { takeTurn } from "./takeTurn";
-import { logTurn } from "./telemetry";
-import type { ModelClient } from "./types";
+import type { RunRelay } from "@simulization/agents";
+import { withRelayInbox } from "@simulization/agents";
+import { takeTurn } from "@simulization/agents";
+import { logTurn } from "@simulization/agents";
+import type { ModelClient } from "@simulization/agents";
 
 interface AgentRow {
   name: string;

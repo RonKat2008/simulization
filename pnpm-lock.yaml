@@ -215,6 +215,16 @@ importers:
         specifier: ^5
         version: 5.9.3
 
+  packages/agents:
+    dependencies:
+      '@simulization/shared':
+        specifier: workspace:*
+        version: link:../shared
+    devDependencies:
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
   packages/shared:
     dependencies:
       zod:
@@ -236,6 +246,9 @@ importers:
       '@neondatabase/serverless':
         specifier: ^1.2.0
         version: 1.2.0
+      '@simulization/agents':
+        specifier: workspace:*
+        version: link:../../packages/agents
       '@simulization/shared':
         specifier: workspace:*
         version: link:../../packages/shared

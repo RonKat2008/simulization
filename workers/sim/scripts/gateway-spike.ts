@@ -1,8 +1,8 @@
 // Owner: Person B. `pnpm --filter sim spike:gateway`: one takeTurn per company through the gateway.
 import { COMPANIES } from "@simulization/shared";
-import { GatewayModelClient, AI_GATEWAY_BASE_URL } from "../src/agents/gatewayModel";
-import { takeTurn } from "../src/agents/takeTurn";
-import { withTimeout } from "../src/agents/limits";
+import { GatewayModelClient, AI_GATEWAY_BASE_URL } from "@simulization/agents";
+import { takeTurn } from "@simulization/agents";
+import { withTimeout } from "@simulization/agents";
 import { exit, optionalEnv, requireEnv } from "./env";
 import { SCENARIOS, stateFor } from "./fixtures";
 

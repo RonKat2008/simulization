@@ -2,7 +2,7 @@
 // message delivery and inbox pulls. Message ORDERING and DM conversation ids are UNCONFIRMED
 // until tested against a real key (see relayClient.ts).
 import { INBOX_SIZE, type AgentState, type AgentTurnInput } from "@simulization/shared";
-import { mapLimit } from "../agents/limits";
+import { mapLimit } from "./limits";
 import type { RelayClient, RelayMessage } from "./relayClient";
 
 export type InboxMessage = AgentTurnInput["inbox"][number];

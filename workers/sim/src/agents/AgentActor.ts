@@ -2,9 +2,9 @@
 import { DurableObject } from "cloudflare:workers";
 import type { AgentState, AgentTurnInput, AgentTurnOutput } from "@simulization/shared";
 import { createModelClient, createRunRelay } from "./createAgentStore";
-import { withRelayInbox } from "./relayInbox";
-import { takeTurn } from "./takeTurn";
-import { logTurn } from "./telemetry";
+import { withRelayInbox } from "@simulization/agents";
+import { takeTurn } from "@simulization/agents";
+import { logTurn } from "@simulization/agents";
 
 const STATE_KEY = "state";
 

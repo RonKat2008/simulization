@@ -1,9 +1,9 @@
 // Owner: Person B. `pnpm --filter sim validity [--provider anthropic] [--turns N]`
 // Validity harness: N fixed-scenario turns per provider; PASS when >=90% are valid + legal.
 import { COMPANIES, LIE_THRESHOLD, type AgentTurnInput } from "@simulization/shared";
-import { GatewayModelClient, AI_GATEWAY_BASE_URL } from "../src/agents/gatewayModel";
-import { mapLimit, withTimeout } from "../src/agents/limits";
-import { takeTurn, type TakeTurnOutcome } from "../src/agents/takeTurn";
+import { GatewayModelClient, AI_GATEWAY_BASE_URL } from "@simulization/agents";
+import { mapLimit, withTimeout } from "@simulization/agents";
+import { takeTurn, type TakeTurnOutcome } from "@simulization/agents";
 import { argValue, exit, optionalEnv, requireEnv } from "./env";
 import { SCENARIOS, stateFor } from "./fixtures";
 

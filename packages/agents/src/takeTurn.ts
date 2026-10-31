@@ -1,4 +1,4 @@
-// Owner: Person B. One agent turn: prompt → model → validate → 1 repair retry → pass.
+// Owner: Person B (@simulization/agents, runtime-neutral: Workers, Durable Actors, Node). One agent turn: prompt → model → validate → 1 repair retry → pass.
 import {
   buildSystemPrompt,
   buildUserMessage,

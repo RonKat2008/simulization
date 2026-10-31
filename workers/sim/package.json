@@ -17,7 +17,8 @@
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",
-    "@simulization/shared": "workspace:*"
+    "@simulization/shared": "workspace:*",
+    "@simulization/agents": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.23.15",

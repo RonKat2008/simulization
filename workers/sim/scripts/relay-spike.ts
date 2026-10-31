@@ -1,5 +1,5 @@
 // Owner: Person B. `pnpm --filter sim spike:relay`: exercises every RelayClient endpoint, reporting each step.
-import { RelayClient, AGENTRELAY_DEFAULT_BASE_URL } from "../src/relay/relayClient";
+import { RelayClient, AGENTRELAY_DEFAULT_BASE_URL } from "@simulization/agents";
 import { exit, optionalEnv, requireEnv } from "./env";
 
 let failures = 0;

@@ -1,6 +1,6 @@
 // Owner: Person B. `pnpm --filter sim models`: lists small/fast gateway models and checks COMPANIES ids exist.
 import { COMPANIES } from "@simulization/shared";
-import { AI_GATEWAY_BASE_URL } from "../src/agents/gatewayModel";
+import { AI_GATEWAY_BASE_URL } from "@simulization/agents";
 import { exit, optionalEnv, requireEnv } from "./env";
 
 const PROVIDERS = ["anthropic", "openai", "google"];
