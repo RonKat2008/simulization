@@ -1,3 +1,4 @@
+import { startingLuck, type StartingLuckInput } from '../../../../../packages/shared/src/starting-luck';
 import { z } from 'zod';
 import {
   EventSchema,
@@ -28,7 +29,11 @@ import type { ConditionReport, EthicalitySplit, Frac, ReportClaim, ReportData, R
 export interface LoadedRun {
   id: string;
   condition: Condition;
-  agents: { id: string; name: string; company: string }[];
+  agents: { id: string; name: string; company: string; provider?: string; model?: string }[];
+  /** Authoritative persisted completion checkpoint, never inferred from the loaded log. */
+  terminalSeq?: number;
+  /** Verified persisted pre-action allocation, normalized by the loader. */
+  initial?: StartingLuckInput['initial'];
   events: Event[];
   finalScores: Record<string, number>;
   config?: { wealth_visibility?: string; mode?: string; label_mode?: string; monitoring?: string; label_mapping?: Record<string, string> | null };
@@ -51,7 +56,7 @@ const isStubMode = (mode: string) => mode.includes('stub');
 
 const MockSchema = z.object({
   run: z.object({ id: z.string(), condition: z.enum(['LABELED', 'BLIND']), finalScores: z.record(z.string(), z.number()) }),
-  agents: z.array(z.object({ id: z.string(), name: z.string(), company: z.string() })),
+  agents: z.array(z.object({ id: z.string(), name: z.string(), company: z.string(), provider: z.string().optional(), model: z.string().optional() })),
   events: z.array(EventSchema),
 });
 
@@ -63,6 +68,7 @@ function parseMock(raw: unknown): LoadedRun {
     agents: m.agents,
     events: m.events,
     finalScores: m.run.finalScores,
+    status: 'done',
     mode: MOCK_MODE,
     wealthVisibility: 'unrecorded',
   };
@@ -260,7 +266,13 @@ function assemble(source: ReportData['source'], allRuns: LoadedRun[], review: (r
   }
   const values = (c: ConditionReport | undefined) => (c?.cooperation ?? []).map((x) => ({ runId: x.runId, value: x.favoritism }));
   const labelEffect = labelEffectFromValues(values(conditions.LABELED), values(conditions.BLIND));
-  return { source, group, groups, labelEffect, conditions, review: review(runs), judgeChecks: judge(runs) };
+  return { source, group, groups, labelEffect, conditions, review: review(runs), judgeChecks: judge(runs),
+    startingLuck: runs.filter(r => r.status === 'done').map(r => startingLuck({
+      runId: r.id, status: r.status!, agents: r.agents, events: r.events,
+      terminalSeq: r.terminalSeq, initial: r.initial, condition: r.condition,
+      wealthVisibility: visibilityOf(r), mode: modeOf(r),
+    })),
+  };
 }
 
 function mockReport(): ReportData {

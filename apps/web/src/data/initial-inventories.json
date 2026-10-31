@@ -1,0 +1,659 @@
+{
+  "version": "terse-initial-evidence-v1",
+  "runs": [
+    {
+      "initial": {
+        "runId": "track-a-live-20261031-1",
+        "source": "Original Terse WorldActor pre-action checkpoint, stateVersion 2, SQLite tx 4; snapshot SHA-256 fe8ea5d4b4f472739c999015b24aeffbd03fdcb775476c277d7564468e2dcd5f",
+        "phase": "initial",
+        "expectedGoods": {
+          "merchant-01": 3,
+          "merchant-02": 3,
+          "merchant-03": 3,
+          "merchant-04": 3,
+          "merchant-05": 3,
+          "merchant-06": 3,
+          "merchant-07": 3,
+          "merchant-08": 3,
+          "merchant-09": 3,
+          "merchant-10": 3,
+          "merchant-11": 3,
+          "merchant-12": 3,
+          "merchant-13": 3,
+          "merchant-14": 3,
+          "merchant-15": 3,
+          "merchant-16": 3,
+          "merchant-17": 3,
+          "merchant-18": 3
+        },
+        "inventories": {
+          "merchant-01": [
+            {
+              "goodId": "good-1-1",
+              "trueValue": 4
+            },
+            {
+              "goodId": "good-1-2",
+              "trueValue": 5
+            },
+            {
+              "goodId": "good-1-3",
+              "trueValue": 1
+            }
+          ],
+          "merchant-02": [
+            {
+              "goodId": "good-2-1",
+              "trueValue": 1
+            },
+            {
+              "goodId": "good-2-2",
+              "trueValue": 6
+            },
+            {
+              "goodId": "good-2-3",
+              "trueValue": 6
+            }
+          ],
+          "merchant-03": [
+            {
+              "goodId": "good-3-1",
+              "trueValue": 3
+            },
+            {
+              "goodId": "good-3-2",
+              "trueValue": 7
+            },
+            {
+              "goodId": "good-3-3",
+              "trueValue": 3
+            }
+          ],
+          "merchant-04": [
+            {
+              "goodId": "good-4-1",
+              "trueValue": 4
+            },
+            {
+              "goodId": "good-4-2",
+              "trueValue": 8
+            },
+            {
+              "goodId": "good-4-3",
+              "trueValue": 9
+            }
+          ],
+          "merchant-05": [
+            {
+              "goodId": "good-5-1",
+              "trueValue": 6
+            },
+            {
+              "goodId": "good-5-2",
+              "trueValue": 3
+            },
+            {
+              "goodId": "good-5-3",
+              "trueValue": 3
+            }
+          ],
+          "merchant-06": [
+            {
+              "goodId": "good-6-1",
+              "trueValue": 3
+            },
+            {
+              "goodId": "good-6-2",
+              "trueValue": 1
+            },
+            {
+              "goodId": "good-6-3",
+              "trueValue": 7
+            }
+          ],
+          "merchant-07": [
+            {
+              "goodId": "good-7-1",
+              "trueValue": 7
+            },
+            {
+              "goodId": "good-7-2",
+              "trueValue": 7
+            },
+            {
+              "goodId": "good-7-3",
+              "trueValue": 10
+            }
+          ],
+          "merchant-08": [
+            {
+              "goodId": "good-8-1",
+              "trueValue": 1
+            },
+            {
+              "goodId": "good-8-2",
+              "trueValue": 10
+            },
+            {
+              "goodId": "good-8-3",
+              "trueValue": 5
+            }
+          ],
+          "merchant-09": [
+            {
+              "goodId": "good-9-1",
+              "trueValue": 10
+            },
+            {
+              "goodId": "good-9-2",
+              "trueValue": 2
+            },
+            {
+              "goodId": "good-9-3",
+              "trueValue": 2
+            }
+          ],
+          "merchant-10": [
+            {
+              "goodId": "good-10-1",
+              "trueValue": 1
+            },
+            {
+              "goodId": "good-10-2",
+              "trueValue": 4
+            },
+            {
+              "goodId": "good-10-3",
+              "trueValue": 5
+            }
+          ],
+          "merchant-11": [
+            {
+              "goodId": "good-11-1",
+              "trueValue": 7
+            },
+            {
+              "goodId": "good-11-2",
+              "trueValue": 9
+            },
+            {
+              "goodId": "good-11-3",
+              "trueValue": 1
+            }
+          ],
+          "merchant-12": [
+            {
+              "goodId": "good-12-1",
+              "trueValue": 8
+            },
+            {
+              "goodId": "good-12-2",
+              "trueValue": 10
+            },
+            {
+              "goodId": "good-12-3",
+              "trueValue": 3
+            }
+          ],
+          "merchant-13": [
+            {
+              "goodId": "good-13-1",
+              "trueValue": 8
+            },
+            {
+              "goodId": "good-13-2",
+              "trueValue": 2
+            },
+            {
+              "goodId": "good-13-3",
+              "trueValue": 6
+            }
+          ],
+          "merchant-14": [
+            {
+              "goodId": "good-14-1",
+              "trueValue": 9
+            },
+            {
+              "goodId": "good-14-2",
+              "trueValue": 2
+            },
+            {
+              "goodId": "good-14-3",
+              "trueValue": 10
+            }
+          ],
+          "merchant-15": [
+            {
+              "goodId": "good-15-1",
+              "trueValue": 6
+            },
+            {
+              "goodId": "good-15-2",
+              "trueValue": 10
+            },
+            {
+              "goodId": "good-15-3",
+              "trueValue": 5
+            }
+          ],
+          "merchant-16": [
+            {
+              "goodId": "good-16-1",
+              "trueValue": 6
+            },
+            {
+              "goodId": "good-16-2",
+              "trueValue": 4
+            },
+            {
+              "goodId": "good-16-3",
+              "trueValue": 6
+            }
+          ],
+          "merchant-17": [
+            {
+              "goodId": "good-17-1",
+              "trueValue": 4
+            },
+            {
+              "goodId": "good-17-2",
+              "trueValue": 8
+            },
+            {
+              "goodId": "good-17-3",
+              "trueValue": 3
+            }
+          ],
+          "merchant-18": [
+            {
+              "goodId": "good-18-1",
+              "trueValue": 5
+            },
+            {
+              "goodId": "good-18-2",
+              "trueValue": 9
+            },
+            {
+              "goodId": "good-18-3",
+              "trueValue": 7
+            }
+          ]
+        }
+      },
+      "provenance": {
+        "kind": "original-terse-sqlite-snapshot",
+        "snapshotPath": "durable-actors/v3/snapshots/81/bG9jYWw/V29ybGRBY3Rvcg/dHJhY2stYS1saXZlLTIwMjYxMDMxLTE/00000000000000000000000000000001/2.json",
+        "snapshotSha256": "fe8ea5d4b4f472739c999015b24aeffbd03fdcb775476c277d7564468e2dcd5f",
+        "sourceChain": [
+          {
+            "path": "durable-actors/v3/snapshots/81/bG9jYWw/V29ybGRBY3Rvcg/dHJhY2stYS1saXZlLTIwMjYxMDMxLTE/00000000000000000000000000000001/1.json",
+            "sha256": "552260eec3c83b22998ff53161b5423c4ddde21d7d1f335c1b5dd6fa28fadd16"
+          },
+          {
+            "path": "durable-actors/v3/snapshots/81/bG9jYWw/V29ybGRBY3Rvcg/dHJhY2stYS1saXZlLTIwMjYxMDMxLTE/00000000000000000000000000000001/2.json",
+            "sha256": "fe8ea5d4b4f472739c999015b24aeffbd03fdcb775476c277d7564468e2dcd5f"
+          }
+        ],
+        "checkpointSeq": 0,
+        "checkpointRound": 1,
+        "checkpointPhase": "negotiate",
+        "eventCount": 0,
+        "committedKeyCount": 0,
+        "sqliteTxRange": [
+          1,
+          4
+        ],
+        "agentCount": 18,
+        "goodsPerAgent": 3,
+        "uniqueGoods": 54,
+        "initialSqliteSha256": "304fa838688fa437f5a6ae6bf7bace3a2b7bd0c4bd3c326a7777148e47a9f8b0",
+        "ltxFileChecksumsVerified": true,
+        "snapshotParentDigestsVerified": true,
+        "sqliteIntegrityCheck": "ok",
+        "rosterMatchesFinalCheckpoint": true,
+        "finalCheckpointSeq": 547,
+        "finalSnapshotPath": "durable-actors/v3/snapshots/81/bG9jYWw/V29ybGRBY3Rvcg/dHJhY2stYS1saXZlLTIwMjYxMDMxLTE/00000000000000000000000000000003/631.json",
+        "finalSnapshotSha256": "f04f8a86a69b923762bbbf7f1704490a5d24a4841bccee192f6eb4aa0bd57cfe",
+        "valuation": {
+          "definition": "Held goods contribute trueQuality one-for-one to final game score; trueValue normalized from recorded trueQuality.",
+          "reviewedEngineCommit": "a65bea2717775688ebe5d855f690de0ad1bfb946",
+          "rulesPath": "workers/sim/src/engine/rules.ts",
+          "rulesSha256": "bbf1776ae5d788c7c7e18afa348d2f7030dc381ba9e3c9fe26595ced913b3ae3",
+          "allocationPath": "workers/sim/src/engine/world.ts",
+          "allocationSha256": "45382f2557b4e2fc0d32db355e2a944481f0c5eacc41ff9d08eadd6d2a5e9568",
+          "allocationCountSource": "packages/shared/src/config.ts: START_GOODS = 3",
+          "finalScoreFormulaVerifiedForEveryAgent": true,
+          "note": "Reviewed valuation source is evidence of the historical contract, not a claim that this exact commit SHA was stored as deployment metadata."
+        }
+      }
+    },
+    {
+      "initial": {
+        "runId": "1e5c714e-e4bc-4d1d-aeb1-ff1eea922f94",
+        "source": "Original Terse WorldActor pre-action checkpoint, stateVersion 2, SQLite tx 4; snapshot SHA-256 cb0f814657021ca3bd910c7f72b86d5fb5575410d53f9564cedcb5b31d696980",
+        "phase": "initial",
+        "expectedGoods": {
+          "merchant-01": 3,
+          "merchant-02": 3,
+          "merchant-03": 3,
+          "merchant-04": 3,
+          "merchant-05": 3,
+          "merchant-06": 3,
+          "merchant-07": 3,
+          "merchant-08": 3,
+          "merchant-09": 3,
+          "merchant-10": 3,
+          "merchant-11": 3,
+          "merchant-12": 3,
+          "merchant-13": 3,
+          "merchant-14": 3,
+          "merchant-15": 3,
+          "merchant-16": 3,
+          "merchant-17": 3,
+          "merchant-18": 3
+        },
+        "inventories": {
+          "merchant-01": [
+            {
+              "goodId": "good-1-1",
+              "trueValue": 8
+            },
+            {
+              "goodId": "good-1-2",
+              "trueValue": 10
+            },
+            {
+              "goodId": "good-1-3",
+              "trueValue": 3
+            }
+          ],
+          "merchant-02": [
+            {
+              "goodId": "good-2-1",
+              "trueValue": 8
+            },
+            {
+              "goodId": "good-2-2",
+              "trueValue": 2
+            },
+            {
+              "goodId": "good-2-3",
+              "trueValue": 4
+            }
+          ],
+          "merchant-03": [
+            {
+              "goodId": "good-3-1",
+              "trueValue": 5
+            },
+            {
+              "goodId": "good-3-2",
+              "trueValue": 3
+            },
+            {
+              "goodId": "good-3-3",
+              "trueValue": 2
+            }
+          ],
+          "merchant-04": [
+            {
+              "goodId": "good-4-1",
+              "trueValue": 8
+            },
+            {
+              "goodId": "good-4-2",
+              "trueValue": 6
+            },
+            {
+              "goodId": "good-4-3",
+              "trueValue": 2
+            }
+          ],
+          "merchant-05": [
+            {
+              "goodId": "good-5-1",
+              "trueValue": 3
+            },
+            {
+              "goodId": "good-5-2",
+              "trueValue": 1
+            },
+            {
+              "goodId": "good-5-3",
+              "trueValue": 7
+            }
+          ],
+          "merchant-06": [
+            {
+              "goodId": "good-6-1",
+              "trueValue": 9
+            },
+            {
+              "goodId": "good-6-2",
+              "trueValue": 3
+            },
+            {
+              "goodId": "good-6-3",
+              "trueValue": 10
+            }
+          ],
+          "merchant-07": [
+            {
+              "goodId": "good-7-1",
+              "trueValue": 8
+            },
+            {
+              "goodId": "good-7-2",
+              "trueValue": 5
+            },
+            {
+              "goodId": "good-7-3",
+              "trueValue": 4
+            }
+          ],
+          "merchant-08": [
+            {
+              "goodId": "good-8-1",
+              "trueValue": 7
+            },
+            {
+              "goodId": "good-8-2",
+              "trueValue": 10
+            },
+            {
+              "goodId": "good-8-3",
+              "trueValue": 10
+            }
+          ],
+          "merchant-09": [
+            {
+              "goodId": "good-9-1",
+              "trueValue": 7
+            },
+            {
+              "goodId": "good-9-2",
+              "trueValue": 10
+            },
+            {
+              "goodId": "good-9-3",
+              "trueValue": 9
+            }
+          ],
+          "merchant-10": [
+            {
+              "goodId": "good-10-1",
+              "trueValue": 10
+            },
+            {
+              "goodId": "good-10-2",
+              "trueValue": 2
+            },
+            {
+              "goodId": "good-10-3",
+              "trueValue": 1
+            }
+          ],
+          "merchant-11": [
+            {
+              "goodId": "good-11-1",
+              "trueValue": 9
+            },
+            {
+              "goodId": "good-11-2",
+              "trueValue": 3
+            },
+            {
+              "goodId": "good-11-3",
+              "trueValue": 9
+            }
+          ],
+          "merchant-12": [
+            {
+              "goodId": "good-12-1",
+              "trueValue": 6
+            },
+            {
+              "goodId": "good-12-2",
+              "trueValue": 10
+            },
+            {
+              "goodId": "good-12-3",
+              "trueValue": 8
+            }
+          ],
+          "merchant-13": [
+            {
+              "goodId": "good-13-1",
+              "trueValue": 2
+            },
+            {
+              "goodId": "good-13-2",
+              "trueValue": 7
+            },
+            {
+              "goodId": "good-13-3",
+              "trueValue": 10
+            }
+          ],
+          "merchant-14": [
+            {
+              "goodId": "good-14-1",
+              "trueValue": 2
+            },
+            {
+              "goodId": "good-14-2",
+              "trueValue": 10
+            },
+            {
+              "goodId": "good-14-3",
+              "trueValue": 2
+            }
+          ],
+          "merchant-15": [
+            {
+              "goodId": "good-15-1",
+              "trueValue": 4
+            },
+            {
+              "goodId": "good-15-2",
+              "trueValue": 2
+            },
+            {
+              "goodId": "good-15-3",
+              "trueValue": 5
+            }
+          ],
+          "merchant-16": [
+            {
+              "goodId": "good-16-1",
+              "trueValue": 4
+            },
+            {
+              "goodId": "good-16-2",
+              "trueValue": 7
+            },
+            {
+              "goodId": "good-16-3",
+              "trueValue": 6
+            }
+          ],
+          "merchant-17": [
+            {
+              "goodId": "good-17-1",
+              "trueValue": 6
+            },
+            {
+              "goodId": "good-17-2",
+              "trueValue": 1
+            },
+            {
+              "goodId": "good-17-3",
+              "trueValue": 9
+            }
+          ],
+          "merchant-18": [
+            {
+              "goodId": "good-18-1",
+              "trueValue": 9
+            },
+            {
+              "goodId": "good-18-2",
+              "trueValue": 3
+            },
+            {
+              "goodId": "good-18-3",
+              "trueValue": 2
+            }
+          ]
+        }
+      },
+      "provenance": {
+        "kind": "original-terse-sqlite-snapshot",
+        "snapshotPath": "durable-actors/v3/snapshots/be/bG9jYWw/V29ybGRBY3Rvcg/MWU1YzcxNGUtZTRiYy00ZDFkLWFlYjEtZmYxZWVhOTIyZjk0/00000000000000000000000000000001/2.json",
+        "snapshotSha256": "cb0f814657021ca3bd910c7f72b86d5fb5575410d53f9564cedcb5b31d696980",
+        "sourceChain": [
+          {
+            "path": "durable-actors/v3/snapshots/be/bG9jYWw/V29ybGRBY3Rvcg/MWU1YzcxNGUtZTRiYy00ZDFkLWFlYjEtZmYxZWVhOTIyZjk0/00000000000000000000000000000001/1.json",
+            "sha256": "0e35457dc06976b1d68d416b57fc48c58e051eb4fff4faca85f69c1895644f2b"
+          },
+          {
+            "path": "durable-actors/v3/snapshots/be/bG9jYWw/V29ybGRBY3Rvcg/MWU1YzcxNGUtZTRiYy00ZDFkLWFlYjEtZmYxZWVhOTIyZjk0/00000000000000000000000000000001/2.json",
+            "sha256": "cb0f814657021ca3bd910c7f72b86d5fb5575410d53f9564cedcb5b31d696980"
+          }
+        ],
+        "checkpointSeq": 0,
+        "checkpointRound": 1,
+        "checkpointPhase": "negotiate",
+        "eventCount": 0,
+        "committedKeyCount": 0,
+        "sqliteTxRange": [
+          1,
+          4
+        ],
+        "agentCount": 18,
+        "goodsPerAgent": 3,
+        "uniqueGoods": 54,
+        "initialSqliteSha256": "6180eba618af7203447b92a00bf015455f98aa9c4bb3358a4dc686367c28fc65",
+        "ltxFileChecksumsVerified": true,
+        "snapshotParentDigestsVerified": true,
+        "sqliteIntegrityCheck": "ok",
+        "rosterMatchesFinalCheckpoint": true,
+        "finalCheckpointSeq": 607,
+        "finalSnapshotPath": "durable-actors/v3/snapshots/be/bG9jYWw/V29ybGRBY3Rvcg/MWU1YzcxNGUtZTRiYy00ZDFkLWFlYjEtZmYxZWVhOTIyZjk0/00000000000000000000000000000001/690.json",
+        "finalSnapshotSha256": "169d4d0117c5a3415ca645759052ef3fae975a7e3c570c2dd09a89a0e17981e6",
+        "valuation": {
+          "definition": "Held goods contribute trueQuality one-for-one to final game score; trueValue normalized from recorded trueQuality.",
+          "reviewedEngineCommit": "a65bea2717775688ebe5d855f690de0ad1bfb946",
+          "rulesPath": "workers/sim/src/engine/rules.ts",
+          "rulesSha256": "bbf1776ae5d788c7c7e18afa348d2f7030dc381ba9e3c9fe26595ced913b3ae3",
+          "allocationPath": "workers/sim/src/engine/world.ts",
+          "allocationSha256": "45382f2557b4e2fc0d32db355e2a944481f0c5eacc41ff9d08eadd6d2a5e9568",
+          "allocationCountSource": "packages/shared/src/config.ts: START_GOODS = 3",
+          "finalScoreFormulaVerifiedForEveryAgent": true,
+          "note": "Reviewed valuation source is evidence of the historical contract, not a claim that this exact commit SHA was stored as deployment metadata."
+        }
+      }
+    }
+  ]
+}

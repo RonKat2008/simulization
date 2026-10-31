@@ -1,3 +1,4 @@
+import type { StartingLuckResult } from '../../../../../packages/shared/src/starting-luck';
 import type { Condition, Flag, LabelEffect, PowerStructure, RunMetrics } from '@simulization/shared';
 
 export type ReportSource = 'mock' | 'neon';
@@ -199,6 +200,8 @@ export interface RunGroup {
 }
 
 export interface ReportData {
+  /** Independent completed-run results, never pooled. */
+  startingLuck?: StartingLuckResult[];
   source: ReportSource;
   state?: 'ready' | 'pending' | 'failed' | 'empty' | 'error';
   message?: string;
