@@ -7,12 +7,14 @@ import {
   powerStructure,
   type Condition,
   type Event,
+  type Review,
   type RunMetrics,
 } from '@simulization/shared';
 import labeledRun from '@simulization/shared/mock/mock-run.labeled.json';
 import blindRun from '@simulization/shared/mock/mock-run.blind.json';
 import { buildSampleClaims } from './sample-claims';
 import { toEvidence, type AgentLookup } from './summarize';
+import { loadNeonReport, type NeonReport } from './neon';
 import type { ConditionReport, ReportClaim, ReportData, ReportReview } from './types';
 
 /** A finished run as the report needs it. Neon rows map onto this one-to-one. */
@@ -97,22 +99,76 @@ function sampleReview(runs: LoadedRun[]): ReportReview {
   };
 }
 
-/**
- * The single data seam for /report.
- *
- * Today: schema-validated mock runs, no DB or env needed (works offline for the demo).
- * Later: replace the body with a Neon read and return the same ReportData. The pieces:
- *   - runs/events/agents: `loadRunData(runId)` + `getRun(runId)` in src/mastra/db.ts, mapped to LoadedRun
- *   - metrics: either recompute here (conditionReport) or read the stored `metrics` table rows
- *   - review: the `reviews` row (kind 'run'), resolve eventIds with the byId lookup in claimsFor
- *     and set isSample: false.
- */
-export async function loadReportData(): Promise<ReportData> {
-  const runs = [parseMock(labeledRun), parseMock(blindRun)];
+function reviewClaimsFor(run: LoadedRun, claims: Review['claims']): ReportClaim[] {
+  const agents: AgentLookup = new Map(run.agents.map((a) => [a.id, a]));
+  const byId = new Map(run.events.map((e) => [e.id, e]));
+  return claims.map((c, i) => {
+    const found = c.eventIds.map((id) => byId.get(id)).filter((e): e is Event => e !== undefined);
+    return {
+      key: `${run.id}-r${i}`,
+      section: c.section,
+      text: c.text,
+      condition: run.condition,
+      runId: run.id,
+      evidence: found.map((e) => toEvidence(e, agents)),
+      missingIds: c.eventIds.filter((id) => !byId.has(id)),
+    };
+  });
+}
+
+function realReview(runs: LoadedRun[], reviews: NeonReport['reviews']): ReportReview {
+  const reviewed = runs.filter((r) => reviews.has(r.id));
+  const single = reviewed.length === 1 ? reviews.get(reviewed[0]!.id)! : undefined;
+  const summary =
+    single?.summary ??
+    `Opus reviews for ${reviewed.length} of ${runs.length} runs, shown together. Runs without a stored review contribute no claims.`;
+  const limitations = [...new Set(reviewed.flatMap((r) => reviews.get(r.id)!.limitations))];
+  return {
+    isSample: false,
+    summary: reviewed.length > 1 ? `${summary}\n\n${reviewed.map((r) => reviews.get(r.id)!.summary).join('\n\n')}` : summary,
+    claims: reviewed.flatMap((r) => reviewClaimsFor(r, reviews.get(r.id)!.claims)),
+    limitations,
+  };
+}
+
+function assemble(source: ReportData['source'], runs: LoadedRun[], review: ReportReview): ReportData {
   const conditions: ReportData['conditions'] = {};
   for (const condition of ['LABELED', 'BLIND'] as const) {
     const ofCondition = runs.filter((r) => r.condition === condition);
     if (ofCondition.length > 0) conditions[condition] = conditionReport(condition, ofCondition);
   }
-  return { source: 'mock', conditions, review: sampleReview(runs) };
+  return { source, conditions, review };
+}
+
+function mockReport(): ReportData {
+  const runs = [parseMock(labeledRun), parseMock(blindRun)];
+  return assemble('mock', runs, sampleReview(runs));
+}
+
+/**
+ * The single data seam for /report.
+ *
+ * With DATABASE_URL set: completed runs from Neon (see neon.ts), metrics recomputed here with the
+ * shared functions, review = latest stored kind 'run' review per run (isSample false). If no run has
+ * a stored review yet, claims are the flagged-event placeholders (isSample true) over the real events.
+ * Falls back to the schema-validated mock for the whole report when DATABASE_URL is unset, the query
+ * throws, or either condition has no completed run. Never throws.
+ */
+export async function loadReportData(): Promise<ReportData> {
+  try {
+    const neon = await loadNeonReport();
+    if (neon) {
+      const has = (c: Condition) => neon.runs.some((r) => r.condition === c);
+      if (has('LABELED') && has('BLIND')) {
+        const review = neon.reviews.size > 0 ? realReview(neon.runs, neon.reviews) : sampleReview(neon.runs);
+        return assemble('neon', neon.runs, review);
+      }
+      console.error(
+        `[report] Neon has ${neon.runs.filter((r) => r.condition === 'LABELED').length} LABELED and ${neon.runs.filter((r) => r.condition === 'BLIND').length} BLIND completed runs; need both. Showing mock data.`,
+      );
+    }
+  } catch (err) {
+    console.error('[report] Neon read failed; showing mock data', err);
+  }
+  return mockReport();
 }

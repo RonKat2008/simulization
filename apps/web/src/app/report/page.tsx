@@ -6,6 +6,9 @@ import { PowerSection } from '@/components/report/power-section';
 import { loadReportData } from '@/components/report/data';
 import { SiteHeader } from '@/components/landing/site-header';
 
+/** ISR: serve a cached render and refresh from Neon at most every 30s. */
+export const revalidate = 30;
+
 export const metadata: Metadata = { title: 'Report card | Simulization' };
 
 export default async function ReportPage() {
