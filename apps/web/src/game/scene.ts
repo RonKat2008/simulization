@@ -519,7 +519,6 @@ class VillageScene extends Phaser.Scene {
       const color = colorOf(a.id);
       // Look texture is keyed by color, so a BLIND view never reuses a company-colored outfit.
       a.body.setTexture(agentTexture(this, a.id, color));
-      a.body.setTint(lerpColor(color, 0xffffff, 0.3));
       a.lantern.setFillStyle(color);
       a.glow.setFillStyle(color, 0.25);
       const idx = indexOf(a.id);
