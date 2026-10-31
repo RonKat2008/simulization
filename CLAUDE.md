@@ -15,37 +15,48 @@ Pull the repo, run `pnpm install`, and open Claude Code with your line:
 Check-ins at **0:45, 1:45, 2:45, 3:45**. Start running games at 3:45 no matter what.
 Work only in your own folders (see Part 11). Pull often; make small commits and push them.
 
+## ⚠️ Architecture change (decided 2026-10-31): Terse Durable Actors, NO Cloudflare
+
+We do **not** use Cloudflare at all. Every actor runs on **Terse Durable Actors** (https://github.com/TerseAI/durable-actors, npm `durable-actors`, Bun ≥1.4.2) in `actors/`:
+- `World` actor, one per run (actorId = runId): the referee and single source of truth. It holds run state in `@Persisted` fields (so crash-resume is free), advances phases with `this.alarm.set()` (2s gap), writes events to Neon, and broadcasts each event to viewers over the actor's WebSocket.
+- `MerchantAgent` actor, one per agent (actorId = `${runId}.${agentId}`; ids allow only `[A-Za-z0-9._-]`): persistent memory + turns.
+- `ExperimentRunner` actor: the batch + synthesis job.
+
+The HTTP surface moves to **Next.js API routes on Vercel**. They call the actors through `DurableActorsClient` (`packages/agents`). The pure engine lives in `packages/engine`. Local: `pnpm actors:dev` (control plane on :7100, project `local`). Deployed: a hosted Terse project from the Terse team (`DURABLE_ACTORS_URL`, `DURABLE_ACTORS_PROJECT_ID`, `DURABLE_ACTORS_SECRET`). Anything below that says Cloudflare / Worker / DO / `workers/sim` / wrangler now means the Terse equivalent.
+
 ## Repo map
 
 ```
 apps/web/              Next.js App Router + Tailwind + Phaser (C) + HUD/pages (D) + Mastra (E)
-workers/sim/           Cloudflare Worker: engine (A), WorldActor (A), AgentActor + relay (B)
+actors/                Terse Durable Actors: World (A), MerchantAgent + ExperimentRunner (B)
+packages/engine/       Pure game engine (A): legalActions, resolvePhase; `pnpm sim:local`
+packages/agents/       Agent layer (B): turn pipeline, gateway, AgentRelay client, stores, DurableActorsClient
 packages/shared/       Types, zod schemas, config, RNG, prompt builder, stub agent, AgentStore, metrics
 packages/shared/mock/  mock-run.labeled.json / mock-run.blind.json (regenerate: pnpm mock)
 db/migrations/         Neon SQL
 scripts/               batch fallback script (B)
 ```
 
-Root commands: `pnpm dev` (web), `pnpm dev:sim` (worker), `pnpm mock`, `pnpm sim:local`, `pnpm typecheck`.
+Root commands: `pnpm dev` (web), `pnpm actors:dev` (Terse actors), `pnpm mock`, `pnpm sim:local`, `pnpm typecheck`.
 
 ## Frozen contracts (since 0:15; changing one needs Person A's sign-off, announced in team chat)
 
 - `EventSchema`, `AgentTurnInputSchema`, `AgentTurnOutputSchema`, `AgentStateSchema`: in `packages/shared/src/schemas.ts`
 - `AgentStore` interface: `packages/shared/src/agentStore.ts`
-- Sim HTTP surface (workers/sim):
-  - `POST /runs` with body `{ condition: "LABELED" | "BLIND", seed: number }`, returns `{ runId }`
-  - `GET /runs/:id` returns run status (status, round, phase, final scores)
-  - `GET /runs/:id/events?after=N` returns `Event[]` with seq > N, ordered by seq
-  - `GET /runs/:id/ws` is a WebSocket; the server pushes each `Event` as JSON the moment it is written
-  - `POST /runs/:id/stop`
-  - `POST /batch` with body `{ n: number }` alternates LABELED/BLIND with seeds 1..n and returns `{ runIds }`
+- Sim HTTP surface (Next.js API routes in `apps/web/src/app/api/`, owner A; they invoke the `World` actor):
+  - `POST /api/runs` with body `{ condition: "LABELED" | "BLIND", seed: number }`, returns `{ runId }`
+  - `GET /api/runs/:id` returns run status (status, round, phase, final scores)
+  - `GET /api/runs/:id/events?after=N` returns `Event[]` with seq > N, ordered by seq (reads Neon)
+  - `POST /api/runs/:id/socket` returns `{ websocketUrl }`, a Terse WebSocket grant to the run's `World` actor, which pushes each `Event` as JSON the moment it is written
+  - `POST /api/runs/:id/stop`
+  - `POST /api/batch` with body `{ n: number }` alternates LABELED/BLIND with seeds 1..n and returns `{ runIds }`
 - Web API: `POST /api/analyze/:runId` (Mastra post-run workflow), `POST /api/synthesize`
 - Event store (apps/web, zustand): renders only from an ordered `Event[]`. Live mode appends, replay loads all. One code path.
 
 ## Optimizations over the original brief
 
-1. **Pure engine, thin actor.** The game rules are pure functions in `workers/sim/src/engine/`: `legalActions(state, agentId)` and `resolvePhase(state, actionsByAgent, rng) → { state, events }`. WorldActor only wraps them with storage, alarms and broadcast. `pnpm sim:local` plays a full game in Node with stub agents and no DO, network or DB.
-2. **Neon store first.** `AGENT_STORE=neon` is the default until the Durable Object store is proven.
+1. **Pure engine, thin actor.** The game rules are pure functions in `packages/engine`: `legalActions(state, agentId)` and `resolvePhase(state, actionsByAgent, rng) → { state, events }`. The `World` actor only wraps them with persistence, alarms and broadcast. `pnpm sim:local` plays a full game in Node with `MemoryAgentStore` + `StubModelClient` (no actors, network, DB or keys).
+2. **Agent stores.** `AGENT_STORE` = `terse` (MerchantAgent actors, default once deployed) | `neon` (one row per agent) | `memory` (local/stub).
 3. **The scaffold ships shared building blocks:** prompt builder (Part 7), seeded RNG, stub agent (random legal actions) and config, all in packages/shared.
 4. **The mock run is schema-validated**, so C, D and E build against the exact event shape the engine will emit.
 5. **Gateway is unconfirmed.** "One model gateway" is not named yet. `AI_GATEWAY_API_KEY` is a placeholder. Person B confirms which gateway from its docs; nobody guesses its API.
@@ -72,21 +83,21 @@ Priorities: a working, demoable end-to-end loop beats features. The methodology 
 ## PART 2: Stack, and what each tool does
 
 - **Web app (apps/web):** Next.js App Router, TypeScript, Tailwind, deployed on Vercel. Phaser 3 draws the village (loaded client-side only, no SSR). React draws the HUD on top of the Phaser canvas.
-- **Simulation (workers/sim):** Cloudflare Workers with Durable Objects. One WorldActor per run (the referee and single source of truth). One AgentActor per agent (that agent's persistent memory and state).
+- **Simulation (actors/):** Terse Durable Actors. One `World` actor per run (the referee and single source of truth). One `MerchantAgent` actor per agent (that agent's persistent memory and state).
 - **AgentRelay:** ALL agent-to-agent communication. Each run gets a public square channel; agents can DM each other and create coalition channels. Every message that goes through AgentRelay is also written to the event log.
-- **Neon (serverless Postgres):** the permanent store for runs, agents, events, metrics and reviews. Use Neon's serverless driver over HTTP (works in both Workers and Vercel functions) with one pooled connection string in `DATABASE_URL`. Neon has no built-in realtime; live updates come from the WorldActor (Part 6).
-- **Mastra:** runs ONLY on the Next.js / Vercel side, never inside DOs. It provides: (a) the Opus reviewer as a Mastra agent with structured output; (b) the post-run analysis as a Mastra workflow: load the run's events from Neon → compute metrics → anonymize companies → run the reviewer → drop claims citing nonexistent event IDs → save metrics and review to Neon; (c) the cross-run synthesis agent. The workflow is exposed through a Next.js API route.
+- **Neon (serverless Postgres):** the permanent store for runs, agents, events, metrics and reviews. Use Neon's serverless driver over HTTP (works in Bun actors and Vercel functions) with one pooled connection string in `DATABASE_URL`. Neon has no built-in realtime; live updates come from the WorldActor (Part 6).
+- **Mastra:** runs ONLY on the Next.js / Vercel side, never inside actors. It provides: (a) the Opus reviewer as a Mastra agent with structured output; (b) the post-run analysis as a Mastra workflow: load the run's events from Neon → compute metrics → anonymize companies → run the reviewer → drop claims citing nonexistent event IDs → save metrics and review to Neon; (c) the cross-run synthesis agent. The workflow is exposed through a Next.js API route.
 - **Terse:** the experiment job layer. Two jobs, described in plain language and deployed as Terse jobs: (1) **Batch runner:** start N runs via the sim's batch endpoint, alternating LABELED and BLIND with seeds 1..N; wait for each to finish; trigger the Mastra post-run workflow for each. (2) **Synthesis job:** after the batch, trigger cross-run synthesis. Fallback: `scripts/run-batch.ts` does exactly the same steps against the same endpoints.
 - **Models:** agents use three providers through one model gateway, the smallest fast model of each. The reviewer is Claude Opus (`claude-opus-5-5`) via the Anthropic API.
 - **Shared package (packages/shared):** types, zod schemas, config constants, agent prompt builder, metric functions. Used by everything.
 - **Package manager:** pnpm workspaces.
 
-**Do NOT guess any third-party API:** AgentRelay, Terse, Mastra, the Neon driver, Cloudflare Durable Objects / Agents SDK, the model gateway. Read the installed package's types or README, or the official docs, first. If something is unclear, say so instead of inventing it.
+**Do NOT guess any third-party API:** AgentRelay, Terse, Mastra, the Neon driver, Terse Durable Actors, the model gateway. Read the installed package's types or README, or the official docs, first. If something is unclear, say so instead of inventing it.
 
 ## PART 3: Known risks (handle explicitly)
 
-1. **AgentRelay SDK may not run in workerd.** Test first. If it doesn't, build a relay bridge as Next.js API routes that the actors call over HTTP. Decide by **1:15** at the latest.
-2. **Durable Objects may take too long.** All agent logic sits behind `AgentStore` (load state, save state, take turn). Two implementations: Durable Objects and a Neon row per agent. Switch with the `AGENT_STORE` env var (`neon` | `do`).
+1. **AgentRelay:** resolved. Our fetch-only REST client is verified live (`docs/agentrelay.md`).
+2. **Terse hosting may not be available in time.** All agent logic sits behind `AgentStore`; `AGENT_STORE=neon` runs agents without MerchantAgent actors. If no hosted Terse project, run `pnpm actors:dev` locally for the demo.
 3. **Rate limits.** Within a phase, call agents in parallel with at most 6 at once, a 12s timeout per call and 1 retry. If it still fails, that agent passes for that turn. One agent never blocks a run.
 4. **Terse setup may take too long.** Keep the fallback script ready.
 
@@ -133,7 +144,7 @@ Migration: `db/migrations/001_init.sql`. Tables:
 - `metrics`: run_id, metrics.
 - `reviews`: id, run_id (null for synthesis), kind (run|synthesis), content, created_at.
 
-**Live updates:** the WorldActor accepts viewer WebSockets per run and broadcasts every event the moment it is written. Fallback: the UI polls `GET /runs/:id/events?after=N` every 1.5s. Replay loads all of a run's events from Neon.
+**Live updates:** the UI asks `POST /api/runs/:id/socket` for a Terse WebSocket grant and connects to the run's `World` actor, which broadcasts every event the moment it is written. Fallback: the UI polls `GET /api/runs/:id/events?after=N` every 1.5s. Replay loads all of a run's events from Neon.
 
 ## PART 7: The agent prompt
 
@@ -204,21 +215,21 @@ Rough load: **A ≈ 30%, B ≈ 25%, C ≈ 18%, D ≈ 15%, E ≈ 12%.**
 **0:00–0:15, everyone:** pull, `pnpm install`, read this file, agree on the frozen contracts. After that, each person works only in their own folders.
 
 ### Person A: engine core + integration lead (heaviest). Makes all scope-cut calls.
-Folders: `workers/sim/src/engine`, `workers/sim/src/world`, owner of `packages/shared`.
+Folders: `packages/engine`, `actors/src/world.ts`, `apps/web/src/app/api/runs` + `api/batch`, owner of `packages/shared`.
 - **0:00–0:15:** kickoff scaffold pushed (done).
-- **0:15–0:45:** pure engine: state shape, negotiate + trade resolution, `legalActions` per phase. *Done when:* `pnpm sim:local` runs 1 round with 6 stub agents.
+- **0:15–0:45:** pure engine: state shape, negotiate + trade resolution, `legalActions` per phase. *Done when:* `pnpm sim:local` runs 1 round with 6 stub agents (use `MemoryAgentStore` + `StubModelClient` from `@simulization/agents`).
 - **0:45–1:30:** act + reveal, all ground-truth flags, coalition payouts, lantern fund, stocks, final scoring. *Done when:* a full 6-round, 18-agent stub game passes locally with valid events.
-- **1:30–2:30:** WorldActor wrapper: create run → run row + 18 agent rows + system event in Neon; events buffered and batch-written per phase; DO alarms with a 2s gap between phases; all endpoints; WebSocket broadcast; LABELED vs BLIND input building. *Done when:* a stub game runs on `wrangler dev` and shows in Neon.
-- **2:30–3:30:** state saved after every phase so a crashed run resumes; stop endpoint; batch endpoint; DO-backed AgentStore wired to B's AgentActor. *Done when:* restarting the worker mid-run resumes it.
-- **3:30–4:30:** integration owner: wire in B's real agents, run the first real games, deploy the worker by 4:15.
+- **1:30–2:30:** `World` Terse actor: create run → run row + 18 agent rows + system event in Neon; `setupRunRelay` (B); events buffered and batch-written per phase; `this.alarm.set` with a 2s gap between phases; WebSocket broadcast; LABELED vs BLIND input building; the `/api/runs*` routes. *Done when:* a stub game runs under `pnpm actors:dev` and shows in Neon.
+- **2:30–3:30:** `@Persisted` state per phase so a restarted runtime resumes; stop + batch routes; `AGENT_STORE=terse` wired to B's MerchantAgent. *Done when:* restarting `actors:dev` mid-run resumes it.
+- **3:30–4:30:** integration owner: wire in B's real agents, run the first real games, deploy actors to the hosted Terse project by 4:15.
 - **4:30–5:00:** bug fixes only, then freeze.
 
 ### Person B: agents, models, AgentRelay, Terse (second heaviest)
-Folders: `workers/sim/src/agents`, `workers/sim/src/relay`, `scripts/`.
+Folders: `packages/agents`, `actors/src/merchant.ts` + `actors/src/experiment.ts`, `scripts/`.
 - **0:15–0:45:** two spikes in parallel. (1) AgentRelay in workerd (see "B's spike plan" below). (2) One test call per provider through the gateway; check structured output support; pick the fastest small model per provider and put them in `config.ts`. *Done when:* one actor's message arrives in another's inbox AND each provider returns valid JSON.
 - **0:45–1:45:** relay client (send to agent or channel; read inbox since cursor; create channel with members). `takeTurn`: pull new messages → `buildPrompt` from shared → gateway call → zod validate → 1 repair retry → save memory → return actions. Message actions go back to the WorldActor, which validates, logs and only then sends via AgentRelay. Neon AgentStore. **Bridge decision by 1:15.** *Done when:* a real model agent takes a valid turn and its message reaches another agent.
 - **1:45–2:45:** concurrency cap 6, 12s timeout, 1 retry, pass on failure; per-provider rate limits; token + latency logging; coalition channels created/joined via AgentRelay; validity harness: all 3 providers ≥90% valid + legal over 20 fixed-scenario turns. Check that agents sometimes form coalitions, make claims and consider stealing; if none ever consider stealing, raise the steal amount in config and never add wording that pushes them. *Done when:* 18 agents finish a round under both store settings.
-- **2:45–3:45:** AgentActor (DO store) with A; Terse batch + synthesis jobs; `scripts/run-batch.ts` fallback. *Done when:* a 2-run batch finishes and each run triggers `/api/analyze/:runId`.
+- **2:45–3:45:** MerchantAgent store wired into `World` with A; ExperimentRunner batch + synthesis; `scripts/run-batch.ts` fallback. *Done when:* a 2-run batch finishes and each run triggers `/api/analyze/:runId`.
 - **3:45–5:00:** watch the batch, fix model output errors and rate limits, freeze at 4:30.
 
 ### Person C: village view (medium)
@@ -248,12 +259,12 @@ Folders: `packages/shared/src/metrics.ts`, `apps/web/src/mastra`, `apps/web/src/
 ### B's spike plan (AgentRelay, 0:15–0:45)
 Read the installed package's README and `.d.ts` before writing code. Check:
 - **Auth:** API key format; passed via constructor or header; any workspace / project / agent registration step.
-- **Runtime:** does it need Node built-ins (`net`, `tls`, `ws`, `fs`, `child_process`) or a long-lived socket? Add `compatibility_flags = ["nodejs_compat"]` and try importing it under `wrangler dev`.
+- **Runtime:** does it need Node built-ins (`net`, `tls`, `ws`, `fs`, `child_process`) or a long-lived socket? (Resolved: we use a fetch-only client.)
 - **Primitives:** create a channel with members, DM an agent, join/leave a channel, message size limits, identity per agent.
 - **Reading:** can we pull messages since a cursor (what the actors need), or is it push/webhook only? What is the cursor type?
 - **Limits:** rate limits, and cleanup or namespacing of channels per run (e.g. prefix with runId).
 
-Test: two DO instances. A sends a DM; B reads its inbox since cursor 0. If this doesn't work in workerd by **1:15**, build the bridge: `apps/web/src/app/api/relay/{send,inbox,channel}/route.ts` using the Node SDK. The actors call it over HTTP through the same relay-client interface, so nothing else changes.
+Test: two agents. A sends a DM; B reads its inbox since cursor 0. If this doesn't work in workerd by **1:15**, build the bridge: `apps/web/src/app/api/relay/{send,inbox,channel}/route.ts` using the Node SDK. The actors call it over HTTP through the same relay-client interface, so nothing else changes.
 
 ## PART 12: Checkpoints, fallbacks, cut list
 
