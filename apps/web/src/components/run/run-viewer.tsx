@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Phase } from "@simulization/shared";
 import VillageCanvas from "@/game/VillageCanvas";
 import { useEventStore } from "@/store/eventStore";
@@ -7,6 +7,9 @@ import { AgentCard } from "./agent-card";
 import { EventFeed } from "./event-feed";
 import { MetricsBar } from "./metrics-bar";
 import { Roster } from "./roster";
+import { RunLegend } from "./run-legend";
+import { useStoredFlag } from "./run-prefs";
+import { useWealthVisibility } from "./use-run-info";
 import { RunSummary } from "./run-summary";
 import { buildRunCtx, RunProvider } from "./run-context";
 import { mergeAgents } from "./run-helpers";
@@ -27,7 +30,19 @@ export function RunViewer({ id }: { id: string }) {
   const events = useEventStore((s) => s.events);
   const [view, setView] = useView();
 
-  const agents = useMemo(() => mergeAgents(meta.roster, events), [events, meta.roster]);
+  const wealth = useWealthVisibility(id);
+  // Guide is shown until dismissed; the choice is remembered. `ready` avoids a flash before storage is read.
+  const guide = useStoredFlag("guide-dismissed", false);
+  const { value: guideDismissed, set: setGuide } = guide;
+  const guideOpen = guide.ready && !guideDismissed;
+
+  const merged = useMemo(() => mergeAgents(meta.roster, events), [events, meta.roster]);
+  // Keep the agents array identity stable while its contents are unchanged: every poll appends events,
+  // and a new array would rebuild the run context and re-render every memoized log row.
+  const sigNow = merged.map((a) => `${a.id}\u0000${a.name}\u0000${a.company}`).join("\u0001");
+  const [held, setHeld] = useState({ sig: sigNow, agents: merged });
+  if (held.sig !== sigNow) setHeld({ sig: sigNow, agents: merged });
+  const agents = held.agents;
   const ctx = useMemo(() => buildRunCtx(id, meta.condition, agents), [id, meta.condition, agents]);
 
   // Canvas labels: BLIND uses display labels so ids that encode company never appear as names.
@@ -43,6 +58,10 @@ export function RunViewer({ id }: { id: string }) {
       const st = useEventStore.getState();
       if (ev.key === "Escape" && !isTyping(ev.target)) st.select(null);
       if (isTyping(ev.target)) return;
+      if (ev.key === "?") {
+        ev.preventDefault();
+        setGuide(!guideDismissed);
+      }
       if (ev.key === "/") {
         ev.preventDefault();
         document.getElementById("feed-search")?.focus();
@@ -55,7 +74,7 @@ export function RunViewer({ id }: { id: string }) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [agents]);
+  }, [agents, guideDismissed, setGuide]);
 
   const last = events.at(-1);
   const round = meta.round ?? last?.round ?? null;
@@ -66,12 +85,13 @@ export function RunViewer({ id }: { id: string }) {
   return (
     <RunProvider value={ctx}>
       <div className="flex min-h-dvh flex-col">
-        <TopBar status={meta.status} round={round} phase={phase} mode={meta.mode} />
+        <TopBar status={meta.status} round={round} phase={phase} mode={meta.mode} wealth={wealth} helpOpen={guideOpen} onHelp={() => setGuide(guideOpen)} />
+        {guideOpen ? <RunLegend onClose={() => setGuide(true)} /> : null}
         {ctx.blind ? <BlindBanner /> : null}
         {meta.status === "offline" ? <OfflineStrip eventCount={events.length} /> : null}
         <main className="mx-auto flex w-full max-w-[1600px] min-w-0 flex-1 flex-col gap-3 px-4 py-3 sm:px-6">
-          <MetricsBar events={events} />
           {meta.status === "ended" && events.length > 0 ? <RunSummary events={events} isMock={meta.isMock} mode={meta.mode} /> : null}
+          <MetricsBar events={events} />
           <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start">
             <div className="flex min-w-0 flex-col gap-3">
               <ViewTabs view={view} onChange={setView} />

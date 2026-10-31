@@ -9,6 +9,12 @@ export const VIEWS = [
 ] as const;
 export type ViewKey = (typeof VIEWS)[number]["key"];
 
+const HINT: Record<ViewKey, string> = {
+  game: "Watch the village market",
+  data: "Charts and tables of the run",
+  research: "Research metrics and evidence",
+};
+
 const isView = (v: string | null): v is ViewKey => VIEWS.some((x) => x.key === v);
 
 /** Selected view lives in ?view= so it survives reloads and can be shared. */
@@ -65,9 +71,10 @@ export function ViewTabs({ view, onChange }: { view: ViewKey; onChange: (v: View
             aria-selected={on}
             aria-controls={panelId(v.key)}
             tabIndex={on ? 0 : -1}
+            title={HINT[v.key]}
             onClick={() => onChange(v.key)}
-            className={`-mb-px border-b-2 px-3 py-1.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-primary ${
-              on ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
+            className={`-mb-px rounded-t-sm border-b-2 px-3 py-1.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-primary active:bg-surface-raised ${
+              on ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:bg-surface-raised/60 hover:text-foreground"
             }`}
           >
             {v.label}

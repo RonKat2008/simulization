@@ -4,20 +4,12 @@ import { useEventStore } from "@/store/eventStore";
 import { EventRow } from "./event-row";
 import { FeedFilters } from "./feed-filters";
 import { useRun } from "./run-context";
+import { SHORTCUTS } from "./run-legend";
 import { eventVerb, isViolation, matchesFilter } from "./run-helpers";
 import type { RunStatus } from "./use-run-source";
 
 const PIN_THRESHOLD_PX = 48;
 const ANNOUNCE_MAX = 3;
-
-const KEYS: [string, string][] = [
-  ["j / k, arrows", "next / previous event"],
-  ["Home / End", "first / last event"],
-  ["Enter or p", "show private plan"],
-  ["a / t", "select actor / target"],
-  ["/", "search"],
-  ["Esc", "deselect agent"],
-];
 
 export function EventFeed({ followLatest, status }: { followLatest: boolean; status: RunStatus }) {
   const { label } = useRun();
@@ -165,7 +157,7 @@ export function EventFeed({ followLatest, status }: { followLatest: boolean; sta
       <details className="border-b px-3 py-1.5 text-xs text-muted-foreground">
         <summary className="cursor-pointer select-none hover:text-foreground">Keyboard shortcuts</summary>
         <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
-          {KEYS.map(([k, d]) => (
+          {SHORTCUTS.map(([k, d]) => (
             <Fragment key={k}>
               <dt className="font-display text-foreground">{k}</dt>
               <dd>{d}</dd>

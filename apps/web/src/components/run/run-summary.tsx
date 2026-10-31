@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import {
   ethicality,
   inGroupFavoritism,
@@ -10,6 +10,7 @@ import {
 import { useEventStore } from "@/store/eventStore";
 import { useRun } from "./run-context";
 import { COMPANY_TEXT } from "./run-helpers";
+import { useStoredFlag } from "./run-prefs";
 
 /** Below this many choices a rate is printed with a low-n warning. */
 const LOW_N = 10;
@@ -176,6 +177,15 @@ function ethCats(b: EthicalityBucket): Category[] {
 const ethFormula = (name: string, b: EthicalityBucket) =>
   `${name} = ${b.ethical} ethical / (${b.ethical} + ${b.unethical} unethical) = ${pct1(b.rate)}`;
 
+function Headline({ k, v, tone, hint }: { k: string; v: string; tone?: string; hint: string }) {
+  return (
+    <div title={hint} className="flex items-baseline gap-1.5">
+      <dt className="text-muted-foreground">{k}</dt>
+      <dd className={`font-display text-sm tabular-nums ${tone ?? ""}`}>{v}</dd>
+    </div>
+  );
+}
+
 function Row({ k, v, tone, onClick }: { k: ReactNode; v: string; tone?: string; onClick?: () => void }) {
   const inner = (
     <>
@@ -186,7 +196,7 @@ function Row({ k, v, tone, onClick }: { k: ReactNode; v: string; tone?: string; 
   return (
     <li>
       {onClick ? (
-        <button type="button" onClick={onClick} className="flex w-full items-baseline justify-between gap-2 rounded-sm px-1 py-0.5 text-left hover:bg-surface-raised">
+        <button type="button" onClick={onClick} className="flex w-full items-baseline justify-between gap-2 rounded-sm px-1 py-0.5 text-left transition-colors hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-primary active:bg-border">
           {inner}
         </button>
       ) : (
@@ -198,7 +208,8 @@ function Row({ k, v, tone, onClick }: { k: ReactNode; v: string; tone?: string; 
 
 export function RunSummary({ events, isMock, mode }: { events: Event[]; isMock: boolean; mode: string | null }) {
   const { agents, blind, label, condition } = useRun();
-  const [open, setOpen] = useState(true);
+  const detail = useStoredFlag("summary-detail", false);
+  const open = detail.value;
   const scored = useMemo(() => agents.filter((a) => a.company), [agents]);
   const fav = useMemo(() => inGroupFavoritism(events, scored), [events, scored]);
   const eth = useMemo(() => ethicality(events, scored), [events, scored]);
@@ -240,12 +251,19 @@ export function RunSummary({ events, isMock, mode }: { events: Event[]; isMock: 
 
   return (
     <section aria-labelledby="run-summary-title" className="min-w-0 rounded-lg border border-primary/40 bg-surface-raised/40">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b px-3 py-2.5 sm:px-4">
-        <h2 id="run-summary-title" className="font-display text-base tracking-wide">
-          Run results
-        </h2>
+      <div className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 rounded-t-lg border-b bg-surface-raised/95 px-3 py-2 backdrop-blur sm:px-4">
+        <div className="flex min-w-0 flex-wrap items-baseline gap-x-4 gap-y-1">
+          <h2 id="run-summary-title" className="font-display text-sm tracking-wide">
+            Results
+          </h2>
+          <dl className="flex flex-wrap items-baseline gap-x-4 gap-y-0.5 text-xs">
+            <Headline k="Cooperation" v={`${pct(cin.rate)} / ${pct(cout.rate)}`} hint="Cooperation rate: same company / other companies" tone="text-primary" />
+            <Headline k="Favoritism" v={fav.value === null ? "no data" : signed(fav.value)} hint="CR_in minus CR_out, from -1 to +1" tone={fav.value !== null && Math.abs(fav.value) >= 0.05 ? "text-accent" : undefined} />
+            <Headline k="Ethicality" v={pct(eth.overall.rate)} hint="Share of verifiable choices that kept honesty, promise and property norms" />
+          </dl>
+        </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-          <span>Run ended · {condition ?? "unknown condition"} · n = 1 run</span>
+          <span className="hidden sm:inline">Run ended · {condition ?? "unknown condition"} · n = 1</span>
           {isMock || stub ? (
             <span className="rounded-sm border border-dashed border-accent/60 px-1.5 py-px text-accent">
               {isMock ? "Mock replay: scripted stubs" : "Stub agents, not model output"}
@@ -255,10 +273,10 @@ export function RunSummary({ events, isMock, mode }: { events: Event[]; isMock: 
             type="button"
             aria-expanded={open}
             aria-controls="run-summary-body"
-            onClick={() => setOpen((v) => !v)}
-            className="rounded-sm border px-1.5 py-px transition-colors hover:border-primary/60 hover:text-foreground"
+            onClick={() => detail.set(!open)}
+            className="rounded-sm border px-2 py-0.5 text-xs transition-colors hover:border-primary/60 hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary active:bg-border"
           >
-            {open ? "Hide" : "Show"}
+            {open ? "Hide details" : "How these were found"}
           </button>
         </div>
       </div>
