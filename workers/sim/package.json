@@ -11,9 +11,11 @@
     "models": "tsx scripts/models.ts",
     "spike:gateway": "tsx scripts/gateway-spike.ts",
     "spike:relay": "tsx scripts/relay-spike.ts",
+    "relay:e2e": "tsx scripts/relay-e2e.ts",
     "validity": "tsx scripts/validity.ts",
     "types": "wrangler types",
-    "smoke": "tsx scripts/smoke-turns.ts && tsx scripts/smoke-relay-names.ts"
+    "smoke:terse": "tsx scripts/smoke-terse-store.ts",
+    "smoke": "tsx scripts/smoke-turns.ts && tsx scripts/smoke-relay-names.ts && tsx scripts/smoke-terse-store.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",

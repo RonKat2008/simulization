@@ -20,7 +20,7 @@ async function step<T>(label: string, fn: () => Promise<T>): Promise<T | undefin
 async function main(): Promise<void> {
   const key = requireEnv("AGENTRELAY_API_KEY");
   const base = optionalEnv("AGENTRELAY_BASE_URL") ?? AGENTRELAY_DEFAULT_BASE_URL;
-  console.log(`base URL: ${base} (set AGENTRELAY_BASE_URL to try another, e.g. https://api.relaycast.dev/v1)`);
+  console.log(`base URL: ${base} (override with AGENTRELAY_BASE_URL)`);
   const relay = new RelayClient(key, base);
   const stamp = Date.now();
   const nameX = `spikex${stamp}`;
@@ -45,12 +45,16 @@ async function main(): Promise<void> {
   const y = tY as string;
 
   await step(`create channel ${channel}`, () => relay.createChannel(channel, "spike test"));
-  await step(`invite ${nameX}`, () => relay.invite(x, channel, nameX));
-  await step(`invite ${nameY}`, () => relay.invite(x, channel, nameY));
-  await step(`${nameY} join`, () => relay.join(y, channel));
+  await step(`${nameX} join (creator is not auto-joined; inviter must be a member)`, () => relay.join(x, channel));
+  await step(`invite ${nameY} (adds as member directly)`, () => relay.invite(x, channel, nameY));
   await step("X posts to channel", () => relay.post(x, channel, "hello channel from X", `post-${stamp}`));
   await step("X DMs Y", () => relay.dm(x, nameY, "hello DM from X", `dm-${stamp}`));
-  await step("Y reads channel messages (no cursor)", () => relay.channelMessages(y, channel));
+  await step("X posts a second message", () => relay.post(x, channel, "second from X", `post2-${stamp}`));
+  const msgs = await step("Y reads channel messages (no cursor)", async () => (await relay.channelMessages(y, channel)).map((m) => `${m.from}:${m.text}`));
+  if (msgs && msgs.join("|") !== `${nameX}:hello channel from X|${nameX}:second from X`) {
+    failures++;
+    console.log("FAIL channelMessages should be oldest-first with from=agent_name");
+  }
   const convs = await step("Y lists DM conversations", () => relay.dmConversations(y));
   for (const id of convs ?? []) {
     await step(`Y reads DM conversation ${id} (no cursor)`, () => relay.dmMessages(y, id));

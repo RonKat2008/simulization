@@ -2,8 +2,14 @@
 // without the SDK's WebSocket/realtime code. Endpoints from agentrelay.com/docs/markdown/relaycast-api.md.
 // Responses are `{ ok, data }` / `{ ok: false, error: { code, message } }`.
 //
-// UNCONFIRMED until we test with a real key: the base URL (docs say armadillo, SDK defaults to cast;
-// set AGENTRELAY_BASE_URL to switch), the register response token field, and message ordering.
+// CONFIRMED live (2026-10-31) against https://armadillo.agentrelay.com/v1 with an ar_ws_* key:
+// - register response token field is `data.token`; message sender is `agent_name`
+// - list endpoints return `data` as a bare array, NEWEST-FIRST; ids are snowflakes (ascending in time)
+// - `after=<id>` returns messages newer than id (still newest-first); `limit` keeps the NEWEST n
+// - POST /dm returns `data.conversation_id`; GET /dm/conversations returns [{id, participants,...}]
+// - invite adds the target as a member directly (no join needed) but the INVITER must be a member (403 not_a_member);
+//   the channel creator is not auto-joined. leave returns 204 No Content. 409 channel_already_exists on dup.
+// This client re-sorts every list oldest-first so callers can take the last element as the newest.
 
 export const AGENTRELAY_DEFAULT_BASE_URL = "https://armadillo.agentrelay.com/v1";
 
@@ -28,13 +34,23 @@ export class RelayError extends Error {
 }
 
 /** Normalizes the message shapes we may get back into RelayMessage. */
-function toMessage(raw: Record<string, unknown>): RelayMessage {
+export function toMessage(raw: Record<string, unknown>): RelayMessage {
   const from =
     (raw.agent_name as string | undefined) ??
     (raw.from as string | undefined) ??
     ((raw.agent as Record<string, unknown> | undefined)?.name as string | undefined) ??
     "unknown";
   return { id: String(raw.id), from, text: String(raw.text ?? "") };
+}
+
+/** Snowflake ids are numeric strings: compare by length then lexicographically (no BigInt needed). */
+export function compareIds(a: string, b: string): number {
+  return a.length !== b.length ? a.length - b.length : a < b ? -1 : a > b ? 1 : 0;
+}
+
+/** Oldest-first copy regardless of the API's order. */
+function oldestFirst(msgs: RelayMessage[]): RelayMessage[] {
+  return [...msgs].sort((x, y) => compareIds(x.id, y.id));
 }
 
 function asList(data: unknown): Record<string, unknown>[] {
@@ -44,6 +60,23 @@ function asList(data: unknown): Record<string, unknown>[] {
     if (Array.isArray(obj?.[key])) return obj[key] as Record<string, unknown>[];
   }
   return [];
+}
+
+/** Creates a throwaway/persistent workspace (no auth needed) and returns its key. Key is shown only once. */
+export async function createWorkspace(
+  name: string,
+  opts: { baseUrl?: string; expiresInSeconds?: number } = {},
+): Promise<{ workspaceId: string; apiKey: string; expiresAt: string | null }> {
+  const res = await fetch(`${opts.baseUrl ?? AGENTRELAY_DEFAULT_BASE_URL}/workspaces`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name, expires_in_seconds: opts.expiresInSeconds }),
+  });
+  const env = (await res.json().catch(() => ({}))) as Envelope<{ workspace_id: string; api_key: string; expires_at?: string | null }>;
+  if (!res.ok || !env.ok || !env.data) {
+    throw new RelayError(res.status, env.error?.code ?? "unknown", env.error?.message ?? res.statusText);
+  }
+  return { workspaceId: env.data.workspace_id, apiKey: env.data.api_key, expiresAt: env.data.expires_at ?? null };
 }
 
 export class RelayClient {
@@ -63,6 +96,7 @@ export class RelayClient {
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
     });
+    if (res.status === 204) return undefined as T; // e.g. leave
     const env = (await res.json().catch(() => ({ ok: false, error: { code: "bad_json", message: res.statusText } }))) as Envelope<T>;
     if (!res.ok || !env.ok) {
       throw new RelayError(res.status, env.error?.code ?? "unknown", env.error?.message ?? res.statusText);
@@ -73,7 +107,7 @@ export class RelayClient {
   /** Registers an agent identity and returns its agent token. Names must be unique per workspace. */
   async registerAgent(name: string, metadata?: Record<string, unknown>): Promise<string> {
     const data = await this.call<Record<string, unknown>>(this.workspaceKey, "POST", "/agents", { name, type: "agent", metadata });
-    const token = (data.token ?? data.agent_token ?? data.api_key) as string | undefined;
+    const token = data.token as string | undefined;
     if (!token) throw new Error(`AgentRelay register for ${name} returned no token: ${JSON.stringify(data).slice(0, 200)}`);
     return token;
   }
@@ -111,7 +145,7 @@ export class RelayClient {
     const qs = new URLSearchParams({ limit: "50" });
     if (after) qs.set("after", after);
     const data = await this.call<unknown>(agentToken, "GET", `/channels/${encodeURIComponent(channel)}/messages?${qs}`);
-    return asList(data).map(toMessage);
+    return oldestFirst(asList(data).map(toMessage));
   }
 
   async dmConversations(agentToken: string): Promise<string[]> {
@@ -123,6 +157,6 @@ export class RelayClient {
     const qs = new URLSearchParams({ limit: "50" });
     if (after) qs.set("after", after);
     const data = await this.call<unknown>(agentToken, "GET", `/dm/${encodeURIComponent(conversationId)}/messages?${qs}`);
-    return asList(data).map(toMessage);
+    return oldestFirst(asList(data).map(toMessage));
   }
 }

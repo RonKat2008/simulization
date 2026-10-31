@@ -2,3 +2,8 @@ DATABASE_URL=
 AGENTRELAY_API_KEY=
 AI_GATEWAY_API_KEY=
 AGENT_STORE=neon
+# AGENT_STORE=terse only (Terse Durable Actors control plane)
+DURABLE_ACTORS_URL=http://127.0.0.1:7100
+DURABLE_ACTORS_PROJECT_ID=local
+# Optional bearer secret, only if the control plane requires it
+DURABLE_ACTORS_SECRET=

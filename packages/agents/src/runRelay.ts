@@ -1,9 +1,9 @@
 // Owner: Person B. Per-run AgentRelay orchestration on top of RelayClient: naming, setup,
-// message delivery and inbox pulls. Message ORDERING and DM conversation ids are UNCONFIRMED
-// until tested against a real key (see relayClient.ts).
+// message delivery and inbox pulls. Verified live: the API lists newest-first, RelayClient re-sorts
+// oldest-first, and cursors here use the max message id per source (see relayClient.ts).
 import { INBOX_SIZE, type AgentState, type AgentTurnInput } from "@simulization/shared";
 import { mapLimit } from "./limits";
-import type { RelayClient, RelayMessage } from "./relayClient";
+import { compareIds, type RelayClient, type RelayMessage } from "./relayClient";
 
 export type InboxMessage = AgentTurnInput["inbox"][number];
 
@@ -123,8 +123,7 @@ export class RunRelay {
 
   /**
    * Reads public + current coalition + all DM conversations since per-source cursors.
-   * UNCONFIRMED: API ordering. We keep API order and take the LAST element of each returned
-   * array as the newest id (assumes oldest-first; if newest-first, cursors would regress).
+   * Cursors are the max (newest) id seen per source, independent of the order the client returns.
    */
   async pullInbox(
     runId: string,
@@ -142,7 +141,7 @@ export class RunRelay {
 
     const ingest = (key: string, label: string, msgs: RelayMessage[]): void => {
       if (msgs.length === 0) return;
-      nextCursors[key] = msgs[msgs.length - 1]!.id;
+      nextCursors[key] = msgs.reduce((max, m) => (compareIds(m.id, max) > 0 ? m.id : max), cursor.c[key] ?? msgs[0]!.id);
       for (const m of msgs) {
         if (m.from === me) continue;
         const from = agentIdFromRelayName(runId, m.from) ?? m.from;

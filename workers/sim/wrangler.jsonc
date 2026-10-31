@@ -13,5 +13,7 @@
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["WorldActor", "AgentActor"] }
   ],
+  // AGENT_STORE: neon | do | terse. For terse also set DURABLE_ACTORS_URL / DURABLE_ACTORS_PROJECT_ID / DURABLE_ACTORS_SECRET
+  // via .dev.vars or `wrangler secret put` (never commit values here).
   "vars": { "AGENT_STORE": "neon" }
 }

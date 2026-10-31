@@ -6,9 +6,10 @@ Import everything from `src/agents` (barrel).
 1. Write the run row + 18 `agents` rows (name, company, provider, model from `COMPANIES`).
 2. `const relay = createRunRelay(env)` — `null` if `AGENTRELAY_API_KEY` is unset (runs still work).
 3. `const tokens = await relay?.setupRun(runId, agentIds)` — registers agents, creates + joins the public channel.
-4. `const store = createAgentStore(env)` (`AGENT_STORE=neon` default, `do` for AgentActor).
+4. `const store = createAgentStore(env)` (`AGENT_STORE=neon` default, `do` for AgentActor, `terse` for Terse Durable Actors).
    - Neon: `load` builds the initial state from the agents row; then `store.save(runId, id, { ...state, relayToken: tokens[id] })`.
    - DO: call `(store as DoAgentStore).init(runId, id, initialState)` once per agent first.
+   - Terse: same as DO. Call `(store as TerseAgentStore).init(runId, id, initialState)` once per agent before any `load`/`takeTurn`. Needs `DURABLE_ACTORS_URL` (default `http://127.0.0.1:7100`), `DURABLE_ACTORS_PROJECT_ID` (default `local`), optional `DURABLE_ACTORS_SECRET`. Actor `MerchantAgent`, id `${runId}.${agentId}` (':' mapped to '.', since actor ids allow only `[A-Za-z0-9._-]{1,128}`). Retries once only on `not_executed`; `failed` / HTTP 502 / network errors throw and are never replayed. Smoke: `pnpm --filter sim smoke:terse`.
 
 ## Per phase
 ```ts
