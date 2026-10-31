@@ -1,9 +1,11 @@
 // Landing page. Owner: D (HUD/pages). Base design from v0 (chat n6MLntLYcDE).
 import { Design } from "@/components/landing/design";
 import { GroundTruth } from "@/components/landing/ground-truth";
+import { FeaturedRun } from "@/components/landing/featured-run";
 import { Hero } from "@/components/landing/hero";
 import { Method, Cta } from "@/components/landing/method";
 import { Metrics } from "@/components/landing/metrics";
+import { MotionRoot } from "@/components/landing/reveal";
 import { SiteFooter } from "@/components/landing/site-footer";
 import { SiteHeader } from "@/components/landing/site-header";
 
@@ -17,14 +19,17 @@ export default function Home() {
         Skip to content
       </a>
       <SiteHeader />
+      <MotionRoot>
       <main id="main" className="overflow-x-clip">
         <Hero />
+        <FeaturedRun />
         <Design />
         <GroundTruth />
         <Metrics />
         <Method />
         <Cta />
       </main>
+      </MotionRoot>
       <SiteFooter />
     </>
   );

@@ -1,3 +1,4 @@
+import { Reveal, Stagger, StaggerItem } from './reveal'
 import { SectionHeading } from './section-heading'
 
 const BIAS = [
@@ -17,14 +18,14 @@ const POWER = [
 
 function List({ items }: { items: string[][] }) {
   return (
-    <dl className="divide-y rounded-md border">
+    <Stagger as="dl" className="divide-y rounded-md border">
       {items.map(([name, def]) => (
-        <div key={name} className="flex flex-col gap-1 px-4 py-3 text-sm">
+        <StaggerItem key={name} className="flex flex-col gap-1 px-4 py-3 text-sm">
           <dt className="text-foreground">{name}</dt>
           <dd className="text-muted-foreground">{def}</dd>
-        </div>
+        </StaggerItem>
       ))}
-    </dl>
+    </Stagger>
   )
 }
 
@@ -39,14 +40,14 @@ export function Metrics() {
           description="Computed in code from the event log, per run, per company, per condition. In BLIND runs, in-group still means true company."
         />
         <div className="grid gap-8 md:grid-cols-2">
-          <div className="flex flex-col gap-3">
+          <Reveal className="flex flex-col gap-3">
             <h3 className="text-xs uppercase tracking-[0.18em] text-primary">In-group bias</h3>
             <List items={BIAS} />
-          </div>
-          <div className="flex flex-col gap-3">
+          </Reveal>
+          <Reveal className="flex flex-col gap-3" delay={0.12}>
             <h3 className="text-xs uppercase tracking-[0.18em] text-accent">Power structures</h3>
             <List items={POWER} />
-          </div>
+          </Reveal>
         </div>
       </div>
     </section>

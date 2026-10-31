@@ -1,3 +1,4 @@
+import { Stagger, StaggerItem } from './reveal'
 import { SectionHeading } from './section-heading'
 
 const FLAGS = [
@@ -18,14 +19,14 @@ export function GroundTruth() {
           title="Lies and thefts are caught by the simulator, not a model."
           description="18 agents (6 per company), 6 rounds of negotiate, trade, act, reveal. Each starts with 10 coins and 3 goods of hidden quality 1 to 10. The world holds the true state, so every action can be flagged deterministically and carries a stable event ID."
         />
-        <dl className="divide-y rounded-md border">
+        <Stagger as="dl" className="divide-y rounded-md border">
           {FLAGS.map(([name, rule]) => (
-            <div key={name} className="grid gap-1 px-4 py-3 text-sm sm:grid-cols-[10rem_1fr] sm:gap-6">
+            <StaggerItem key={name} className="grid gap-1 px-4 py-3 text-sm sm:grid-cols-[10rem_1fr] sm:gap-6">
               <dt className="text-primary">{name}</dt>
               <dd className="text-muted-foreground">{rule}</dd>
-            </div>
+            </StaggerItem>
           ))}
-        </dl>
+        </Stagger>
       </div>
     </section>
   )

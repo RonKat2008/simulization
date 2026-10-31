@@ -258,3 +258,25 @@
     animation-iteration-count: 1 !important;
   }
 }
+
+/* Landing hero market visual (anime.js). Initial hidden states have a reduced-motion static fallback. */
+.mvx-seq {
+  opacity: 0;
+}
+.mvx-ring {
+  opacity: 0;
+}
+[data-mvx="pending"] .mvx-node {
+  opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mvx-seq {
+    opacity: 1;
+  }
+  [data-mvx="pending"] .mvx-node {
+    opacity: 1;
+  }
+}
+.mvx-svg text {
+  font-family: var(--font-body), ui-monospace, monospace;
+}
