@@ -22,6 +22,9 @@ export interface RunRow {
 }
 
 export function rowToEvent(r: Record<string, unknown>): Event {
+  // Versioned storage envelope only; public events retain their shared schema.
+  const stored = r.ground_truth as Record<string, unknown> | null | undefined;
+  const enveloped = stored != null && Object.prototype.hasOwnProperty.call(stored, '__productProjectV1');
   return EventSchema.parse({
     id: r.id,
     runId: r.run_id,
@@ -37,7 +40,8 @@ export function rowToEvent(r: Record<string, unknown>): Event {
     text: r.text ?? undefined,
     privatePlan: r.private_plan ?? undefined,
     claim: r.claim ?? undefined,
-    groundTruth: r.ground_truth ?? undefined,
+    groundTruth: (enveloped ? stored!.groundTruth : stored) ?? undefined,
+    productProject: enveloped ? stored!.__productProjectV1 : undefined,
     flags: r.flags ?? [],
     ts: new Date(r.ts as string | Date).getTime(),
   });

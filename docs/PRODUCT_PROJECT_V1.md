@@ -66,41 +66,46 @@ ACT event; target switch emits reset then progress; sale emits seller reset befo
 buyer trade_accept. Completion replaces the fourth progress event (one event).
 Invalid batches discard candidate events before fallback reset/pass emission.
 
-## Root integration still required (do not launch enabled live runs yet)
+## Runtime integration and root handoff
 
-- `apps/web/src/app/api/runs/_service.ts`: parse/validate version with
-  ProductProjectSchema; pass through run registration and startRun args; include
-  normalized version in returned historical/live metadata (missing = off).
-- `actors/src/runDirectory.ts` and bootstrap/start calls: preserve the immutable
-  registration option and pass it on during retry/recovery. `WorldActor.startRun`
-  must accept/validate it, include normalized version in registration conflict
-  checks, pass it to createWorld, and expose it in status. Never retrofit old runs.
-- `workers/sim/src/world/neonProjection.ts`: include `product_project` in full run
-  config alongside mode, wealth_visibility, label_mode, monitoring, label_mapping,
-  agentCount and projectedSeq. Record the exact version, not a boolean. Stratify
-  paired comparisons by this version; root owns report/metrics/UI integration.
-- Projection currently drops top-level `event.productProject`. Preserve and restore
-  it losslessly in SQL/replay before enabling: root can add a JSONB column or use a
-  reversible envelope in the existing ground_truth JSONB and unwrap in readers.
-  Keep public EventSchema as documented above. Raw checkpoint/WebSocket EventSchema
-  already retains it. Do not silently ship project events without their payload.
-- `packages/agents/src/takeTurn.ts:44` currently passes only monitoring to
-  buildSystemPrompt. Pass `product_project` from trusted enabled turn input
-  (`input.self.productProject?.version ?? 'off'`) or from explicitly persisted
-  agent config. The first approach needs no AgentStateSchema/liveAdapter change.
-  This patch adds SystemPromptOptions and PRODUCT_PROJECT_PROMPT_LINE; unmonitored
-  remains the final line. `liveAdapter` was inspected and deliberately unchanged.
-- `packages/shared/src/stubAgent.ts` does not generate improve actions. Tests here
-  use deterministic local action fixtures. Root may separately decide whether a
-  project-aware stub policy is needed. Existing disabled policy is unchanged.
-- Existing all-or-nothing checkpoint transaction and phaseKey gate must remain;
-  observers receive events only after commit. No new actor class, schema migration,
-  API route, provisioning, deployment, model calls or Relay calls was performed.
+Runtime accepts optional `product_project` with only `off | four-turn-v1` permitted.
+API registration/start, directory conflict checks, World start/conflict/status,
+checkpoint JSON, recovery bootstrap and Neon config preserve the version.
+Omission reads as off; disabled engine state and prompts remain unchanged.
+Recovery now also forwards existing wealth_visibility, label_mode and monitoring.
+Trusted `input.self.productProject?.version` selects the prompt and model output
+schema in takeTurn. Only enabled turns advertise improve; observer product event
+names never appear as agent actions. No liveAdapter change is needed: its Relay
+allowlist already excludes project events, and observations stay self-only.
 
-No blocking rule contradiction was found. CLAUDE.md's older packages/engine path
-is superseded by its final integration note naming workers/sim/src/engine. This
-feature intentionally adds the explicitly authorized versioned action to the old
-three-action rules; it does not revise their rewards.
+SQL storage uses existing `ground_truth` JSONB, without migration:
+`{__productProjectV1: event.productProject, groundTruth: event.groundTruth ?? null}`
+for project payloads. Legacy events keep their original ground_truth representation.
+`apps/web/src/mastra/db.ts:rowToEvent` unwraps this envelope before EventSchema parse;
+API replay and analysis share that reader. Raw checkpoints/WebSockets already use
+public EventSchema. Any additional direct SQL reader must use rowToEvent as well.
+
+Root/Starting Luck report grouping contract: normalize missing product_project to
+`off`; preserve exact version strings, never coerce to boolean or pool enabled with
+disabled. Add product_project to every existing comparison/synthesis/gallery key:
+condition × wealth_visibility × mode × label_mode × monitoring × product_project.
+Matched LABELED/BLIND pairs must share product_project as well as seed, roster/models
+and the other existing settings; condition is the comparison axis. Default headline
+pairs require product_project=off in addition to all current default restrictions.
+Keep future/unknown values separate or reject them, never silently treat them as off.
+No report, metric, launch/viewer UI or shared index files were edited here.
+
+Compact privileged-observer fold contract: consume committed events in ascending
+seq, deduplicate by runId+seq (or id); keep per actor `{completed:false,progress:null}`.
+product_progress sets progress to `{goodId,turns,lastRound:event.round}`;
+product_reset clears progress; product_complete clears progress and permanently
+sets completed=true. Only these three types change project display state. Completion
+turns=4 is terminal, not another progress event. Do not infer payout from progress;
+completion qualityGain is authoritative, including zero. Reset/switch ordering is
+already encoded in seq. Rebuild from the start when seeking backwards; repeated
+poll/WebSocket events must not increment counters. Keep goods/quality/progress out
+of other-agent inputs and Relay. Root still owns launch control, observer UI, report
+grouping, metric v2, and any shared exports it needs.
 
 ## Payoff interpretation (checked against actual engine)
 
@@ -131,8 +136,27 @@ Final scoring remains coins plus true quality of held inventory.
   compared complete state/events for BLIND/LABELED × seeds 1/42, six merchants:
   omitted/off outputs match exactly. Standard/unmonitored system prompts match bytes.
 
-Full `pnpm --filter sim typecheck` was attempted but blocked by absent dependency
+On the original engine-only checkout, full `pnpm --filter sim typecheck` was blocked by absent dependency
 links for out-of-scope actor/web imports (`durable-actors`, `zod`, `zustand`, shared).
 Focused checks passed. Bun is unavailable here; SQLite recovery uses Node instead.
 This verifies the real storage adapter on SQLite, not the running Terse actor's
 transaction/alarm lifecycle; root retains runtime integration/final verification.
+
+## Runtime local verification (integrated checkout)
+
+Focused scripts: `product-project-runtime.ts` (API and actor entrypoint isolation,
+registration conflicts, defaults, historical status, trusted prompt/output schema),
+`product-project-projection.ts` (real Neon client with intercepted fetch, all three
+project event types, exact reader roundtrip, stable retry and malformed rejection).
+`product-project-recovery.ts` additionally verifies all immutable settings survive
+reload, and duplicated interruption commits emit exactly one reset.
+Actor entrypoint tests replace SDK/storage transport and scheduler; real checkpoint
+logic is used. SQLite tests exercise the actual adapter and transactional rollback.
+No actual Terse actor lifecycle or real Neon SQL execution is verified. Bun is absent.
+No model/Relay requests, actor bootstrap, external writes or provisioning occurred.
+
+Integrated validation passed: full `pnpm typecheck` (shared, agents, web, sim, actors);
+product-project-contract, product-project-recovery, product-project-runtime,
+product-project-projection; baseline smoke, projection-smoke, monitoring-smoke
+(original prompt SHA-256), and label-mode-smoke. Dependencies installed using the
+existing frozen lockfile; no dependency or lockfile changes.
