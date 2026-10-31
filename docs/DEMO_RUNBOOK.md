@@ -70,3 +70,12 @@ Next/Terse startup, six stub rounds, ordering, duplicate submission, socket deli
 and unattended restart recovery. This is a stub infrastructure test, not live-model
 verification. The second checks that hosted starts are rejected before reading the
 request body or accessing actors, while local request validation remains enabled.
+
+Verified on 2026-10-31: the exact `pnpm actors:dev` command reached readiness in
+live mode using fresh empty storage on test port 7125, then shut down cleanly.
+No run was submitted. Root environment checks found all three required variables
+and the optional Relay base URL present and nonempty; values were not printed.
+The production build passed. Hosted-mode UI was inspected at 1440px and 375px;
+the notice and recorded-playback button appeared, no launch form was rendered,
+and both creation routes returned `503 LOCAL_DEMO_ONLY`. Local UI retained its
+enabled Start button and rejected an invalid request with 400 before actor access.
