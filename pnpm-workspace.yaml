@@ -2,7 +2,11 @@ packages:
   - "apps/*"
   - "workers/*"
   - "packages/*"
+  - "actors"
 allowBuilds:
   esbuild: true
   unrs-resolver: true
   workerd: true
+minimumReleaseAgeExclude:
+  - durable-actors-observer@0.14.6
+  - durable-actors@0.14.6

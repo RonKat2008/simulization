@@ -1,0 +1,30 @@
+{
+  "name": "actors",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "bun": ">=1.4.2"
+  },
+  "scripts": {
+    "vendor": "node scripts/vendor.mjs",
+    "dev": "node scripts/vendor.mjs && bunx durable-actors dev",
+    "generate": "node scripts/vendor.mjs && bunx durable-actors generate",
+    "inspect": "bunx durable-actors inspect",
+    "observe": "bunx durable-actors observe",
+    "typecheck": "node scripts/vendor.mjs && tsc --noEmit"
+  },
+  "dependencies": {
+    "@simulization/agents": "workspace:*",
+    "@simulization/shared": "workspace:*",
+    "durable-actors": "0.14.6",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "~5.9.3"
+  },
+  "trustedDependencies": [
+    "esbuild"
+  ]
+}

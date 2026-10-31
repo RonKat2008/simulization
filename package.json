@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "pnpm --filter web dev",
     "dev:sim": "pnpm --filter sim dev",
+    "actors:dev": "pnpm --filter actors dev",
     "mock": "pnpm --filter @simulization/shared mock",
     "sim:local": "pnpm --filter sim sim:local",
     "typecheck": "pnpm -r typecheck",

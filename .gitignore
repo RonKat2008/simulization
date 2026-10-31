@@ -13,3 +13,12 @@ coverage/
 
 # batch summaries
 scripts/out/
+
+# Durable Actors local runtime state
+actors/.durable-actors/
+actors/generated/
+actors/vendor/
+.vercel
+.env*
+!.env.example
+!**/.env.example
