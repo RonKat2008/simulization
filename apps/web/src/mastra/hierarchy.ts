@@ -436,9 +436,12 @@ export function crossRunHierarchy(runs: CrossRunInput[], excludedRuns: CrossRunH
   };
 }
 
-/** Reads a run's wealth visibility from its config; older runs simply don't have one. */
+/**
+ * Reads runs.config.wealth_visibility. Older runs have none: agents couldn't see coins then, but they
+ * ran on older code, so they stay out of pairs, where only visibility may differ.
+ */
 export function wealthVisibilityOf(config: unknown): WealthVisibility {
-  const value = (config as { wealthVisibility?: unknown } | null)?.wealthVisibility;
+  const value = (config as { wealth_visibility?: unknown } | null)?.wealth_visibility;
   return value === 'public' || value === 'private' ? value : 'unrecorded';
 }
 
