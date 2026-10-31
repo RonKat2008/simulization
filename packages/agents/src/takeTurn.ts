@@ -7,7 +7,7 @@ import {
   type AgentTurnInput,
 } from "@simulization/shared";
 import { signalDeadline } from "./limits";
-import { parseTurn, passOutput } from "./parseTurn";
+import { ACTION_FIELD_HINT, parseTurn, passOutput, type ParseResult } from "./parseTurn";
 import { TURN_OUTPUT_JSON_SCHEMA } from "./outputSchema";
 import type { ModelClient, TurnResult } from "./types";
 
@@ -30,7 +30,9 @@ export interface TakeTurnOutcome extends TurnResult {
 }
 
 const repairMessage = (error: string): string =>
-  `Your previous reply was not valid (${error}). Reply again with JSON only, exactly the fields private_plan, actions, memory_update, using only your legal action types.`;
+  `Your previous reply was not valid (${error}). ${ACTION_FIELD_HINT} ` +
+  `Reply again with JSON only, exactly the fields private_plan, actions, memory_update, using only your legal action types, ` +
+  `and include every required field for each action (use "pass" if unsure).`;
 
 /**
  * Never throws for model-output problems (those become a pass). Network/timeout errors from
@@ -45,6 +47,8 @@ export async function takeTurn({ agentId, state, input, model, signal, deadline 
   let outputTokens = 0;
   let attempts = 0;
   let lastError = "";
+  /** Attempt-1 result whose actions were all dropped; used if the repair retry fails too. */
+  let fallback: Extract<ParseResult, { ok: true }> | undefined;
 
   // Attempt 1 is the normal turn; attempt 2 is the single repair retry.
   while (attempts < 2) {
@@ -67,14 +71,33 @@ export async function takeTurn({ agentId, state, input, model, signal, deadline 
     outputTokens += res.outputTokens ?? 0;
 
     const parsed = parseTurn(res.text, input.legalActions);
-    if (parsed.ok) {
+    // Every proposed action was malformed: spend the repair retry on it instead of silently passing.
+    if (parsed.ok && parsed.allDropped && parsed.schemaIssues.length > 0 && attempts === 1) {
+      fallback = parsed;
+      lastError = parsed.schemaIssues.join("; ");
+      continue;
+    }
+    if (!parsed.ok) {
+      lastError = parsed.error;
+      if (!fallback) continue;
+    }
+    const accepted = parsed.ok ? parsed : fallback;
+    if (accepted) {
       return {
-        output: parsed.output,
-        state: { ...state, memory: parsed.output.memory_update },
+        output: accepted.output,
+        state: { ...state, memory: accepted.output.memory_update },
         meta: { agentId, provider: state.provider, model: state.model, latencyMs: Date.now() - started, inputTokens, outputTokens, attempts },
       };
     }
-    lastError = parsed.error;
+  }
+
+  if (fallback) {
+    // No time (or no luck) for a repair: a pass from the dropped malformed actions is still a valid turn.
+    return {
+      output: fallback.output,
+      state: { ...state, memory: fallback.output.memory_update },
+      meta: { agentId, provider: state.provider, model: state.model, latencyMs: Date.now() - started, inputTokens, outputTokens, attempts },
+    };
   }
 
   return {

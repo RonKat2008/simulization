@@ -1,5 +1,6 @@
 // Owner: Person B. Turns raw model text into a valid, legal AgentTurnOutput.
 import {
+  ActionSchema,
   AgentTurnOutputSchema,
   MAX_ACTIONS,
   MEMORY_MAX_CHARS,
@@ -8,7 +9,33 @@ import {
   type AgentTurnOutput,
 } from "@simulization/shared";
 
-export type ParseResult = { ok: true; output: AgentTurnOutput; dropped: number } | { ok: false; error: string };
+export type ParseResult =
+  | {
+      ok: true;
+      output: AgentTurnOutput;
+      dropped: number;
+      /** Per-action schema problems (those actions were dropped). Non-empty with nothing kept = worth a repair retry. */
+      schemaIssues: string[];
+      /** True when the model proposed actions but none survived (output is a fallback pass). */
+      allDropped: boolean;
+    }
+  | { ok: false; error: string };
+
+const TARGET_ID_TYPES = "pact_propose, pact_accept, trade_offer, steal";
+
+/** Names the exact missing/invalid field per action so a repair retry (and logs) can be specific. */
+export function describeActionIssue(index: number, action: unknown, issues: readonly { path: PropertyKey[]; message: string }[]): string {
+  const type = typeof action === "object" && action !== null ? String((action as Record<string, unknown>).type) : "?";
+  const fields = issues.map((i) => String(i.path[0] ?? "(action)")).filter((f, k, a) => a.indexOf(f) === k);
+  return `actions.${index} (${type}) needs field ${fields.join(", ")}`;
+}
+
+/** Hint text appended to the repair message: which action types require which fields. */
+export const ACTION_FIELD_HINT =
+  `Required fields per action type: ${TARGET_ID_TYPES} require "targetId" (the other agent's id); ` +
+  `trade_offer also needs goodId, claimedQuality (int 1-10), price (int >= 0); ` +
+  `trade_accept and trade_decline require "offerId"; coalition_join requires "coalitionId"; coalition_create requires "name"; ` +
+  `message requires "channel" and "text" (plus "to" for dm).`;
 
 /** Strips ``` fences and any prose around the outermost JSON object. */
 function extractJson(text: string): string {
@@ -75,16 +102,32 @@ export function parseTurn(text: string, legalActions: readonly string[]): ParseR
     return { ok: false, error: `invalid JSON: ${(err as Error).message}` };
   }
   const { value, invalid } = normalize(raw);
-  const parsed = AgentTurnOutputSchema.safeParse(value);
+  // Validate each action on its own so one malformed action (e.g. a steal with no targetId) is dropped
+  // instead of failing the whole turn.
+  const schemaIssues: string[] = [];
+  const proposed = Array.isArray((value as { actions?: unknown })?.actions) ? ((value as { actions: unknown[] }).actions) : undefined;
+  let candidate = value;
+  if (proposed) {
+    const good: unknown[] = [];
+    proposed.forEach((a, i) => {
+      const r = ActionSchema.safeParse(a);
+      if (r.success) good.push(a);
+      else schemaIssues.push(describeActionIssue(i, a, r.error.issues));
+    });
+    candidate = { ...(value as Record<string, unknown>), actions: good };
+  }
+  const parsed = AgentTurnOutputSchema.safeParse(candidate);
   if (!parsed.success) {
     return { ok: false, error: `schema: ${parsed.error.issues.map((i) => `${i.path.join(".")} ${i.message}`).join("; ")}` };
   }
   const legal = new Set(legalActions);
   const kept: Action[] = parsed.data.actions.filter((a) => legal.has(a.type));
-  const dropped = invalid + parsed.data.actions.length - kept.length;
+  const dropped = invalid + schemaIssues.length + parsed.data.actions.length - kept.length;
   return {
     ok: true,
     dropped,
+    schemaIssues,
+    allDropped: kept.length === 0 && dropped > 0,
     output: { ...parsed.data, actions: kept.length > 0 ? kept : [{ type: "pass" }] },
   };
 }
