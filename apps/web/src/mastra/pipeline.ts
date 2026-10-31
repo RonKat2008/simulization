@@ -11,11 +11,20 @@ import {
   type RunMetrics,
 } from '@simulization/shared';
 import { assignGroups, createAnonymizer, relabelGroups, type AnonymizableAgent, type GroupMap } from './anonymize';
+import {
+  computeRunHierarchy,
+  crossRunHierarchy,
+  runModeOf,
+  wealthVisibilityOf,
+  type CrossRunHierarchy,
+  type CrossRunInput,
+  type RunHierarchy,
+} from './hierarchy';
 
 export type Reviewer = (prompt: string) => Promise<Review>;
 
 /** RunMetrics for the whole run, plus the same metrics scoped to each company. */
-export type StoredMetrics = RunMetrics & { byCompany: Record<string, RunMetrics> };
+export type StoredMetrics = RunMetrics & { byCompany: Record<string, RunMetrics>; hierarchy?: RunHierarchy };
 
 export const StoredReviewSchema = ReviewSchema.extend({
   droppedClaims: z.number().int(),
@@ -33,10 +42,19 @@ export interface StoredSynthesis extends StoredReview {
   runIds: string[];
   skippedRuns: SkippedRun[];
   aggregated: ReturnType<typeof aggregateMetrics>;
+  hierarchy: CrossRunHierarchy;
 }
 
-export function computeStoredMetrics(events: Event[], agents: AnonymizableAgent[]): StoredMetrics {
-  return { ...computeRunMetrics(events, agents), byCompany: computeCompanyMetrics(events, agents) };
+export function computeStoredMetrics(
+  events: Event[],
+  agents: AnonymizableAgent[],
+  finalScores?: Record<string, number> | null,
+): StoredMetrics {
+  return {
+    ...computeRunMetrics(events, agents),
+    byCompany: computeCompanyMetrics(events, agents),
+    hierarchy: computeRunHierarchy(events, agents, finalScores),
+  };
 }
 
 /** One event per line, renamed so the prompt only ever speaks of groups. */
@@ -85,6 +103,8 @@ export interface SynthesisRunInput {
   id: string;
   condition: Condition;
   status: string;
+  seed: number;
+  config: unknown;
   metrics: unknown;
   review: unknown;
 }
@@ -111,6 +131,7 @@ export function buildSynthesisPrompt(
   runs: { id: string; condition: Condition; review: StoredReview }[],
   aggregated: StoredSynthesis['aggregated'],
   sharedGroups: GroupMap,
+  hierarchy: CrossRunHierarchy,
 ): string {
   const sharedGroupOf = new Map(Object.entries(sharedGroups).map(([group, company]) => [company, group]));
   const labelOf = (company: string) => {
@@ -127,13 +148,16 @@ export function buildSynthesisPrompt(
       limitations: review.limitations.map(relabel),
     };
   });
-  return `Aggregated metrics by condition (authoritative):\n${JSON.stringify(aggregated)}\n\nRun reviews (JSON lines):\n${reviews
+  // Provider names stay out of the prompt; company keys become the shared group labels.
+  const { providers: _providers, ...measured } = hierarchy;
+  const { scrubDeep } = createAnonymizer([], undefined, sharedGroups);
+  return `Aggregated metrics by condition (authoritative):\n${JSON.stringify(aggregated)}\n\nExploratory hierarchy measures (authoritative counts):\n${JSON.stringify(scrubDeep(measured))}\n\nRun reviews (JSON lines):\n${reviews
     .map((r) => JSON.stringify(r))
     .join('\n')}`;
 }
 
 export async function runSynthesis(deps: SynthesisDeps): Promise<StoredSynthesis> {
-  const included: { id: string; condition: Condition; review: StoredReview; metrics: StoredMetrics }[] = [];
+  const included: (SynthesisRunInput & { review: StoredReview; metrics: StoredMetrics })[] = [];
   const skippedRuns: SkippedRun[] = [];
 
   for (const run of await deps.loadRuns()) {
@@ -154,7 +178,23 @@ export async function runSynthesis(deps: SynthesisDeps): Promise<StoredSynthesis
   const groupMap = assignGroups(companies, deps.random);
   const runIds = included.map((r) => r.id);
 
-  const raw = await deps.synthesize(buildSynthesisPrompt(included, aggregated, groupMap));
+  const hierarchyRuns: CrossRunInput[] = [];
+  const noHierarchy: SkippedRun[] = [];
+  for (const { id, condition, seed, config, metrics } of included) {
+    if (metrics.hierarchy) {
+      hierarchyRuns.push({
+        id,
+        condition,
+        seed,
+        mode: runModeOf(config),
+        wealthVisibility: wealthVisibilityOf(config),
+        hierarchy: metrics.hierarchy,
+      });
+    } else noHierarchy.push({ runId: id, reason: 'analyzed before hierarchy measures existed; re-run analysis' });
+  }
+  const hierarchy = crossRunHierarchy(hierarchyRuns, noHierarchy);
+
+  const raw = await deps.synthesize(buildSynthesisPrompt(included, aggregated, groupMap, hierarchy));
   const { review, droppedClaims } = filterClaims(raw, new Set(await deps.loadEventIds(runIds)));
   console.log(`[synthesis] dropped ${droppedClaims} claim(s) with bad citations; ${skippedRuns.length} run(s) skipped`);
 
@@ -166,6 +206,7 @@ export async function runSynthesis(deps: SynthesisDeps): Promise<StoredSynthesis
     runIds,
     skippedRuns,
     aggregated,
+    hierarchy,
   };
   await deps.save(content);
   return content;

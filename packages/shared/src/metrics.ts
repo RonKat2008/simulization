@@ -55,6 +55,8 @@ export interface RunMetrics {
 export const ReviewClaimSchema = z.object({
   section: z.enum(['timeline', 'patterns', 'intent_vs_action', 'surprises', 'limitations']),
   text: z.string(),
+  /** Whether a claim reports a measured fact or the reviewer's reading of it. Older reviews lack this. */
+  basis: z.enum(['measured', 'interpretation']).optional(),
   eventIds: z.array(z.string()).min(1),
 });
 export type ReviewClaim = z.infer<typeof ReviewClaimSchema>;
@@ -383,7 +385,7 @@ export interface PowerStructure {
 }
 
 /** Gini coefficient of non-negative values; 0 for empty or all-zero input, never NaN. */
-function gini(values: number[]): number {
+export function gini(values: number[]): number {
   const n = values.length;
   const total = values.reduce((s, v) => s + v, 0);
   if (n === 0 || total <= 0) return 0;

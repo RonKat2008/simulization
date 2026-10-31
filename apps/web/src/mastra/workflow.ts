@@ -14,7 +14,11 @@ import {
 } from './pipeline';
 
 export interface AnalyzeDeps {
-  load: (runId: string) => Promise<{ agents: AnonymizableAgent[]; events: Event[] }>;
+  load: (runId: string) => Promise<{
+    agents: AnonymizableAgent[];
+    events: Event[];
+    finalScores?: Record<string, number> | null;
+  }>;
   review: Reviewer;
   save: (runId: string, metrics: StoredMetrics, review: StoredReview) => Promise<void>;
   random?: () => number;
@@ -25,6 +29,7 @@ const LoadedSchema = z.object({
   runId: z.string(),
   agents: z.array(AgentSchema),
   events: z.array(EventSchema),
+  finalScores: z.record(z.string(), z.number()).nullish(),
 });
 const WithMetricsSchema = LoadedSchema.extend({ metrics: z.custom<StoredMetrics>() });
 const WithPromptSchema = WithMetricsSchema.extend({
@@ -51,9 +56,9 @@ export function createAnalyzeWorkflow(deps: AnalyzeDeps) {
     inputSchema: z.object({ runId: z.string() }),
     outputSchema: LoadedSchema,
     execute: async ({ inputData: { runId } }) => {
-      const { agents, events } = await deps.load(runId);
+      const { agents, events, finalScores } = await deps.load(runId);
       if (events.length === 0) throw new Error(`Run ${runId} has no events`);
-      return { runId, agents, events };
+      return { runId, agents, events, finalScores };
     },
   });
 
@@ -63,7 +68,7 @@ export function createAnalyzeWorkflow(deps: AnalyzeDeps) {
     outputSchema: WithMetricsSchema,
     execute: async ({ inputData }) => ({
       ...inputData,
-      metrics: computeStoredMetrics(inputData.events, inputData.agents),
+      metrics: computeStoredMetrics(inputData.events, inputData.agents, inputData.finalScores),
     }),
   });
 

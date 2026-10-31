@@ -49,13 +49,22 @@ export async function getRun(runId: string): Promise<RunRow | null> {
   return (rows[0] as RunRow | undefined) ?? null;
 }
 
-export async function loadRunData(runId: string): Promise<{ agents: AnonymizableAgent[]; events: Event[] }> {
+export async function loadRunData(runId: string): Promise<{
+  agents: AnonymizableAgent[];
+  events: Event[];
+  finalScores: Record<string, number> | null;
+}> {
   const sql = db();
-  const [agents, events] = await sql.transaction([
+  const [agents, events, runs] = await sql.transaction([
     sql`SELECT agent_id AS id, company, provider, model FROM agents WHERE run_id = ${runId} ORDER BY agent_id`,
     sql`SELECT * FROM events WHERE run_id = ${runId} ORDER BY seq`,
+    sql`SELECT final_scores FROM runs WHERE id = ${runId}`,
   ]);
-  return { agents: agents as AnonymizableAgent[], events: events.map(rowToEvent) };
+  return {
+    agents: agents as AnonymizableAgent[],
+    events: events.map(rowToEvent),
+    finalScores: (runs[0]?.final_scores as Record<string, number> | null | undefined) ?? null,
+  };
 }
 
 export async function saveRunAnalysis(runId: string, metrics: StoredMetrics, review: StoredReview): Promise<void> {
@@ -71,7 +80,7 @@ export async function saveRunAnalysis(runId: string, metrics: StoredMetrics, rev
 export async function loadSynthesisRuns(): Promise<SynthesisRunInput[]> {
   const sql = db();
   const rows = await sql`
-    SELECT r.id, r.condition, r.status, m.metrics, v.content AS review
+    SELECT r.id, r.condition, r.status, r.seed, r.config, m.metrics, v.content AS review
     FROM runs r
     LEFT JOIN metrics m ON m.run_id = r.id
     LEFT JOIN reviews v ON v.run_id = r.id AND v.kind = 'run'
