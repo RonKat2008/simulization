@@ -51,19 +51,21 @@ export function RoundRecap({ recap, open, onOpenChange, final }: Props) {
       className="min-w-0 rounded-md border border-primary/40 bg-surface-raised/60 p-3"
     >
       <div className="flex items-start justify-between gap-3">
-        <h3 className="min-w-0 text-sm">
-          <span className="font-display tracking-wide">Round {recap.round}</span>
-          {final ? <span className="text-muted-foreground"> · the last round</span> : null}
+        <div className="min-w-0">
+          <h3 className="font-display text-sm tracking-wide">
+            Round {recap.round} recap{final ? <span className="font-sans text-muted-foreground"> · last round</span> : null}
+          </h3>
           {recap.counts.length ? (
-            <span className="ml-2 inline-flex flex-wrap gap-x-2 text-xs text-muted-foreground">
-              {recap.counts.map((c) => (
+            <p className="mt-0.5 flex flex-wrap gap-x-1.5 text-xs">
+              {recap.counts.map((c, i) => (
                 <span key={c.label} className={c.bad ? "text-violation" : "text-foreground"}>
                   {c.label}
+                  {i < recap.counts.length - 1 ? <span className="text-subtle-foreground"> ·</span> : null}
                 </span>
               ))}
-            </span>
+            </p>
           ) : null}
-        </h3>
+        </div>
         <button
           type="button"
           onClick={() => {

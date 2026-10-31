@@ -125,6 +125,10 @@ export function TopBar({
           </p>
         </div>
       </div>
+      {/* A finished run replays in the village; its live-position strip would show the end state and
+          contradict playback, so the timeline under the village takes over there. */}
+      {status !== "ended" ? (
+        <>
       <div className="mx-auto flex max-w-[1600px] flex-col gap-1 px-4 pb-3 pt-1 text-sm leading-relaxed sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-4 sm:px-6">
         <strong className="font-mono text-[11px] font-normal uppercase tracking-[0.08em] text-foreground">R{round ?? '…'}<span className="text-subtle-foreground">/6</span> · {phase ?? 'Connecting'}</strong>
         <p className="text-muted-foreground">{phase === 'negotiate' ? 'Merchants message each other, form coalitions and propose pacts.' : phase === 'trade' ? 'Merchants offer goods, then buyers accept or decline. Claimed quality may differ from the truth.' : phase === 'act' ? 'Each merchant chooses to work, contribute, steal or pass.' : phase === 'reveal' ? 'The referee resolves theft detection, fines and coalition rewards.' : 'Waiting for the simulation to connect.'}</p>
@@ -133,7 +137,9 @@ export function TopBar({
           <p className="mt-1 max-w-xl">Goal: finish with coins plus the true value of held goods. A coalition is a shared group; an accepted pact is a two-agent promise that can be broken.</p>
         </details>
       </div>
-      <RoundTimeline round={round} phase={phase} ended={status === "ended"} />
+      <RoundTimeline round={round} phase={phase} ended={false} />
+        </>
+      ) : null}
     </header>
   );
 }
