@@ -2,6 +2,7 @@ import { neon } from '@neondatabase/serverless';
 import { ReviewSchema, type Review } from '@simulization/shared';
 import { z } from 'zod';
 import { CrossJudgeSchema, type CrossJudge } from '../../mastra/crossJudge';
+import { EnsembleSchema, type Ensemble } from '../../mastra/ensemble';
 import { rowToEvent } from '../../mastra/db';
 import { labelModeOf, monitoringOf, runModeOf, wealthVisibilityOf } from '../../mastra/hierarchy';
 import type { LoadedRun } from './data';
@@ -13,7 +14,7 @@ export interface NeonReport {
   runs: LoadedRun[];
   /** Latest stored kind='run' review per run id; runs without a valid one are absent. */
   reviews: Map<string, Review>;
-  /** Extra stored fields ReviewSchema strips: the anonymization map and the optional cross judge. */
+  /** Extra stored fields ReviewSchema strips: the anonymization map, the legacy cross judge and the judge ensemble. */
   extras?: Map<string, StoredExtras>;
 }
 
@@ -21,6 +22,8 @@ export interface StoredExtras {
   /** Anonymized group label -> company id ("Group 1" -> "A"). */
   groupMap: Record<string, string>;
   crossJudge?: CrossJudge;
+  /** 3-lab judge ensemble; absent on reviews written before it. */
+  ensemble?: Ensemble;
 }
 
 const GroupMapSchema = z.record(z.string(), z.string());
@@ -89,15 +92,22 @@ export async function loadNeonReport(runId?: string): Promise<NeonReport | null>
   return { runs, reviews, extras };
 }
 
-/** groupMap and crossJudge are read from the raw content; a bad cross judge is dropped, never fatal. */
+/** Parses an optional stored field; a bad value is dropped with a log, never fatal. */
+function optional<T>(schema: z.ZodType<T>, value: unknown, what: string, runId: string): T | undefined {
+  if (value === undefined || value === null) return undefined;
+  const parsed = schema.safeParse(value);
+  if (parsed.success) return parsed.data;
+  console.error(`[report] ${what} for run ${runId} failed validation; ignoring it`, parsed.error.message);
+  return undefined;
+}
+
+/** groupMap, crossJudge and ensemble are read from the raw content. */
 function readExtras(content: unknown, runId: string): StoredExtras | null {
   if (typeof content !== 'object' || content === null) return null;
-  const raw = content as { groupMap?: unknown; crossJudge?: unknown };
+  const raw = content as { groupMap?: unknown; crossJudge?: unknown; ensemble?: unknown };
   const groupMap = GroupMapSchema.safeParse(raw.groupMap);
   if (!groupMap.success) return null;
-  if (raw.crossJudge === undefined || raw.crossJudge === null) return { groupMap: groupMap.data };
-  const cross = CrossJudgeSchema.safeParse(raw.crossJudge);
-  if (cross.success) return { groupMap: groupMap.data, crossJudge: cross.data };
-  console.error(`[report] cross judge for run ${runId} failed validation; ignoring it`, cross.error.message);
-  return { groupMap: groupMap.data };
+  const crossJudge = optional(CrossJudgeSchema, raw.crossJudge, 'cross judge', runId);
+  const ensemble = optional(EnsembleSchema, raw.ensemble, 'judge ensemble', runId);
+  return { groupMap: groupMap.data, ...(crossJudge && { crossJudge }), ...(ensemble && { ensemble }) };
 }

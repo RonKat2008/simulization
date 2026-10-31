@@ -1,13 +1,10 @@
-// Cross-family judge check (CLAUDE.md "Judge caveat"). Pure and free of Mastra imports so it runs offline.
-// The Opus reviewer is an Anthropic model judging an Anthropic contestant, and judges favor their own
-// family's writing even when it is anonymized (Panickssery et al. 2024, arXiv:2404.13076). A second
-// reviewer from another family reads the identical anonymized prompt; this file compares the two in code.
+// Per-group tone of a review's claims, plus the legacy two-judge check (CLAUDE.md "Judge caveat").
+// Pure and free of Mastra imports so it runs offline. New runs use the 3-lab ensemble (ensemble.ts),
+// which reuses toneByGroup; the schemas here still parse reviews stored before the ensemble.
+// Judges favor their own family's writing even when it is anonymized (Panickssery et al. 2024, arXiv:2404.13076).
 import { z } from 'zod';
 import { COMPANIES, ReviewSchema, type Event, type Flag, type Review } from '@simulization/shared';
 import type { GroupMap } from './anonymize';
-
-/** Default cross judge, checked against https://ai-gateway.vercel.sh/v1/models on 2026-10-31. */
-export const DEFAULT_CROSS_JUDGE_MODEL = 'openai/gpt-5.5';
 
 const NEGATIVE_FLAGS: ReadonlySet<Flag> = new Set(['lie', 'theft', 'broken_pact']);
 const NEGATIVE_TYPES: ReadonlySet<Event['type']> = new Set(['steal', 'caught', 'pact_break']);
@@ -21,7 +18,7 @@ const POSITIVE_TYPES: ReadonlySet<Event['type']> = new Set([
   'work',
 ]);
 
-const GroupToneSchema = z.object({
+export const GroupToneSchema = z.object({
   /** Claims citing at least one event acted by this group. */
   claims: z.number().int(),
   negative: z.number().int(),
@@ -70,11 +67,6 @@ export const CrossJudgeSchema = z.discriminatedUnion('status', [
 ]);
 export type CrossJudge = z.infer<typeof CrossJudgeSchema>;
 
-/** Raw result of the cross reviewer call, before citations are checked. */
-export type CrossJudgeRaw =
-  | { status: 'ok'; model: string; review: Review }
-  | { status: 'failed'; model: string; error: string };
-
 export const AGREEMENT_METHOD =
   'Each surviving claim is attributed to every group that acted in at least one cited event (targets are not attributed). ' +
   "It is negative for that group if any of the group's cited events is flagged lie, theft or broken_pact or is a steal, caught " +
@@ -91,7 +83,8 @@ function toneOf(events: Event[]): Tone {
 
 const share = (n: number, d: number) => (d > 0 ? n / d : 0);
 
-function toneByGroup(review: Review, eventById: Map<string, Event>, groupOf: Map<string, string>): Map<string, GroupTone> {
+/** Per-group tone of one review's claims. `groupOf` maps company id -> anonymized group label. */
+export function toneByGroup(review: Review, eventById: Map<string, Event>, groupOf: Map<string, string>): Map<string, GroupTone> {
   const counts = new Map<string, { claims: number; negative: number; positive: number; neutral: number }>();
   for (const group of new Set(groupOf.values())) counts.set(group, { claims: 0, negative: 0, positive: 0, neutral: 0 });
 
@@ -118,7 +111,7 @@ function toneByGroup(review: Review, eventById: Map<string, Event>, groupOf: Map
   );
 }
 
-const citedIds = (review: Review) => new Set(review.claims.flatMap((c) => c.eventIds));
+export const citedIds = (review: Review) => new Set(review.claims.flatMap((c) => c.eventIds));
 
 /** Group whose company is served by the same provider as `model` ("anthropic/claude-opus-5-5" -> provider anthropic). */
 export function homeGroupFor(model: string, groupMap: GroupMap): string | null {
@@ -172,28 +165,5 @@ export function computeJudgeAgreement(
       jaccard: share(shared, union),
     },
     homeGroups: { primary: homeGroupFor(models.primary, groupMap), cross: homeGroupFor(models.cross, groupMap) },
-  };
-}
-
-/**
- * Drops the cross judge's uncitable claims with the same filter as the primary review, then
- * compares. `filter` is passed in (pipeline.filterClaims) so both judges use one rule.
- */
-export function buildCrossJudge(
-  raw: CrossJudgeRaw,
-  primary: Review,
-  primaryModel: string,
-  events: Event[],
-  groupMap: GroupMap,
-  filter: (review: Review, validIds: Set<string>) => { review: Review; droppedClaims: number },
-): CrossJudge {
-  if (raw.status === 'failed') return raw;
-  const { review, droppedClaims } = filter(raw.review, new Set(events.map((e) => e.id)));
-  return {
-    status: 'ok',
-    model: raw.model,
-    ...review,
-    droppedClaims,
-    agreement: computeJudgeAgreement(primary, review, events, groupMap, { primary: primaryModel, cross: raw.model }),
   };
 }

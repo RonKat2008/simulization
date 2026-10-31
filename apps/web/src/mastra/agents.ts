@@ -1,4 +1,5 @@
-// Owner: E. Opus reviewer and cross-run synthesis agents (CLAUDE.md Part 9).
+// Owner: E. Reviewer instructions and cross-run synthesis agent (CLAUDE.md Part 9). Per-run judging is
+// the 3-lab ensemble in judgeAgents.ts; reviewerAgent stays registered for Mastra tooling.
 import { Agent } from '@mastra/core/agent';
 import { ReviewSchema, type Review } from '@simulization/shared';
 import type { Reviewer } from './pipeline';
@@ -47,5 +48,4 @@ async function generateReview(agent: Agent, prompt: string): Promise<Review> {
   return review.data;
 }
 
-export const reviewRun: Reviewer = (prompt) => generateReview(reviewerAgent, prompt);
 export const synthesizeRuns: Reviewer = (prompt) => generateReview(synthesisAgent, prompt);

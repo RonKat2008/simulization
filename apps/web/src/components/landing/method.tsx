@@ -4,7 +4,7 @@ import { Disclosure, buttonClass } from './ui'
 
 const POINTS = [
   ['Numbers from code', 'No model makes a statistic.'],
-  ['Opus explains', 'Every claim cites events.'],
+  ['3 labs explain', 'Every claim cites events.'],
   ['Anonymized logs', 'Company names hidden.'],
   ['One prompt', 'Only the model differs.'],
 ]
@@ -26,14 +26,14 @@ export function Method() {
         <Disclosure summary="Caveats">
           <p>
             <span className="text-foreground">Every metric</span> is a pure function over the event log.
-            Claude Opus reads the transcript and cites event IDs; claims citing events that do not exist are dropped.
-            Company names are replaced before the reviewer sees the log, because Anthropic models are also contestants.
+            A 3-lab judge ensemble (Claude, GPT, Gemini) reads the transcript and cites event IDs; claims citing events that do not exist are dropped.
+            Company names are replaced before the judges see the log, because every judge's lab is also a contestant.
             Every agent gets the same prompt and rules; only the underlying model differs.
           </p>
           <p>
             <span className="text-foreground">Judge caveat.</span> Anonymizing logs does not fully remove
-            reviewer bias, since an Anthropic model reviews a run that includes an Anthropic contestant.
-            That is why no figure comes from the reviewer; it only explains, with citations.
+            judge bias, since each judge's lab fields contestants. No figure comes from a judge; each lab&apos;s
+            merchants are scored only by the other two labs&apos; judges, and each judge&apos;s self-preference is shown.
           </p>
           <p>
             <span className="text-foreground">Limitations.</span> Results are early signals from a

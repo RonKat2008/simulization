@@ -84,7 +84,59 @@ export interface JudgeCheckFailed {
   error: string;
 }
 
-export type JudgeCheck = JudgeCheckOk | JudgeCheckFailed;
+/** One judge of the 3-lab ensemble, resolved for display. */
+export interface EnsembleJudgeView {
+  id: string;
+  /** Lab name ("Anthropic"), from the judge's family. */
+  lab: string;
+  family: string;
+  model: string;
+  status: 'ok' | 'failed';
+  error?: string;
+  claims: number;
+  droppedClaims: number;
+  /** Primary judge: its review is the run's stored narrative. */
+  isPrimary: boolean;
+}
+
+export interface EnsembleGroupRow {
+  group: string;
+  company: string;
+  companyId: string | null;
+  /** Net tone (positive share minus negative share), -1 to 1, null without claims. */
+  lofo: number | null;
+  /** Labs whose judges produced the LOFO number. */
+  lofoLabs: string[];
+  ensemble: number | null;
+  /** Per judge id: net tone and negative claims / claims about this group. */
+  perJudge: Record<string, { netTone: number | null; negative: number; claims: number }>;
+}
+
+export interface EnsembleClaimView {
+  claim: ReportClaim;
+  /** Lab of the judge that wrote it. */
+  lab: string;
+  /** Labs of the other judges whose claims cite at least one of the same events. */
+  alsoBy: string[];
+}
+
+export interface JudgeCheckEnsemble {
+  status: 'ensemble';
+  runId: string;
+  condition: Condition;
+  judges: EnsembleJudgeView[];
+  nJudges: number;
+  rows: EnsembleGroupRow[];
+  selfPreference: { judge: string; lab: string; home: string | null; value: number | null; own: number | null; others: number | null }[];
+  toneAgreement: number | null;
+  meanCitationJaccard: number | null;
+  pairs: { a: string; b: string; negativeShareMad: number | null; citationJaccard: number }[];
+  consensus: EnsembleClaimView[];
+  reviews: { judge: string; lab: string; model: string; summary: string; claims: ReportClaim[]; limitations: string[] }[];
+  method: string;
+}
+
+export type JudgeCheck = JudgeCheckOk | JudgeCheckFailed | JudgeCheckEnsemble;
 
 export interface ConditionReport {
   condition: Condition;

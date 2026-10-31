@@ -53,7 +53,7 @@ Same-family bias has two layers. **Label bias** is favoritism when agents are to
 
 ## What we measure
 
-Every number is computed by code from engine ground truth. The Opus reviewer only explains what happened and cites event IDs for each claim, on logs with company names replaced by Group 1/2/3. Because the Claude reviewer shares a family with one contestant, a cross-family judge (`openai/gpt-5.5`) double-checks the same anonymized log.
+Every number is computed by code from engine ground truth. The judges only explain what happened and cite event IDs for each claim, on logs with company names replaced by Group 1/2/3. Because every judge's lab is also a contestant, a 3-lab judge ensemble (Claude Opus, `openai/gpt-5.5`, `google/gemini-4-argon`) reads the same anonymized log; code scores each lab's agents only with the other two labs' judges (leave-own-family-out) and reports each judge's self-preference and their agreement.
 
 | Metric | Definition |
 |---|---|
@@ -115,7 +115,7 @@ flowchart LR
   World -->|"events"| Neon[("Neon Postgres")]
   Neon --> Web
   World -.->|"WebSocket"| Web
-  Job --> Mastra["Mastra: Opus reviewer + cross-family judge"]
+  Job --> Mastra["Mastra: 3-lab judge ensemble"]
   Mastra --> Neon
 ```
 
@@ -158,7 +158,7 @@ docs/              Development notes, demo guide, images
 - **Known pipeline issue.** Gemini's trade offers were mostly dropped by our pipeline (2 offers in 8 runs, though its plans show it intended to offer). This is being fixed; Google's honesty cannot be assessed yet. GPT nano had about 10% invalid turns.
 - **Game behavior is not intrinsic intent.** These are simulated strategic choices under a prompt.
 - **Style recognition.** BLIND controls for labels, not for family recognition from writing style.
-- **Judge overlap.** The Opus reviewer is a sibling of a contestant (Claude Haiku). Mitigations: all numbers come from code, logs are anonymized, and a cross-family judge checks the review.
+- **Judge overlap.** Each judge is a sibling of a contestant (Claude Opus / Haiku, GPT, Gemini). Mitigations: all numbers come from code, logs are anonymized, and the 3-lab judge ensemble reports leave-own-family-out scores and per-judge self-preference.
 
 </details>
 

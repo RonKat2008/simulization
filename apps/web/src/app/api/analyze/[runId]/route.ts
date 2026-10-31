@@ -2,7 +2,7 @@
 import { getRun } from "@/mastra/db";
 import { mastra } from "@/mastra";
 
-// An Opus review of a full event log takes minutes.
+// Three judges review a full event log in parallel; it takes minutes.
 export const maxDuration = 300;
 
 export async function POST(_req: Request, { params }: { params: Promise<{ runId: string }> }) {

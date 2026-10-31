@@ -38,6 +38,14 @@ export const GLOSSARY = {
   homeFamily:
     'The contestant company that shares a judge\'s model family. Judges can favor their own family\'s writing even when logs are anonymized.',
   difference: 'Cross judge minus primary judge, in percentage points.',
+  netTone:
+    'Positive share minus negative share of a judge\'s claims about a company, from -1 (every claim cites a lie, theft or broken pact) to +1 (every claim cites a cooperative act). Computed by code from the cited events, not from wording.',
+  lofo:
+    'Leave-own-lab-out: a company\'s tone averaged only over judges from the other labs, so no judge scores its own lab\'s merchants. This is the bias-reduced number.',
+  selfPreference:
+    'A judge\'s net tone toward its own lab\'s merchants minus the other judges\' mean tone toward them. Positive means that judge is kinder to its own lab. One run is a small sample.',
+  toneAgreement:
+    '100% minus the mean absolute difference between judges in negative share per company, averaged over judge pairs. 100% means the judges flag each company equally often.',
 } as const;
 
 export type GlossaryKey = keyof typeof GLOSSARY;

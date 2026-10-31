@@ -49,11 +49,11 @@ export function ClaimsSection({ review }: { review: ReportReview }) {
     <Section
       id="claims-title"
       index="06"
-      title={review.isSample ? 'Claims (placeholder, no Opus review yet)' : 'Opus review'}
+      title={review.isSample ? 'Claims (placeholder, no review yet)' : 'Judge review'}
       lead="Every claim cites events."
     >
       <Disclosure summary="How to read the review">
-        <p>This model-generated interpretation can be mistaken; computed measures and cited events are the evidence. The reviewer reads anonymized logs (Group 1/2/3) and explains simulator flags; it does not compute metrics. Open a claim to compare recorded statements, self-reported plans and ground truth.</p>
+        <p>This model-generated interpretation can be mistaken; computed measures and cited events are the evidence. Shown is the primary judge of the 3-lab judge ensemble (Claude Opus unless it failed); the Judge ensemble section compares all three and lists consensus claims. Judges read anonymized logs (Group 1/2/3) and explain simulator flags; they do not compute metrics. Open a claim to compare recorded statements, self-reported plans and ground truth.</p>
       </Disclosure>
       {review.isSample && (
         <p role="note" className="rounded-lg border border-dashed border-accent/60 px-4 py-3 text-xs leading-relaxed text-accent sm:text-sm">

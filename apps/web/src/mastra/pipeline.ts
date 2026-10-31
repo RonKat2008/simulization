@@ -11,6 +11,7 @@ import {
   type RunMetrics,
 } from '@simulization/shared';
 import { CrossJudgeSchema } from './crossJudge';
+import { EnsembleSchema } from './ensemble';
 import { assignGroups, createAnonymizer, relabelGroups, type AnonymizableAgent, type GroupMap } from './anonymize';
 import {
   computeRunHierarchy,
@@ -34,8 +35,10 @@ export type StoredMetrics = RunMetrics & { byCompany: Record<string, RunMetrics>
 export const StoredReviewSchema = ReviewSchema.extend({
   droppedClaims: z.number().int(),
   groupMap: z.record(z.string(), z.string()),
-  /** Cross-family second reviewer on the same anonymized prompt; absent when disabled or for older reviews. */
+  /** Legacy two-judge check (Opus + one cross-family judge); only on reviews written before the ensemble. */
   crossJudge: CrossJudgeSchema.optional(),
+  /** 3-lab judge ensemble on the same anonymized prompt; the top-level review is its primary judge's. */
+  ensemble: EnsembleSchema.optional(),
 });
 export type StoredReview = z.infer<typeof StoredReviewSchema>;
 

@@ -1,6 +1,7 @@
 import { Section } from './section';
 import { Disclosure } from '@/components/landing/ui';
 import { Term } from './term';
+import { EnsembleCard } from './ensemble-card';
 import { pct, signedPp } from './format';
 import type { JudgeCheck, JudgeCheckOk } from './types';
 
@@ -94,20 +95,23 @@ function FailedCard({ c }: { c: Extract<JudgeCheck, { status: 'failed' }> }) {
   );
 }
 
-/** Second reviewer from another model family on the same anonymized log (CLAUDE.md "Judge caveat"). */
+/** 3-lab judge ensemble on the same anonymized log (CLAUDE.md "Judge caveat"); older runs show the two-judge check. */
 export function JudgeSection({ checks }: { checks: JudgeCheck[] }) {
+  const ensembles = checks.filter((c) => c.status === 'ensemble');
+  const legacy = checks.filter((c) => c.status !== 'ensemble');
   return (
     <Section
       id="judge-title"
       index="07"
-      title="Judge check"
+      title="Judge ensemble"
       lead="Does the judge change who looks bad?"
     >
       <Disclosure summary="Robustness check, not a neutral verdict">
         <p>
-          A second reviewer from a different model family read the identical anonymized log; the two are compared in code. Every judge&apos;s model family is also a
-          contestant, so no judge here is neutral. This compares two judges with opposite home groups; if they agree, the finding does not hinge on one
-          family&apos;s taste, and if they disagree, treat the review text as one reading. All numbers come from code over the cited events, not from judge wording.
+          Three judges from three labs (Anthropic, OpenAI, Google) read the identical anonymized log. Each lab also fields contestants, so no single judge is
+          neutral. Only code knows which group is which lab, so it scores each lab&apos;s merchants using only the other two labs&apos; judges, and shows how much
+          kinder each judge is to its own lab. All numbers come from code over the cited events, not from judge wording. Runs analyzed before the ensemble show
+          the older two-judge check.
         </p>
       </Disclosure>
       {checks.length === 0 ? (
@@ -115,9 +119,18 @@ export function JudgeSection({ checks }: { checks: JudgeCheck[] }) {
           No judge data yet.
         </p>
       ) : (
-        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
-          {checks.map((c) => (c.status === 'ok' ? <OkCard key={c.runId} c={c} /> : <FailedCard key={c.runId} c={c} />))}
-        </div>
+        <>
+          {ensembles.length > 0 && (
+            <div className="grid grid-cols-1 items-start gap-4">
+              {ensembles.map((c) => <EnsembleCard key={c.runId} c={c} />)}
+            </div>
+          )}
+          {legacy.length > 0 && (
+            <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+              {legacy.map((c) => (c.status === 'ok' ? <OkCard key={c.runId} c={c} /> : c.status === 'failed' ? <FailedCard key={c.runId} c={c} /> : null))}
+            </div>
+          )}
+        </>
       )}
     </Section>
   );

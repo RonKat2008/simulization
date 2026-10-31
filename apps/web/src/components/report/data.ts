@@ -144,7 +144,7 @@ function sampleReview(runs: LoadedRun[]): ReportReview {
   return {
     isSample: true,
     summary:
-      'No Opus review exists for these runs yet. The claims below are placeholders built from simulator flags on real mock events, so you can see how evidence is cited. Run analysis to generate the real review.',
+      'No judge review exists for these runs yet. The claims below are placeholders built from simulator flags on real mock events, so you can see how evidence is cited. Run analysis to generate the real review.',
     claims: runs.flatMap(claimsFor),
     limitations: [
       'One run per condition: nothing here is a statistical result.',
@@ -180,7 +180,7 @@ function realReview(runs: LoadedRun[], reviews: NeonReport['reviews'], extras: N
   const single = reviewed.length === 1 ? { ...reviews.get(reviewed[0]!.id)!, summary: show(reviewed[0]!.id, reviews.get(reviewed[0]!.id)!.summary) } : undefined;
   const summary =
     single?.summary ??
-    `Opus reviews for ${reviewed.length} of ${runs.length} runs, shown together. Runs without a stored review contribute no claims.`;
+    `Judge reviews for ${reviewed.length} of ${runs.length} runs, shown together. Runs without a stored review contribute no claims.`;
   const limitations = [...new Set(reviewed.flatMap((r) => reviews.get(r.id)!.limitations.map((l) => show(r.id, l))))];
   return {
     isSample: false,
