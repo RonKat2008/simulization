@@ -58,3 +58,26 @@ Merged shared main 637aa0b. Preserved teammate’s plainer header, Run details, 
 featured.json retains the same run id and 596 events from main, including main’s deliberate eval-awareness reclassification from commit 641985b. Verified model/provider roster metadata is restored by matching id/name/company. No actions, money, event IDs, ordering or false-claim flags were changed by this merge. The prior evidence assertion that events matched the old base is superseded by comparison to shared main for this resolution.
 
 Checks: repo-wide typecheck, production build, agent-history (including coalition membership), leaderboard, activity, report UI, swapped-label and monitoring regression scripts. No paid calls. Browser recheck uses existing featured recording only.
+
+## Starting luck leaderboard
+
+The leaderboard now shows Coins, Starting luck (initial goods total true value), and
+Violations (count only, as requested). Sort by coins descending, initial value
+ascending, or violation count descending. A false offer or theft counts once even
+when it also breaks a pact; companion pact-break/caught events are not extra acts.
+Counts follow the applied replay cursor; initial values are immutable observer data.
+No probability, severity weight, morality score, or division by starting value is implied.
+
+The read-only `/api/runs/:id/starting-values` endpoint validates persisted initialization
+using the same helper as reports. It returns only per-agent totals, never final holdings,
+private plans, or full inventory. Missing evidence remains unavailable. It never wakes
+an actor or invokes a model. Agent observations and game rules are unchanged.
+
+Verification: luck-leaderboard-contract (12 recordings, gaps, duplicates, pact markers,
+victim responsibility, cursor, sort and initial-evidence validation); existing leaderboard
+and Starting Luck contracts; full workspace typecheck and production build. Real read-only
+Neon requests returned 18 verified totals for public run 1e5c714e-e4bc-4d1d-aeb1-ff1eea922f94
+and no initial values for featured run 78deca44-65c6-47d7-8992-a959fcfededa. Dia desktop and
+390px screenshots inspected: headings/rows fit, keyboard sort works, agent selection opens
+the existing inspector, forward/backward replay updates counts and retains initial values.
+No paid calls or new simulation runs.
