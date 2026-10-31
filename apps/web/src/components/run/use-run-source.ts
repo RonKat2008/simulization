@@ -58,6 +58,18 @@ interface SimStatus {
   finalScores?: Record<string, number>;
   agents?: unknown;
   mode?: string;
+  /** Last committed event seq; terminal once status is done/failed. */
+  seq?: number;
+}
+
+/** Highest seq such that every event 1..seq is in the store (gaps mean a read raced a write). */
+function contiguousCursor(events: readonly Event[]): number {
+  let cursor = 0;
+  for (const e of events) {
+    if (e.seq === cursor + 1) cursor = e.seq;
+    else if (e.seq > cursor + 1) break;
+  }
+  return cursor;
 }
 
 function parseRoster(raw: unknown): RunAgent[] | null {
@@ -108,15 +120,23 @@ export function useRunSource(id: string): RunMeta {
     const tick = async () => {
       let done = false;
       try {
-        const after = useEventStore.getState().events.at(-1)?.seq ?? 0;
-        const [run, evs] = await Promise.all([getJson(base), getJson(`${base}/events?after=${after}`)]);
+        // Status first: its seq is the target the event cursor must reach before we can stop.
+        const s = (await getJson(base)) as SimStatus;
+        const after = contiguousCursor(useEventStore.getState().events);
+        const evs = await getJson(`${base}/events?after=${after}`);
         if (stopped) return;
-        const s = run as SimStatus;
         const events = parseEvents(evs);
         if (events.length) append(events);
         fails = 0;
         loaded = true;
-        done = s.status === "done" || s.status === "failed" || s.stopped === true;
+        const terminal = s.status === "done" || s.status === "failed" || s.stopped === true;
+        const caughtUp = typeof s.seq !== "number" || contiguousCursor(useEventStore.getState().events) >= s.seq;
+        done = terminal && caughtUp;
+        // Still behind a terminal seq (paged or raced read): fetch again right away.
+        if (terminal && !caughtUp && events.length > 0) {
+          setTimeout(tick, 0);
+          return;
+        }
         setMeta((m) => ({
           ...m,
           condition: s.condition ?? m.condition,
