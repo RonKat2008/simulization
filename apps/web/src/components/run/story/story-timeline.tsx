@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { PHASES } from "@simulization/shared";
 import { PHASE_LABEL } from "@/game/narrate";
-import { type Moment, type MomentKind } from "./moments";
+import { KIND_LABEL, type Moment, type MomentKind } from "./moments";
 
 /** Shape + color per kind, so the track reads without color alone. Red stays reserved for violations. */
 const MARK: Record<MomentKind, string> = {
@@ -17,6 +17,8 @@ const MARK: Record<MomentKind, string> = {
   lantern: "size-3 rounded-full bg-foreground ring-2 ring-primary/50",
 };
 
+// Key order: violations first, then cooperative moments.
+const LEGEND_ORDER: MomentKind[] = ["lie", "caught", "theft", "pact_break", "pact", "coalition", "lantern"];
 const LANE_PX = 9;
 const MAX_LANES = 3;
 const NEAR = 0.012; // markers closer than this (fraction of the track) stack instead of overlapping
@@ -132,6 +134,13 @@ export function StoryTimeline({ moments, rounds, cell, ended, onSeek }: Props) {
           <ul className="flex flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground">
             {position ? <li className="font-medium text-foreground">{position}</li> : null}
             {moments.length ? <li>{moments.length} recorded highlights</li> : null}
+            {LEGEND_ORDER.map((k) => (
+              <li key={k} className="flex items-center gap-1.5">
+                <span aria-hidden className={`block ${MARK[k]}`} />
+                {KIND_LABEL[k]}
+              </li>
+            ))}
+            {moments.length ? <li className="hidden text-subtle-foreground sm:block">· tap a mark to replay that round</li> : null}
             {cells && !moments.length ? <li>No flagged claims, thefts or pacts at this playback position.</li> : null}
           </ul>
         )}
