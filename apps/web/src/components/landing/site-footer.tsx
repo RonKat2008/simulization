@@ -10,12 +10,12 @@ export function SiteFooter() {
       <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div className="flex flex-col gap-2">
           <Logo />
-          <p>Haunted Hacks 2026. Early signals, not a finished study.</p>
+          <p>Early signals, not a study.</p>
         </div>
         <nav aria-label="Footer">
           <ul className="flex flex-wrap gap-x-6 gap-y-0">
             <li><Link href="/launch" className={FOOT_LINK}>Launch</Link></li>
-            <li><Link href="/run/mock" className={FOOT_LINK}>Replay</Link></li>
+            <li><Link href="/run/featured" className={FOOT_LINK}>Replay</Link></li>
             <li><Link href="/report" className={FOOT_LINK}>Report</Link></li>
             <li>
               <a href="https://github.com/RonKat2008/simulization" target="_blank" rel="noopener noreferrer" className={FOOT_LINK}>

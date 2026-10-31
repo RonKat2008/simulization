@@ -1,5 +1,6 @@
 import { COMPANIES, type Condition, type RunMetrics } from '@simulization/shared';
 import { Section } from './section';
+import { Disclosure } from '@/components/landing/ui';
 import { Term } from './term';
 import type { GlossaryKey } from './glossary';
 import { COMPANY_VAR, inText, outText, pct, times, withCount } from './format';
@@ -27,8 +28,10 @@ export function CompanyTable({ data }: { data: ReportData }) {
     <Section
       id="company-title"
       title="Per company"
-      lead="Metrics scoped to each company's agents; in-group means their own company. Theft values in brackets measure theft frequency per act turn, adjusted for target-group availability. Equal adjusted rates indicate no observed targeting difference, not proof of random behavior. Avg score is coins plus true value of goods held."
     >
+        <Disclosure summary="How to read this table">
+          <p>Metrics are scoped to each company's agents; in-group means their own company. Theft values in brackets measure theft frequency per act turn, adjusted for target-group availability. Equal adjusted rates indicate no observed targeting difference, not proof of random behavior. Avg score is coins plus true value of goods held.</p>
+        </Disclosure>
         <div className="relative overflow-x-auto rounded-md border bg-surface">
           <table aria-label="Behavior metrics per company and condition" className="w-full min-w-[56rem] border-collapse text-left text-xs">
             <thead className="text-muted-foreground">
@@ -53,7 +56,6 @@ export function CompanyTable({ data }: { data: ReportData }) {
                             <span className="size-2.5 rounded-sm" style={{ background: COMPANY_VAR[co.id] }} aria-hidden="true" />
                             {co.name}
                           </span>
-                          <span className="text-muted-foreground">company {co.id} · neutral merchant IDs</span>
                         </th>
                       )}
                       <td className="px-3 py-2">

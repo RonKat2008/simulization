@@ -16,20 +16,19 @@ export function LaunchPanel() {
       <PastRuns refreshKey={refreshKey} />
       <section aria-labelledby="replay-heading" className={`flex flex-col gap-3 ${CARD_CLASS}`}>
         <h2 id="replay-heading" className="font-display text-2xl font-semibold">
-          Replay a mock run
+          Replay
         </h2>
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          Recorded fixtures for offline demos. No backend or model calls are used.
-        </p>
-        <ul className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+        <p className="text-sm text-muted-foreground">Recorded live and scripted replays; no new model calls.</p>
+          <ul className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+            <li><Link href="/run/featured" className={LINK}>Recorded live run</Link></li>
           <li>
-            <Link href="/run/mock" className={LINK}>Mock run (labeled)</Link>
+            <Link href="/run/mock" className={LINK}>Mock labeled</Link>
           </li>
           <li>
-            <Link href="/run/mock-blind" className={LINK}>Mock run (blind)</Link>
+            <Link href="/run/mock-blind" className={LINK}>Mock blind</Link>
           </li>
           <li>
-            <Link href="/report?mock=1" className={LINK}>Report card</Link>
+            <Link href="/report?mock=1" className={LINK}>Mock report</Link>
           </li>
         </ul>
       </section>

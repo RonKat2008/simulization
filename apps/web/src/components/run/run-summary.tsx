@@ -263,10 +263,10 @@ export function RunSummary({ events, isMock, mode }: { events: Event[]; isMock: 
           </dl>
         </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-          <span className="hidden sm:inline">Run ended · {condition ?? "unknown condition"} · n = 1</span>
+          <span className="hidden sm:inline">{condition ?? "?"} · n = 1</span>
           {isMock || stub ? (
             <span className="rounded-sm border border-dashed border-accent/60 px-1.5 py-px text-accent">
-              {isMock ? "Mock replay: scripted stubs" : "Stub agents, not model output"}
+              {isMock ? "Mock replay" : "Stub agents"}
             </span>
           ) : null}
           <button
@@ -276,7 +276,7 @@ export function RunSummary({ events, isMock, mode }: { events: Event[]; isMock: 
             onClick={() => detail.set(!open)}
             className="rounded-sm border px-2 py-0.5 text-xs transition-colors hover:border-primary/60 hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary active:bg-border"
           >
-            {open ? "Hide details" : "How these were found"}
+            {open ? "Hide" : "Details"}
           </button>
         </div>
       </div>

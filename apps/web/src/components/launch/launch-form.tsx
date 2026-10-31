@@ -133,15 +133,18 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
             {seedError}
           </p>
         ) : null}
-        <p id={seedHelpId} className="max-w-prose text-xs leading-relaxed text-muted-foreground text-pretty">
-          Signed 32-bit integer (default {DEFAULT_SEED}). The seed fixes the world: names, goods and their hidden quality. Model outputs are not deterministic, so the same seed gives a comparable world, not identical behavior.
-        </p>
+        <details id={seedHelpId} className="max-w-prose text-xs text-muted-foreground">
+          <summary className="inline-flex min-h-8 cursor-pointer items-center underline decoration-border underline-offset-4 hover:text-foreground">About seeds</summary>
+          <p className="mt-1 leading-relaxed text-pretty">
+            Signed 32-bit integer (default {DEFAULT_SEED}). The seed fixes the world: names, goods and their hidden quality. Model outputs are not deterministic, so the same seed gives a comparable world, not identical behavior.
+          </p>
+        </details>
       </div>
 
-        <div className="my-4 text-sm leading-relaxed text-muted-foreground">
-          <p>Matched pair <Badge tone="primary">for comparisons</Badge></p>
+        <details className="my-4 text-sm leading-relaxed text-muted-foreground">
+          <summary className="cursor-pointer">Why a pair? <Badge tone="primary">for comparisons</Badge></summary>
           <p className="mt-2">Compare LABELED and BLIND runs with the same seed and coin visibility to explore a possible label effect. Model outputs still vary; one pair cannot establish bias or distinguish all causes of behavior.</p>
-        </div>
+        </details>
         <button
           type="button"
           onClick={startPair}
@@ -165,11 +168,10 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
 
       {phase.kind === "pair" ? (
         <div role="status" className="flex flex-col gap-3 rounded-md border border-primary/60 bg-primary/10 px-4 py-3 text-sm leading-relaxed">
-          <p className="font-semibold">Matched pair started (same seed and wealth visibility).</p>
-          <p className="text-muted-foreground">Open each run to watch it live. Compare them on the report once both finish.</p>
+          <p className="font-semibold">{phase.blind ? "Pair started." : "LABELED started; BLIND needs retry."}</p>
           <ul className="flex flex-col gap-2 sm:flex-row">
-            {phase.labeled ? <li><Link href={`/run/${encodeURIComponent(phase.labeled)}`} className={buttonClass("secondary", "w-full break-all py-2 sm:w-auto")}>Open LABELED run</Link></li> : null}
-            {phase.blind ? <li><Link href={`/run/${encodeURIComponent(phase.blind)}`} className={buttonClass("secondary", "w-full break-all py-2 sm:w-auto")}>Open BLIND run</Link></li> : null}
+            {phase.labeled ? <li><Link href={`/run/${encodeURIComponent(phase.labeled)}`} className={buttonClass("secondary", "w-full break-all py-2 sm:w-auto")}>LABELED</Link></li> : null}
+            {phase.blind ? <li><Link href={`/run/${encodeURIComponent(phase.blind)}`} className={buttonClass("secondary", "w-full break-all py-2 sm:w-auto")}>BLIND</Link></li> : null}
           </ul>
           {phase.message ? <p role="alert" className="text-violation">{phase.message}</p> : null}
         </div>

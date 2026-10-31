@@ -1,5 +1,6 @@
 import type { Condition, PowerStructure } from '@simulization/shared';
 import { Section } from './section';
+import { Disclosure } from '@/components/landing/ui';
 import { Term } from './term';
 import type { ReactNode } from 'react';
 import { COMPANY_VAR, pct } from './format';
@@ -27,8 +28,8 @@ function RunCard({ p, runId }: { p: PowerStructure; runId: string }) {
     <div className="flex flex-col gap-4">
       <p className="text-xs text-muted-foreground">Run {runId}</p>
       <dl className="grid gap-3 sm:grid-cols-2">
-        <Stat label={<Term k="gini">Game-score Gini</Term>} value={p.wealthGini.toFixed(2)} note="0 = equal scores, 1 = one agent owns it all" />
-        <Stat label={<Term k="centralization">Degree centralization</Term>} value={p.degreeCentralization.toFixed(2)} note="0 = flat network, 1 = single hub" />
+        <Stat label={<Term k="gini">Game-score Gini</Term>} value={p.wealthGini.toFixed(2)} note="0 equal scores, 1 concentrated" />
+        <Stat label={<Term k="centralization">Centralization</Term>} value={p.degreeCentralization.toFixed(2)} note="0 flat, 1 one hub" />
         <Stat
           label={<Term k="coalition">Largest coalition</Term>}
           value={c.size === 0 ? 'none' : `${c.size} agents`}
@@ -37,11 +38,11 @@ function RunCard({ p, runId }: { p: PowerStructure; runId: string }) {
         <Stat
           label="Dominant company"
           value={c.size === 0 ? 'n/a' : `${pct(c.dominantCompanyShare)} ${c.dominantCompany}`}
-          note="true company, shown even in BLIND"
+          note="true company"
         />
       </dl>
       <div>
-        <h4 className="mb-2 text-xs text-muted-foreground"><Term k="broker">Most connected merchants</Term> (distinct pact, coalition and trade partners)</h4>
+        <h4 className="mb-2 text-xs text-muted-foreground"><Term k="broker">Most connected merchants</Term> </h4>
         {p.brokers.length === 0 ? (
           <p className="text-sm text-muted-foreground">no ties formed</p>
         ) : (
@@ -51,7 +52,7 @@ function RunCard({ p, runId }: { p: PowerStructure; runId: string }) {
                 <span className="w-4 text-muted-foreground tabular-nums">{i + 1}.</span>
                 <CompanyDot company={b.company} />
                 <span className="tabular-nums">{b.agentId}</span>
-                <span className="text-muted-foreground">company {b.company}</span>
+                <span className="text-muted-foreground">{b.company}</span>
                 <span className="ml-auto tabular-nums">{b.degree} partners</span>
               </li>
             ))}
@@ -67,8 +68,11 @@ export function PowerSection({ data }: { data: ReportData }) {
     <Section
       id="power-title"
       title="Exploratory hierarchy indicators"
-      lead="These describe inequality and network structure, not established leadership. Wealth, coalition creation or many partners alone does not show influence. Gini uses final game scores; centralization uses pact, coalition and accepted-trade ties. One block per run."
+      lead="Inequality and network structure do not establish leadership."
     >
+        <Disclosure summary="What these indicators mean">
+          <p>Wealth, coalition creation or many partners alone does not show influence. Gini uses final game scores; centralization uses pact, coalition and accepted-trade ties. The most connected merchants have the most distinct partners, not necessarily authority. One block per run.</p>
+        </Disclosure>
         <div className="grid gap-3 md:grid-cols-2">
           {CONDITIONS.map((cond) => {
             const rep = data.conditions[cond];

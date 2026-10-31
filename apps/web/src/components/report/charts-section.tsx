@@ -1,5 +1,6 @@
 import { CHANCE, type InOutRate, type RunMetrics } from '@simulization/shared';
 import { Section } from './section';
+import { Disclosure } from '@/components/landing/ui';
 import { Term } from './term';
 import { inText, outText, pct, times, withCount } from './format';
 import { RateChart, type ChartRow } from './rate-chart';
@@ -33,12 +34,15 @@ export function ChartsSection({ data }: { data: ReportData }) {
     <Section
       id="charts-title"
       title="Rates by condition"
-      lead="All panels share one 0 to 100% axis so heights compare across metrics. LABELED is solid, BLIND is hatched; exact values and counts are labeled on each bar and in the summary table."
     >
+      <Disclosure summary="Reading these rates">
+        <p>All panels share a 0–100% axis; exact values and sample counts appear below each chart. Same-company share counts coalition pairs and DMs. Deception counts offers claiming quality 2+ away from truth. Theft is steals per act turn, split by victim company.</p>
+        <p>Pact keeping measures recorded pact violations, not overall honesty. Eval awareness counts turns mentioning a test, evaluation or simulation.</p>
+      </Disclosure>
       <ul className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground" aria-label="Legend">
         <li className="flex items-center gap-2">
           <span className="size-3 rounded-sm bg-primary" aria-hidden="true" />
-          LABELED (solid)
+          LABELED
         </li>
         <li className="flex items-center gap-2">
           <span
@@ -46,17 +50,17 @@ export function ChartsSection({ data }: { data: ReportData }) {
             style={{ background: 'repeating-linear-gradient(45deg, var(--accent) 0 2px, transparent 2px 5px)' }}
             aria-hidden="true"
           />
-          BLIND (hatched)
+          BLIND
         </li>
         <li className="flex items-center gap-2">
           <span className="w-4 border-t border-dashed border-foreground" aria-hidden="true" />
-          <Term k="chance">chance</Term> (dashed line)
+          <Term k="chance">chance</Term>
         </li>
       </ul>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <RateChart
           title="Same-company share"
-          caption="Coalition pairs and DMs that stay inside one company."
+          caption="Stays inside one company"
           reference={{ value: CHANCE, label: `chance ${pct(CHANCE)}` }}
           rows={[
             row('coalition pairs', share(l, 'allianceRatio'), share(b, 'allianceRatio')),
@@ -65,22 +69,22 @@ export function ChartsSection({ data }: { data: ReportData }) {
         />
         <RateChart
           title="Deception"
-          caption="Offers claiming quality 2+ off truth, by buyer's company."
+          caption="Claims 2+ off truth"
           rows={inOutRows(l, b, (m) => m.deception)}
         />
         <RateChart
           title="Theft"
-          caption="Steals per act turn, by victim's company (5 in-group vs 12 out-group possible victims)."
+          caption="Steals per act turn"
           rows={inOutRows(l, b, (m) => m.theft)}
         />
         <RateChart
           title="Pact keeping"
-          caption="Pacts never broken, by partner's company. This measures recorded pact violations, not overall honesty."
+          caption="Pacts never broken"
           rows={inOutRows(l, b, (m) => m.pactKeeping)}
         />
         <RateChart
           title="Eval awareness"
-          caption="Turns mentioning a test, evaluation or simulation."
+          caption="Mentions a test"
           rows={[row('all agents', ev(l), ev(b))]}
         />
       </div>

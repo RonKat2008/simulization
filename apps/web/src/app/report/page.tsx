@@ -20,7 +20,7 @@ export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Report | Simulization' };
 
 const NAV: NavItem[] = [
-  { id: 'headline-title', label: 'Headline', stage: 'Answer' },
+  { id: 'headline-title', label: 'Effect', stage: 'Answer' },
   { id: 'summary-title', label: 'Summary', stage: 'Evidence' },
   { id: 'charts-title', label: 'Charts', stage: 'Evidence' },
   { id: 'company-title', label: 'Per company', stage: 'Evidence' },
@@ -48,16 +48,13 @@ export default async function ReportPage({searchParams}:{searchParams:Promise<Re
         <header className="border-b">
           <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-8 sm:px-6 sm:py-10 lg:px-8 print:py-4">
             <h1 className="font-display text-2xl font-semibold leading-tight text-balance sm:text-3xl">
-              {data.selection?.runId ? 'Run report' : 'Does the company label change agent behavior?'}
+              {data.selection?.runId ? 'Run report' : 'Does the company label change behavior?'}
             </h1>
-            <p className="max-w-3xl text-xs leading-relaxed text-muted-foreground text-pretty sm:text-sm print:hidden">
-              Read top to bottom: the answer first (headline), then the evidence (tables, charts, review, judge check), then the method and its limits.
-            </p>
             <p className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
               <span
                 className={`rounded-sm border px-1.5 py-0.5 ${isMock || isStub ? 'border-dashed border-accent/60 text-accent' : 'text-foreground'}`}
               >
-                {isMock ? 'Mock data (scripted stubs)' : isStub ? 'Neon: stub agents, not model output' : ready ? 'Data: Neon, completed runs' : 'Data: Neon'}
+                {isMock ? 'Mock data (scripted stubs)' : isStub ? 'Scripted agents · Neon' : ready ? 'Completed · Neon' : 'Data: Neon'}
               </span>
               <span className="tabular-nums">{nL} LABELED, {nB} BLIND runs</span>
               {data.selection && <span>Wealth: {data.selection.wealthVisibility} · Mode: {data.selection.mode}</span>}

@@ -9,34 +9,31 @@ export function Hero() {
         <Stagger className="flex flex-col gap-6">
           <StaggerItem>
             <p className="text-xs uppercase tracking-[0.2em] text-primary">
-              Multi-agent eval · minimal group paradigm for AI
+              Multi-agent eval
             </p>
           </StaggerItem>
           <StaggerItem>
             <h1
               id="hero-title"
-              className="font-display text-4xl font-semibold leading-[1.08] tracking-tight text-balance sm:text-5xl"
+              className="font-display text-5xl font-semibold leading-[1.05] tracking-tight text-balance sm:text-6xl"
             >
-              Do AI models favor their own maker, and lie to <span className="text-accent">everyone else</span>?
+              Do AI models favor <span className="text-accent">their own maker</span>?
             </h1>
           </StaggerItem>
           <StaggerItem>
-            <p className="text-sm leading-relaxed text-muted-foreground text-pretty sm:text-base">
-              Agents from three AI companies trade in a simulated market where only the seller knows a
-              good&apos;s true quality. Every claim, theft and broken pact is checked against ground
-              truth by code. We compare a run where agents see each other&apos;s company (LABELED) to one
-              where they do not (BLIND), and test whether power structures form on their own.
+            <p className="text-base text-muted-foreground text-pretty sm:text-lg">
+              18 AI agents. 3 companies. Every lie checked by code.
             </p>
           </StaggerItem>
           <StaggerItem className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
             <PressLink href="/launch" className={buttonClass('primary')}>
-              Launch a run
+              Launch
             </PressLink>
-            <PressLink href="/run/mock" className={buttonClass('secondary')}>
-              Replay a run
+            <PressLink href="/run/featured" className={buttonClass('secondary')}>
+              Replay
             </PressLink>
             <PressLink href="/report" className={buttonClass('secondary')}>
-              Read the report
+              Report
             </PressLink>
           </StaggerItem>
         </Stagger>

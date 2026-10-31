@@ -6,22 +6,23 @@ import {
   AMBIENT_EDGES, BUYER, CLAIMED, CLUSTERS, HULL_RADIUS, LAB_COLORS, NEUTRAL, NODES, REFEREE,
   SELLER, TRUE_QUALITY, VIEW, VIOLATION, node,
 } from './market-geometry'
+import { Disclosure } from './ui'
 
 type Mode = 'labeled' | 'blind'
 type Revertible = { revert: () => unknown; pause: () => unknown; play: () => unknown }
 
 const STEPS = [
-  'Agents trade and message across labs.',
-  `Seller claims a good is Q${CLAIMED}.`,
-  `The referee checks ground truth: it is Q${TRUE_QUALITY}.`,
-  `Claim off by ${CLAIMED - TRUE_QUALITY} (rule: 2 or more): flagged as a lie, by code.`,
+  'Agents trade.',
+  `Seller claims Q${CLAIMED}.`,
+  `Referee: true Q${TRUE_QUALITY}.`,
+  'Lie flagged by code.',
 ]
 const LOOP_FLIP_MS = 8400
 const PACKET_EDGES = [0, 6, 2, 7, 4, 8]
 
 const MODE_COPY: Record<Mode, { sees: string; json: string }> = {
-  labeled: { sees: 'Each agent sees name + company', json: '{ name: "Wick", company: "Lab B" }' },
-  blind: { sees: 'Each agent sees name only', json: '{ name: "Wick" }  // no company field' },
+  labeled: { sees: 'Sees: name + company', json: '{ name: "Wick", company: "Lab B" }' },
+  blind: { sees: 'Sees: name only', json: '{ name: "Wick" }  // no company field' },
 }
 
 const REDUCED_QUERY = '(prefers-reduced-motion: reduce)'
@@ -287,7 +288,7 @@ export function MarketVisual() {
         </svg>
       </div>
 
-      <ol className="grid gap-2 text-xs sm:grid-cols-2" aria-label="What the animation shows">
+      <ol className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4" aria-label="What the animation shows">
         {STEPS.map((s, i) => (
           <li
             key={s}
@@ -298,9 +299,10 @@ export function MarketVisual() {
           </li>
         ))}
       </ol>
-      <p className="rounded-md border bg-surface px-3 py-2 text-xs text-muted-foreground">
-        Agent input: <code className="text-foreground">{MODE_COPY[mode].json}</code>. The referee always scores by true company.
-      </p>
+      <Disclosure summary="Agent input">
+        <code className="text-foreground">{MODE_COPY[mode].json}</code>
+        <p>The referee always scores by true company.</p>
+      </Disclosure>
     </div>
   )
 }
