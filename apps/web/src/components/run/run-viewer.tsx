@@ -14,7 +14,7 @@ import { mergeAgents } from "./run-helpers";
 import { ErrorPanel, OfflineStrip, SetupStrip } from "./run-states";
 import { TopBar } from "./top-bar";
 import { useRunSource } from "./use-run-source";
-import { useView } from "./view-tabs";
+import { panelId, tabId, useView, ViewTabs } from "./view-tabs";
 import DataView from "@/components/run/views/data-view";
 import ResearchView from "@/components/run/views/research-view";
 import { GuideLine } from "./story/guide-line";
@@ -98,6 +98,11 @@ export function RunViewer({ id }: { id: string }) {
         {meta.status === "connecting" && !meta.isMock && events.length === 0 ? <SetupStrip /> : null}
         <main className="mx-auto flex w-full max-w-[1600px] min-w-0 flex-1 flex-col gap-4 px-4 py-4 sm:px-6">
           <AgentCard finalScores={meta.finalScores} wealthVisibility={meta.wealthVisibility} labelMode={meta.labelMode} monitoring={meta.monitoring} />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <ViewTabs view={view} onChange={setView} />
+            {resultsReady && view === "game" ? <a href="#replay-summary" className="rounded-sm text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-primary">Skip to results ↓</a> : null}
+          </div>
+          <div role="tabpanel" id={panelId(view)} aria-labelledby={tabId(view)} className="min-w-0">
           {view !== "game" ? <section className="space-y-4 rounded-lg border bg-surface p-4"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-semibold">Full-run {view} · all loaded rounds</h2><button onClick={()=>setView("game")} className="min-h-9 rounded-md border px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary">Return to replay</button></div><p className="text-sm text-muted-foreground">This overview is separate from the replay position.</p>{view === "data" ? <DataView/> : <ResearchView/>}<DetailedEventFeed followLatest={!meta.isMock} status={meta.status}/></section> : <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_370px] lg:items-start">
             <div className="min-w-0 space-y-3">
               <div className="overflow-hidden rounded-lg border bg-surface"><VillageCanvas key={id} agents={canvasAgents}/></div>
@@ -109,6 +114,7 @@ export function RunViewer({ id }: { id: string }) {
             </div>
             <GameSide status={meta.status} finalScores={meta.finalScores} onOpenLog={openLog}/>
           </div>}
+          </div>
         </main>
       </div>
     </RunProvider>
