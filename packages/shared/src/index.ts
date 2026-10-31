@@ -7,3 +7,4 @@ export * from './agentStore';
 export * from './stubAgent';
 export * from './metrics';
 export * from './flags';
+export * from './metrics-v2';
