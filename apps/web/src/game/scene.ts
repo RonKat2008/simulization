@@ -100,7 +100,6 @@ class VillageScene extends Phaser.Scene {
   create() {
     current = this;
     setSpeed(speed); // survives scene restarts and remounts
-    (globalThis as { __village?: unknown }).__village = this; // debug handle for the browser console
     this.agents = new Map();
     this.tents = new Map();
     this.pending = [];
