@@ -310,6 +310,8 @@ Test: two agents. A sends a DM; B reads its inbox since cursor 0. If this doesn'
 
 **If the live run breaks:** switch to replay of the best saved run, or play the backup video. Keep the narration identical; don't apologize at length.
 
-## Track A verified milestone handoff
+## Track A integrated runtime handoff
 
-Track A currently supplies a tested Terse WorldActor/runtime harness under workers/sim, deterministic pure rules, recovery and adapter smoke checks. It is transitional integration code: the agreed target remains packages/engine, actors/World and the Next.js API above. No live-agent verification, Neon projection, or completed Next.js routing is claimed. See workers/sim/SETUP.md. Actor selection is Terse-only; Neon is reporting/projection storage.
+`pnpm actors:dev` now starts WorldActor, MerchantAgent, ExperimentRunner, RunDirectory and ReportJob together from `actors/src/runtime.ts`. `pnpm dev` explicitly loads repository-root `.env` and serves the Next.js run API. `NEXT_PUBLIC_SIM_URL=/api`; `SIM_URL=http://localhost:3000/api`. Actor checkpoints remain Terse SQLite; committed run/agent/event snapshots project transactionally to the agreed Neon tables. ReportJob invokes E's analysis route separately from World's phase loop.
+
+Pure rules remain sourced under `workers/sim/src/engine`; the consolidated actor build vendors them with World so all actors use one Terse SDK instance. Do not edit generated `actors/vendor` or duplicate the engine. The older isolated :8787 server remains a smoke harness only. See `workers/sim/SETUP.md` and `workers/sim/src/engine/INTEGRATION_HANDOFF.md` for current contracts, evidence and limitations. A real live round and village rendering have passed; UI launch and persisted-report acceptance are not yet claimed.

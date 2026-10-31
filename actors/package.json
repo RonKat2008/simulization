@@ -7,18 +7,19 @@
     "bun": ">=1.4.2"
   },
   "scripts": {
-    "vendor": "node scripts/vendor.mjs",
-    "dev": "node scripts/dev.mjs",
-    "generate": "node scripts/vendor.mjs && bunx durable-actors generate",
+    "vendor": "node scripts/prepare-runtime.mjs",
+    "dev": "pnpm --filter sim exec bun scripts/consolidated-dev.ts",
+    "generate": "node scripts/prepare-runtime.mjs && bunx durable-actors generate src/runtime.ts",
     "inspect": "bunx durable-actors inspect",
     "observe": "bunx durable-actors observe",
-    "typecheck": "node scripts/vendor.mjs && tsc --noEmit"
+    "typecheck": "node scripts/prepare-runtime.mjs && tsc --noEmit"
   },
   "dependencies": {
     "@simulization/agents": "workspace:*",
     "@simulization/shared": "workspace:*",
     "durable-actors": "0.14.6",
-    "zod": "^4.6.7"
+    "zod": "^4.6.7",
+    "@neondatabase/serverless": "1.2.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

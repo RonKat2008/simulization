@@ -1,3 +1,17 @@
+# Current consolidated integration (2026-10-31)
+
+A's `actors/src/runtime.ts` exports the existing B actors together with WorldActor, RunDirectory and ReportJob. `pnpm actors:dev` is now the single local actor service on `DURABLE_ACTORS_URL` (:7100); `pnpm dev` serves the Next.js API on :3000. `SIM_URL=http://localhost:3000/api` and `NEXT_PUBLIC_SIM_URL=/api`. B retains its actor/pipeline/Relay files; A owns preparation, World, directory, reports dispatch and Next run APIs. `prepare-runtime.mjs` calls B's existing vendor script and prepares A's source under the same SDK instance.
+
+B's 669bbbd, bfd873e and 9873034 are integrated. Real per-provider gateway calls passed; Relay public/DM/coalition delivery and recipient cursors passed. An 18-agent live run passed a complete round and actual in-run Relay delivery matched committed message text; merchant state contained received inbox messages. Stub adapter regression still passes cancellation, deadlines and duplicate caching across restart.
+
+A's live initialization now saves each token before further setup requests and reuses stored tokens. Remaining B decision: the documented POST /agents duplicate-name response cannot recover a token if the original response was lost. A exposes a setupError rather than silently replacing live agents. Confirm supported token recovery before claiming full external-service exactly-once initialization.
+
+A's legacy manually stepped driver is still supported for isolated tests. The product path is POST /api/runs -> durable registration -> asynchronous live setup -> automatic phases -> Neon projection -> ReportJob -> E's persisted analysis. See ../engine/INTEGRATION_HANDOFF.md for the API contract and verified limits.
+
+---
+
+Historical contract notes follow; the consolidated entrypoint and Next.js routes above supersede the earlier split-runtime launch instructions.
+
 # Track A / B integration contract
 
 Based on origin/main 173303c. WorldActor runs from workers/sim/src/actors.ts; B's real MerchantAgent and ExperimentRunner run from actors/src/actors.ts. Both use Terse 0.14.6. The obsolete Cloudflare store and placeholder AgentActor are removed; no fallback exists.

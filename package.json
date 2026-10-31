@@ -3,9 +3,8 @@
   "private": true,
   "packageManager": "pnpm@12.8.1",
   "scripts": {
-    "dev": "node --env-file-if-exists=.env --run dev:web",
-    "dev:web": "pnpm --filter web dev",
-    "dev:sim": "pnpm --filter sim dev",
+    "dev": "node workers/sim/scripts/web-dev.mjs",
+    "dev:sim": "pnpm actors:dev",
     "actors:dev": "pnpm --filter actors dev",
     "mock": "pnpm --filter @simulization/shared mock",
     "sim:local": "pnpm --filter sim sim:local",

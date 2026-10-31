@@ -2,25 +2,31 @@
 
 Teammate code is synchronized from GitHub main. This document records integration evidence and remaining proposals; it does not claim unconfirmed schema decisions were agreed.
 
-## Integration check after B's 669bbbd (2026-10-31)
+## Integrated product contract (2026-10-31)
 
-C's ebbb29a is included. B's 669bbbd removes the obsolete NeonAgentStore and its package dependency; no B-owned code was changed by A during this check. E's defa8a8 fixes trade-step turn counting; the regenerated six-agent/six-round metadata now reports 144 turns instead of 162. Repo-wide typechecking and the engine export pass after both integrations.
+Root `pnpm actors:dev` launches the consolidated Terse runtime; `pnpm dev` launches Next.js with the same root `.env`. `NEXT_PUBLIC_SIM_URL=/api` adapts D's existing polling client without changing its files. B's 669bbbd, bfd873e and 9873034; C's ebbb29a; D's f98f39f; and E's defa8a8/189e909 are integrated.
 
-The product bootstrap, not just the standalone probe, passes a complete six-agent stub round (47 events) through HTTP and WebSocket. HTTP smoke now checks EventSchema, contiguous sequence numbers and run-scoped IDs, exact cursor catch-up, repeated read stability, rejection of invalid cursors, missing-run 404, and idempotent stop. The actual MerchantAgent adapter with MODEL_MODE=stub passes cancellation, expired deadlines, duplicate turns across restart, and separate trade-step identity. Unattended product restart passes with 73 ordered events and no status request waking the actor. The 266-event six-round export passes D's store ordering/deduplication and E's metrics input check.
+A owns these Next.js routes (D retains page/store/canvas wiring):
+- POST `/api/runs` with `{condition,seed}` returns `{runId}`. Optional `Idempotency-Key` is the run ID (at most 110 safe actor-ID characters); identical retries reuse the run, conflicting configuration returns 409. Seeds must fit signed 32-bit Neon integers.
+- GET `/api/runs` lists runs with normalized `id,condition,seed,status,round,phase,mode,finalScores`.
+- GET `/api/runs/:id` returns the committed status and `agents:[{id,name,company}]`, `mode`, `projection`, `seq`, and `reportStatus`. Live reads use Neon so they cannot queue behind actor model calls. The initializing state may have no agents until its first projection.
+- GET `/api/runs/:id/events?after=N` returns frozen Event[] with seq>N in ascending order. Live reads use Neon. Explicit credential-free stub mode may read the actor checkpoint.
+- POST `/api/runs/:id/socket` returns `{websocketUrl,connectByMs,homeRegion}` from Terse. Treat the URL as a short-lived connection credential, not a control-plane key. It replays the log; deduplicate by run ID/seq and recover gaps with events.
+- POST `/api/runs/:id/stop` stops advancement; stopped runs project as failed.
+- POST `/api/batch` with `{n}` starts alternating conditions with seeds 1..n.
+- GET `/api/runs/:id/report` returns `{id,condition,status,config,metrics,review}` from E's existing Neon rows. Null metrics/review means analysis is not available yet; do not substitute sample claims as a real review.
 
-`pnpm dev` now explicitly loads root `.env` before starting Next.js. Actor launchers already load that same file, with shell variables taking precedence. There is no populated root/package environment file or shell gateway/Relay/database credential in this checkout at verification time. No model, Relay, or database network success is claimed.
+The frozen Event schema is unchanged. Mode values distinguish `initializing-live`, `live-model-relay`, and `deterministic-stub`. No silent live-to-stub fallback exists. D still owns the launch control, roster-name usage and persisted report presentation. D's bcdf0da now reads persisted Neon reviews, but /report currently falls back to mock data unless both LABELED and BLIND have completed runs. A single live run can have a real persisted report at its API while /report still shows a labeled mock; D owns relaxing that display requirement if single-run acceptance is desired.
 
-Remaining integration ownership:
-- **A:** the working HTTP service is still `pnpm dev:sim` on :8787 (`/runs`, `/runs/:id`, `/runs/:id/events?after=N`, `/runs/:id/ws`, `/runs/:id/stop`, `/batch`). The agreed Next.js `/api/runs*` and `/api/batch` routes and consolidated `actors/World` entrypoint are not implemented. Do not assume adding `/api` to these paths works. HTTP run creation explicitly uses stubs; live setup currently requires a new manually stepped WorldActor and enableLive().
-- **D:** `/run/[id]` remains a placeholder on this commit. Mount VillageCanvas and connect its store to the agreed API after coordination with A. D also owns UI launch controls and the report presentation. A will verify the browser after D's commit arrives; loading C's mock harness does not prove live-page integration.
-- **A + configuration owner:** Neon projection is not implemented or verified. E's analysis reads runs, agents and events from Neon and requires a completed run row. Passing computeRunMetrics on the stub artifact does not prove the analysis/report pipeline. Supply root `.env` privately for gateway, Relay and Neon verification; never commit it.
-- **B:** keep ownership of any further MerchantAgent/gateway/Relay fixes. Send pushed commit hashes; A will integrate and rerun the adapter checks.
+Verified: actual Next.js + consolidated Terse completed a six-round six-agent stub game (266 ordered events), duplicate create, socket grants, unattended runtime restart, and E's 144-turn metrics input. Real Neon SQL passed exact event JSON round-trip through E's reader, duplicate/stale projection retries and final scores; its disposable test row was removed. Each of the three configured model providers passed a real gateway turn. Actual Relay public/DM/coalition and recipient inbox checks passed.
 
-These are unfinished integration tasks, not evidence that the completed deterministic engine has failed. In particular, missing Next.js routes are A's work and must not be attributed to D's pending canvas wiring.
+Live run `track-a-live-20261031-1` has passed a complete round with 18 agents, real model decisions, real Relay messages (matched against committed events and a persisted merchant inbox), ordered Neon events and browser rendering in VillageCanvas. It was launched via POST `/api/runs`, not a UI control. The same live run resumed after a runtime restart with polling served from Neon and has reached round 5. Full run/report verification is still in progress; do not claim the acceptance milestone complete yet.
+
+Recovery: RunDirectory journals creation before initialization. Startup re-arms registered runs without status requests and isolates failures per run. Projection writes a single transaction; done is published with the final event log. ReportJob invokes E separately from World so long reviews do not block viewers. Relay setup reuses tokens saved after each registration. Lost registration responses still need B's token-recovery decision; duplicate-name errors stop setup with an explicit diagnostic. E's stable report ID makes writes idempotent, but response loss may repeat model review work.
 
 ## C/D: ordered event consumption
 
-Existing frozen Event schema is unchanged. HTTP GET `/runs/:id/events?after=N` returns increasing seq; WebSocket `/runs/:id/ws` sends Event objects and replays on reconnect. Deduplicate by runId+seq (or id), sort by seq, recover gaps via HTTP. Reset the current event store on run switch: its Map is keyed only by seq. Its `append`/`load` signatures already accept this data.
+Existing frozen Event schema is unchanged. HTTP GET `/api/runs/:id/events?after=N` returns increasing seq; Terse WebSocket grant from POST `/api/runs/:id/socket` sends Event objects and replays on reconnect. Deduplicate by runId+seq (or id), sort by seq, recover gaps via HTTP. Reset the current event store on run switch: its Map is keyed only by seq. Its `append`/`load` signatures already accept this data.
 
 Phase order: negotiate, trade/offers, trade/responses, act, reveal. Event.phase remains `trade` for both trade steps. Status exposes tradeStep; completion system events distinguish the steps in text. Offer IDs equal trade_offer event IDs. trade_accept/decline text contains that offer ID. Coalition event channel carries coalition ID. Agent IDs are opaque merchant-NN, not company letters. Observer events retain company, private plan, and ground truth; never use them as agent input.
 
@@ -36,7 +42,7 @@ E’s implemented metrics are exercised by the export check below; Track A has n
 
 ## Database decision
 
-Neon is confirmed as the permanent database/projection role. Terse SQLite is actor checkpoint storage. Track A has not implemented external projection; no Supabase path is introduced.
+Neon is confirmed as the permanent database/projection role. Terse SQLite is actor checkpoint storage. Track A projects committed runs/agents/events into the existing Neon schema; no Supabase path is introduced.
 
 ## Current main synchronized
 
