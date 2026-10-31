@@ -140,6 +140,7 @@ export const AgentStateSchema = z.object({
   provider: z.string(),
   model: z.string(),
   memory: z.string(),
-  inboxCursor: z.string().nullable(), // AgentRelay cursor; type unconfirmed, opaque string
+  inboxCursor: z.string().nullable(), // AgentRelay cursor: JSON map of channel/conversation -> last message id
+  relayToken: z.string().optional(), // AgentRelay agent token (ar_ag_*), set when the run registers the agent
 });
 export type AgentState = z.infer<typeof AgentStateSchema>;

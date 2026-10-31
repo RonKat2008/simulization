@@ -4,5 +4,6 @@ declare namespace Cloudflare {
     DATABASE_URL: string;
     AGENTRELAY_API_KEY: string;
     AI_GATEWAY_API_KEY: string;
+    AGENTRELAY_BASE_URL?: string;
   }
 }

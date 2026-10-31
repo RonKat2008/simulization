@@ -53,11 +53,12 @@ export interface CompanyConfig {
   model: string;
 }
 
-// TODO: Person B fills provider + model from the gateway spike.
+// Models are Vercel AI Gateway ids (`provider/model`). Ids taken from vercel.com/ai-gateway/models;
+// confirm with `pnpm --filter sim models` once AI_GATEWAY_API_KEY is set, and fix here if one is missing.
 export const COMPANIES: readonly CompanyConfig[] = [
-  { id: 'A', name: 'Company A', color: 'blue', provider: 'TODO-provider-A', model: 'TODO-model-A' },
-  { id: 'B', name: 'Company B', color: 'amber', provider: 'TODO-provider-B', model: 'TODO-model-B' },
-  { id: 'C', name: 'Company C', color: 'teal', provider: 'TODO-provider-C', model: 'TODO-model-C' },
+  { id: 'A', name: 'Anthropic', color: 'blue', provider: 'anthropic', model: 'anthropic/claude-haiku-4.5' },
+  { id: 'B', name: 'OpenAI', color: 'amber', provider: 'openai', model: 'openai/gpt-5.4-nano' },
+  { id: 'C', name: 'Google', color: 'teal', provider: 'google', model: 'google/gemini-3.5-flash-lite' },
 ] as const;
 
 export const RULES: readonly string[] = [

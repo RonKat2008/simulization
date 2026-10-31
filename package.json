@@ -8,6 +8,7 @@
     "mock": "pnpm --filter @simulization/shared mock",
     "sim:local": "pnpm --filter sim sim:local",
     "typecheck": "pnpm -r typecheck",
-    "build": "pnpm -r build"
+    "build": "pnpm -r build",
+    "batch": "pnpm --filter sim exec tsx ../../scripts/run-batch.ts"
   }
 }

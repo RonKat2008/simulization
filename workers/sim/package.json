@@ -8,7 +8,12 @@
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit",
     "sim:local": "tsx scripts/sim-local.ts",
-    "types": "wrangler types"
+    "models": "tsx scripts/models.ts",
+    "spike:gateway": "tsx scripts/gateway-spike.ts",
+    "spike:relay": "tsx scripts/relay-spike.ts",
+    "validity": "tsx scripts/validity.ts",
+    "types": "wrangler types",
+    "smoke": "tsx scripts/smoke-turns.ts && tsx scripts/smoke-relay-names.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",

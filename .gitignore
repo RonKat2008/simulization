@@ -10,3 +10,6 @@ dist/
 .DS_Store
 coverage/
 *.tsbuildinfo
+
+# batch summaries
+scripts/out/
