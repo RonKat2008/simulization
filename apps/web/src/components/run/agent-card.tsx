@@ -121,7 +121,7 @@ export function AgentCard({ finalScores, wealthVisibility, labelMode, monitoring
     <div className="grid max-h-[22dvh] gap-6 overflow-y-auto p-4 md:max-h-[14rem] lg:grid-cols-[minmax(12rem,0.9fr)_minmax(0,1.4fr)_minmax(15rem,1fr)]">
       <div id="agent-section-identity" role="tabpanel" aria-labelledby="agent-tab-identity" tabIndex={0} className={`min-w-0 text-sm ${section === "identity" ? "" : "hidden"} lg:block`}>
         <h3 className="font-semibold">Identity and Agreements</h3>
-        {(productProject === "four-turn-v1" || project.observed) && <p className="mt-2 text-sm" aria-live="polite">Product project · observer only: {project.completed ? `Completed (+${project.qualityGain ?? 0} quality)` : project.progress ? `${project.progress.turns}/4 turns · ${project.progress.goodId}` : "Idle (0/4 turns)"}</p>}
+        {(productProject === "four-turn-v1" || project.observed) && <p className="mt-2 break-words text-sm" aria-live="polite">Product project · observer only: {project.completed ? `Completed (${project.qualityGain === undefined ? 'quality gain not recorded' : `+${project.qualityGain} quality`})` : project.progress ? `${project.progress.turns}/4 turns · ${project.progress.goodId}` : "Idle (0/4 turns)"}</p>}
         <dl className="mt-3 grid grid-cols-2 gap-3">
           <div><dt className="text-xs text-muted-foreground">Model provider{blind ? " · observer only" : ""}</dt><dd className="mt-0.5">{provider || "Not recorded"}</dd></div>
           <div className="col-span-2"><dt className="text-xs text-muted-foreground">Exact model · run metadata</dt><dd className="mt-0.5 break-words">{agent.model ?? "Not recorded in this run"}</dd></div>

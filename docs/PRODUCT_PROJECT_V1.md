@@ -191,3 +191,22 @@ quality and completion caps, duplicate commits, rollback and backward replay see
 Projection uses intercepted transport; recovery uses in-memory SQLite. No real SQL
 service, model, Relay, provisioning, deployment or paid run was used. Rendered UI
 and the real Terse alarm lifecycle were not exercised in this integration.
+
+## Root acceptance checks
+
+Independent read-only review confirmed engine and privacy rules and found a theft
+metric event-coverage defect. `ACT_TURN_TYPES` now includes product_progress and
+product_complete, never product_reset. The existing formula is unchanged: one
+improvement and one theft are two ACT turns, so theft frequency is 1/2. Regression
+covers progress, completion, reset plus pass, and unchanged work behavior.
+Project activity now has plain recorded-action copy; missing quality gain is
+reported as not recorded rather than invented as zero.
+
+Actual pinned Terse + Next.js lifecycle passed with
+`SIM_TEST_PRODUCT_PROJECT=four-turn-v1 PATH=/tmp/simulization-bun/node_modules/.bin:$PATH pnpm --filter sim smoke:next`:
+setting retained across startup/restart, conflicting idempotency retry rejected,
+unattended resume with no status request, six stub rounds, 266 ordered events and
+144 decision turns. This verifies the enabled setting through real actors, not
+model choice of improve; completion itself is covered by deterministic rule and
+SQLite recovery tests. External credentials are blanked by the harness. No paid
+model, Relay or real Neon execution is claimed.

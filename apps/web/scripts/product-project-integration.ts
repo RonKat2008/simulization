@@ -4,6 +4,8 @@ import { createRng, computeRunMetrics, type Event } from '@simulization/shared';
 import { createWorld } from '../../../workers/sim/src/engine/world';
 import { resolvePhase } from '../../../workers/sim/src/engine/rules';
 import { productProjectHistory } from '../src/components/run/product-project-history';
+import { activityText } from '../src/components/run/compact-activity';
+import { eventVerb, FILTER_GROUPS } from '../src/components/run/run-helpers';
 import { buildRunBody } from '../src/components/launch/schemas';
 import { settingsKey } from '../src/components/runs/settings';
 import { groupRuns } from '../src/components/runs/group-runs';
@@ -24,6 +26,10 @@ for(let round=1;round<=4;round++) {
 }
 const first=events.find(e=>e.type==='product_progress')!;
 const complete=events.find(e=>e.type==='product_complete')!;
+assert.match(activityText(first,id=>id),/1\/4 turns; no quality gain yet/);
+assert.match(eventVerb(complete),/completed a product project/);
+assert(FILTER_GROUPS.find(g=>g.key==='act')!.types.includes('product_complete'));
+assert.match(eventVerb({...complete, productProject:{...complete.productProject!, qualityGain:undefined}}),/quality gain not recorded/);
 assert.equal(productProjectHistory(events,'merchant-01',first.seq-1).observed,false);
 assert.equal(productProjectHistory([...events,...events].reverse(),'merchant-01',first.seq).progress?.turns,1);
 assert.equal(productProjectHistory(events,'merchant-01',complete.seq).completed,true);
