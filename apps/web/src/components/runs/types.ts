@@ -9,6 +9,7 @@ export interface RunEntry {
   /** 'true' | 'swapped'; absent in old manifests = 'true'. */
   label_mode?: string
   /** 'standard' | 'unmonitored'; absent in old manifests = 'standard'. */
+  product_project?: string
   monitoring?: string
   mode?: string
   events: number

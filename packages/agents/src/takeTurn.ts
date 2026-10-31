@@ -41,7 +41,13 @@ const repairMessage = (error: string): string =>
 export async function takeTurn({ agentId, state, input, model, signal, deadline }: TakeTurnArgs): Promise<TakeTurnOutcome> {
   const started = Date.now();
   const limit = deadline ?? signalDeadline(signal);
-  const system = buildSystemPrompt(state.name, RULES, { monitoring: state.monitoring ?? "standard" });
+  const system = buildSystemPrompt(state.name, RULES, { monitoring: state.monitoring ?? "standard", product_project: input.self.productProject?.version ?? "off" });
+  // Observer event types are not agent actions. Keep the legacy schema for off
+  // turns; advertise improve only when trusted self input enables the version.
+  const jsonSchema = structuredClone(TURN_OUTPUT_JSON_SCHEMA);
+  const actionType = (jsonSchema as any).properties.actions.items.properties.type;
+  actionType.enum = actionType.enum.filter((type: string) => !type.startsWith('product_'));
+  if (input.self.productProject?.version === 'four-turn-v1') actionType.enum.push('improve');
   const user = buildUserMessage({ ...input, memory: state.memory });
   let inputTokens = 0;
   let outputTokens = 0;
@@ -64,7 +70,7 @@ export async function takeTurn({ agentId, state, input, model, signal, deadline 
       model: state.model,
       system,
       user: req,
-      jsonSchema: TURN_OUTPUT_JSON_SCHEMA,
+      jsonSchema,
       signal,
     });
     inputTokens += res.inputTokens ?? 0;

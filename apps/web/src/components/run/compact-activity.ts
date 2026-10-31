@@ -1,4 +1,5 @@
 import type {Event} from '@simulization/shared';
+import {eventVerb} from './run-helpers';
 export interface ActivityGroup {events: Event[]; routine: string | null}
 function routineKind(e: Event): string | null {
   if (e.flags.length) return null;
@@ -52,6 +53,9 @@ export function activityText(e:Event,label:(id:string)=>string):string {
     case 'coalition_leave': return `${a} left a coalition`;
     case 'message': return `${a} sent ${e.channel==='public'?'a public message':e.targetId?`a message to ${t}`:'a coalition message'}`;
     case 'pass': return `${a} passed`;
+    case 'product_progress':
+    case 'product_reset':
+    case 'product_complete': return `${a} ${eventVerb(e)}`;
     case 'system': return `${t} · ${e.text??'world update'}`;
     default:return `${a} · ${e.type}`;
   }

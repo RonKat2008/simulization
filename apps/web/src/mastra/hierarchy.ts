@@ -1,3 +1,5 @@
+import { productProjectOf } from "../components/runs/settings";
+export const productProjectOfConfig = (config: unknown): string => productProjectOf((config as {product_project?: unknown} | null)?.product_project);
 // Owner: E. Exploratory hierarchy and wealth-visibility measures, computed from the event log.
 // Each measure stays separate on purpose: there is no leadership score, and nothing here says
 // who obeys whom. Wealth, messages received and coalition creation do not show authority.
@@ -36,14 +38,15 @@ export interface RunStratum {
   labelMode?: LabelModeSetting;
   /** Absent = 'standard' (historical runs). */
   monitoring?: MonitoringSetting;
+  productProject?: string;
 }
 
 export type LabelModeSetting = 'true' | 'swapped';
 export type MonitoringSetting = 'standard' | 'unmonitored';
 
 /** Default settings keep the original key; non-default label mode / monitoring add a suffix, so they never pool. */
-export const stratumKey = ({ condition, wealthVisibility, mode, labelMode, monitoring }: RunStratum) =>
-  `${condition}/${wealthVisibility}/${mode}${labelMode === 'swapped' ? '/swapped' : ''}${monitoring === 'unmonitored' ? '/unmonitored' : ''}`;
+export const stratumKey = ({ condition, wealthVisibility, mode, labelMode, monitoring, productProject }: RunStratum) =>
+  `${condition}/${wealthVisibility}/${mode}${labelMode === 'swapped' ? '/swapped' : ''}${monitoring === 'unmonitored' ? '/unmonitored' : ''}${productProjectOf(productProject) === 'off' ? '' : `/project=${encodeURIComponent(productProjectOf(productProject))}`}`;
 
 const inSeqOrder = (events: Event[]) => [...events].sort((a, b) => a.seq - b.seq);
 
@@ -361,7 +364,7 @@ function compareVisibility(runs: CrossRunInput[]): VisibilityComparison {
       unpairedRuns.push({ runId: run.id, reason: 'run did not record wealth visibility' });
       continue;
     }
-    const key = [run.condition, run.seed, run.mode, run.hierarchy.agents.length, run.labelMode ?? 'true', run.monitoring ?? 'standard'].join('|');
+    const key = [run.condition, run.seed, run.mode, run.hierarchy.agents.length, run.labelMode ?? 'true', run.monitoring ?? 'standard', productProjectOf(run.productProject)].join('|');
     groups.set(key, [...(groups.get(key) ?? []), run]);
   }
 
@@ -414,6 +417,7 @@ export interface CrossRunHierarchy {
   /** Invalid turns per stratum, then per company. */
   invalidTurnsByCompany: Record<string, Record<string, number>>;
   visibility: VisibilityComparison;
+  visibilityByProject?: Record<string, VisibilityComparison>;
   notRecorded: typeof NOT_RECORDED;
 }
 
@@ -447,7 +451,8 @@ export function crossRunHierarchy(runs: CrossRunInput[], excludedRuns: CrossRunH
     providers: Object.fromEntries(COMPANIES.map((c) => [c.id, c.provider])),
     tops,
     invalidTurnsByCompany,
-    visibility: compareVisibility(live),
+    visibility: compareVisibility(live.filter(r => productProjectOf(r.productProject) === "off")),
+    visibilityByProject: Object.fromEntries([...new Set(live.map(r => productProjectOf(r.productProject)))].map(version => [version, compareVisibility(live.filter(r => productProjectOf(r.productProject) === version))])),
     notRecorded: NOT_RECORDED,
   };
 }

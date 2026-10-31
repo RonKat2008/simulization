@@ -4,8 +4,9 @@ import { z } from 'zod';
 import { CrossJudgeSchema, type CrossJudge } from '../../mastra/crossJudge';
 import { EnsembleSchema, type Ensemble } from '../../mastra/ensemble';
 import { rowToEvent } from '../../mastra/db';
-import { labelModeOf, monitoringOf, runModeOf, wealthVisibilityOf } from '../../mastra/hierarchy';
+import { labelModeOf, monitoringOf, productProjectOfConfig, runModeOf, wealthVisibilityOf } from '../../mastra/hierarchy';
 import type { LoadedRun } from './data';
+import { initialEvidenceForRun } from './initial-evidence';
 
 /** Newest completed runs kept per condition and compatible group, so a long history cannot bloat the page. */
 const MAX_RUNS_PER_CONDITION = 12;
@@ -33,6 +34,13 @@ const asScores = (v: unknown): Record<string, number> => {
   return Object.fromEntries(Object.entries(v).filter((e): e is [string, number] => typeof e[1] === 'number'));
 };
 
+/** Independent completion evidence; never substitute the number of loaded events. */
+export function persistedTerminalSeq(config: unknown, status: unknown): number | undefined {
+  if (status !== 'done' || !config || typeof config !== 'object') return undefined;
+  const seq = (config as Record<string, unknown>).projectedSeq;
+  return typeof seq === 'number' && Number.isSafeInteger(seq) && seq > 0 ? seq : undefined;
+}
+
 /**
  * Reads completed runs ('done'; the schema has no dropped flag) with agents, events, final scores and
  * the latest stored review. Returns null when DATABASE_URL is unset. Throws on any DB error; the
@@ -47,14 +55,14 @@ export async function loadNeonReport(runId?: string): Promise<NeonReport | null>
     ? await sql`SELECT id,condition,status,config,final_scores FROM runs WHERE id=${runId}`
     : await sql`SELECT id,condition,status,config,final_scores FROM (
         SELECT id,condition,status,config,final_scores,created_at,
-          row_number() OVER (PARTITION BY condition,COALESCE(config->>'wealth_visibility','private'),config->>'mode',COALESCE(config->>'label_mode','true'),COALESCE(config->>'monitoring','standard') ORDER BY created_at DESC) AS rn
+          row_number() OVER (PARTITION BY condition,COALESCE(config->>'wealth_visibility','private'),config->>'mode',COALESCE(config->>'label_mode','true'),COALESCE(config->>'monitoring','standard'),COALESCE(config->>'product_project','off') ORDER BY created_at DESC) AS rn
         FROM runs WHERE status='done'
       ) t WHERE rn <= ${MAX_RUNS_PER_CONDITION} ORDER BY created_at`;
   if (runRows.length === 0) return { runs: [], reviews: new Map(), extras: new Map() };
   const ids = runRows.map((r) => r.id as string);
 
   const [agentRows, eventRows, reviewRows, metricRows] = await sql.transaction([
-    sql`SELECT run_id, agent_id, name, company FROM agents WHERE run_id = ANY(${ids}) ORDER BY run_id, agent_id`,
+    sql`SELECT run_id, agent_id, name, company, provider, model FROM agents WHERE run_id = ANY(${ids}) ORDER BY run_id, agent_id`,
     sql`SELECT * FROM events WHERE run_id = ANY(${ids}) ORDER BY run_id, seq`,
     sql`SELECT DISTINCT ON (run_id) run_id, content FROM reviews
         WHERE kind = 'run' AND run_id = ANY(${ids}) ORDER BY run_id, created_at DESC`,
@@ -66,10 +74,14 @@ export async function loadNeonReport(runId?: string): Promise<NeonReport | null>
     condition: r.condition as LoadedRun['condition'],
     status: r.status as string,
     config: r.config as LoadedRun['config'],
+    terminalSeq: persistedTerminalSeq(r.config, r.status),
+    initial: initialEvidenceForRun(String(r.id), r.config),
     storedMetrics: metricRows.find(m=>m.run_id===r.id)?.metrics as LoadedRun['storedMetrics'],
     agents: agentRows
       .filter((a) => a.run_id === r.id)
-      .map((a) => ({ id: a.agent_id as string, name: a.name as string, company: a.company as string })),
+      .map((a) => ({ id: a.agent_id as string, name: a.name as string, company: a.company as string,
+        provider: typeof a.provider === 'string' ? a.provider : undefined,
+        model: typeof a.model === 'string' ? a.model : undefined })),
     events: eventRows.filter((e) => e.run_id === r.id).map(rowToEvent),
     finalScores: asScores(r.final_scores),
     // Kept per run so the report never pools stub with live or public with private wealth.
@@ -77,6 +89,7 @@ export async function loadNeonReport(runId?: string): Promise<NeonReport | null>
     wealthVisibility: wealthVisibilityOf(r.config),
     labelMode: labelModeOf(r.config),
     monitoring: monitoringOf(r.config),
+    productProject: productProjectOfConfig(r.config),
   }));
 
   const reviews = new Map<string, Review>();

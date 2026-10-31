@@ -57,6 +57,7 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
   const [wealth, setWealth] = useState<WealthVisibility>(DEFAULT_WEALTH_VISIBILITY);
   const [labelMode, setLabelMode] = useState<LabelMode>(DEFAULT_LABEL_MODE);
   const [monitoring, setMonitoring] = useState<Monitoring>(DEFAULT_MONITORING);
+  const [productProject, setProductProject] = useState<"off" | "four-turn-v1">("off");
   const [seed, setSeed] = useState(String(DEFAULT_SEED));
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   const pending = phase.kind === "pending";
@@ -84,7 +85,7 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
       return;
     }
     setPhase({ kind: "pending", what: "single" });
-    const result = await startOnce(buildRunBody(condition, parsedSeed.value, wealth, labelMode, monitoring));
+    const result = await startOnce(buildRunBody(condition, parsedSeed.value, wealth, labelMode, monitoring, productProject));
     if (!result.ok) {
       setPhase({ kind: "error", message: result.message });
       return;
@@ -103,13 +104,13 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
       return;
     }
     setPhase({ kind: "pending", what: "pair" });
-    const labeled = await startOnce(buildRunBody("LABELED", parsedSeed.value, wealth, labelMode, monitoring));
+    const labeled = await startOnce(buildRunBody("LABELED", parsedSeed.value, wealth, labelMode, monitoring, productProject));
     if (!labeled.ok) {
       setPhase({ kind: "error", message: `LABELED run failed, BLIND was not started. ${labeled.message}` });
       return;
     }
     onStarted?.();
-    const blind = await startOnce(buildRunBody("BLIND", parsedSeed.value, wealth, labelMode, monitoring));
+    const blind = await startOnce(buildRunBody("BLIND", parsedSeed.value, wealth, labelMode, monitoring, productProject));
     onStarted?.();
     setPhase({
       kind: "pair",
@@ -129,7 +130,8 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
       <OptionGroup legend="Monitoring" name="monitoring" options={MONITORING_OPTIONS} value={monitoring} onChange={setMonitoring} disabled={pending} />
 
       <details className="group rounded-lg border bg-background/40 px-4 py-2 open:border-border-strong">
-        <summary className="flex min-h-10 cursor-pointer items-center rounded-md text-sm font-medium text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary group-open:text-foreground">Advanced: seed and paired comparison</summary>
+        <summary className="flex min-h-10 cursor-pointer items-center rounded-md text-sm font-medium text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary group-open:text-foreground">Advanced: seed, product project and paired comparison</summary>
+      <OptionGroup legend="Product project" name="product_project" options={[{value:"off",tone:"primary",title:"Off",detail:"Original game rules."},{value:"four-turn-v1",tone:"accent",title:"Four-turn project",detail:"Improve one owned good over four consecutive ACT turns. Start by round 3; at most one completion, adding up to 6 quality (cap 10). Interruptions reset progress."}]} value={productProject} onChange={setProductProject} disabled={pending} />
       <div className="flex flex-col gap-2">
         <label htmlFor={seedId} className="font-mono text-[11px] uppercase tracking-[0.08em] text-subtle-foreground">
           Seed

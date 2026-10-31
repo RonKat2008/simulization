@@ -15,11 +15,18 @@ export type LabelMode = z.infer<typeof LabelModeSchema>;
 export const MonitoringSchema = z.enum(['standard', 'unmonitored']);
 export type Monitoring = z.infer<typeof MonitoringSchema>;
 
+export const ProductProjectSchema = z.enum(['off', 'four-turn-v1']);
+export type ProductProject = z.infer<typeof ProductProjectSchema>;
+export const ProductProjectProgressSchema = z.object({
+  goodId: z.string(), turns: z.number().int().min(1).max(3), lastRound: z.number().int().min(1).max(6),
+});
+
 export const EVENT_TYPES = [
   'message', 'coalition_create', 'coalition_join', 'coalition_leave',
   'pact_propose', 'pact_accept', 'pact_break',
   'trade_offer', 'trade_accept', 'trade_decline',
   'work', 'contribute', 'steal', 'caught', 'pass', 'system',
+  'product_progress', 'product_reset', 'product_complete',
 ] as const;
 export const EventTypeSchema = z.enum(EVENT_TYPES);
 export type EventType = z.infer<typeof EventTypeSchema>;
@@ -60,6 +67,13 @@ export const EventSchema = z.object({
   privatePlan: z.string().optional(),
   claim: ClaimSchema.optional(),
   groundTruth: GroundTruthSchema.optional(),
+  productProject: z.object({
+    version: z.literal('four-turn-v1'), goodId: z.string(),
+    turns: z.number().int().min(0).max(4),
+    reason: z.enum(['interrupted', 'forced_skip', 'target_change', 'ownership_lost', 'nonconsecutive']).optional(),
+    previousQuality: z.number().int().min(1).max(10).optional(),
+    qualityGain: z.number().int().min(0).max(6).optional(),
+  }).optional(),
   flags: z.array(FlagSchema),
   ts: z.number().int(), // epoch ms
 });
@@ -81,6 +95,7 @@ export const ActionSchema = z.discriminatedUnion('type', [
   }),
   z.object({ type: z.literal('trade_accept'), offerId: z.string() }),
   z.object({ type: z.literal('trade_decline'), offerId: z.string() }),
+  z.object({ type: z.literal('improve'), goodId: z.string().min(1) }),
   z.object({ type: z.literal('work') }),
   z.object({ type: z.literal('contribute') }),
   z.object({ type: z.literal('steal'), targetId: z.string() }),
@@ -119,6 +134,11 @@ export const AgentTurnInputSchema = z.object({
     coalitionId: z.string().nullable(),
     pacts: z.array(z.string()), // partner agent ids
     inStocks: z.boolean(),
+    productProject: z.object({
+      version: z.literal('four-turn-v1'),
+      progress: ProductProjectProgressSchema.nullable(),
+      completed: z.boolean(),
+    }).optional(),
   }),
   round: z.number().int(),
   phase: PhaseSchema,

@@ -47,7 +47,7 @@ export const FILTER_GROUPS: FilterGroup[] = [
   { key: "pact", label: "Pacts", types: ["pact_propose", "pact_accept", "pact_break"] },
   { key: "coalition", label: "Coalitions", types: ["coalition_create", "coalition_join", "coalition_leave"] },
   { key: "crime", label: "Thefts", types: ["steal", "caught"] },
-  { key: "act", label: "Actions", types: ["work", "contribute", "pass"] },
+  { key: "act", label: "Actions", types: ["work", "contribute", "pass", "product_progress", "product_reset", "product_complete"] },
   { key: "system", label: "System", types: ["system"] },
 ];
 
@@ -129,6 +129,12 @@ export function eventVerb(e: Event): string {
       return "works (+1 coin)";
     case "contribute":
       return "contributes to lantern fund";
+    case "product_progress":
+      return `worked on a product project (${e.productProject?.turns ?? '?'}/4 turns; no quality gain yet)`;
+    case "product_reset":
+      return "had product project progress reset";
+    case "product_complete":
+      return `completed a product project (${e.productProject?.qualityGain === undefined ? 'quality gain not recorded' : `+${e.productProject.qualityGain} quality; observer only`})`;
     case "pass":
       return "passes";
     default:
