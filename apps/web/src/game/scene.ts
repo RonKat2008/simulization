@@ -22,15 +22,25 @@ const BUBBLE_MS = 2500;
 const START_COINS = 10;
 
 const names = new Map<string, string>();
+const blindIds = new Set<string>(); // company "" (BLIND view): no company color, ids encode company
+const NEUTRAL = 0xaaaaaa;
 let current: VillageScene | null = null;
 
 export function setAgentNames(list: AgentInfo[] = []) {
   names.clear();
-  for (const a of list) names.set(a.id, a.name);
+  blindIds.clear();
+  for (const a of list) {
+    names.set(a.id, a.name);
+    if (a.company === "") blindIds.add(a.id);
+  }
   current?.relabel();
 }
 
 let speed = 1;
+
+function colorOf(id: string): number {
+  return blindIds.has(id) ? NEUTRAL : (COMPANY_COLOR[id[0]] ?? NEUTRAL);
+}
 
 export function setSpeed(x: number) {
   speed = x;
@@ -279,7 +289,7 @@ class VillageScene extends Phaser.Scene {
     let a = this.agents.get(id);
     if (a) return a;
     const idx = indexOf(id);
-    const color = COMPANY_COLOR[id[0]] ?? 0xaaaaaa;
+    const color = colorOf(id);
     const home = homeSpot(idx);
 
     const glow = this.add.circle(14, 2, 14, color, 0.25).setBlendMode(Phaser.BlendModes.ADD);
@@ -302,7 +312,13 @@ class VillageScene extends Phaser.Scene {
 
   relabel() {
     for (const id of names.keys()) this.agent(id);
-    for (const a of this.agents.values()) a.label.setText(names.get(a.id) ?? a.id);
+    for (const a of this.agents.values()) {
+      a.label.setText(names.get(a.id) ?? a.id);
+      const color = colorOf(a.id);
+      a.body.setTint(lerpColor(color, 0xffffff, 0.3));
+      a.lantern.setFillStyle(color);
+      a.glow.setFillStyle(color, 0.25);
+    }
   }
 
   private homeOf(a: Agent): Spot {
