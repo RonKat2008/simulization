@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+:root {
+  --night: #0b0d1a;
+  --night-2: #151933;
+  --lantern: #ffb454;
+  --moon: #e6e9ff;
+}
+
+body {
+  background: var(--night);
+  color: var(--moon);
+}

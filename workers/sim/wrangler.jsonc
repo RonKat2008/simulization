@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "simulization-sim",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "durable_objects": {
+    "bindings": [
+      { "name": "WORLD", "class_name": "WorldActor" },
+      { "name": "AGENT", "class_name": "AgentActor" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["WorldActor", "AgentActor"] }
+  ],
+  "vars": { "AGENT_STORE": "neon" }
+}

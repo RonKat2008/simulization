@@ -1,0 +1,22 @@
+{
+  "name": "@simulization/shared",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./mock/*": "./mock/*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "mock": "tsx scripts/gen-mock.ts"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}
