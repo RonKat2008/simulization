@@ -20,8 +20,13 @@ export class HttpError extends Error {
   }
 }
 
-/** Providers whose structured output was rejected; module-level so every client instance shares it for the isolate's life. */
-const jsonModeOnly = new Set<string>();
+/**
+ * Providers that use JSON mode instead of json_schema. Starts with google: under the flat schema Gemini emits
+ * truncated trade_offer actions (targetId only, no goodId/claimedQuality/price), so 2 of its offers survived in
+ * 8 recorded runs. Providers that reject json_schema (400) are added at runtime; module-level so every client
+ * instance shares it for the isolate's life.
+ */
+const jsonModeOnly = new Set<string>(["google"]);
 
 export class GatewayModelClient implements ModelClient {
   constructor(private readonly apiKey: string, private readonly baseUrl = AI_GATEWAY_BASE_URL) {
