@@ -73,7 +73,8 @@ export class DurableActorsClient {
     signal?: AbortSignal,
     stableRequestId?: string,
   ): Promise<T> {
-    const requestId = stableRequestId ?? crypto.randomUUID();
+    // Terse 0.14.6 crashes the actor executor host on a requestId containing ':' (A's keys are 'run:1:trade:offers:id').
+    const requestId = stableRequestId === undefined ? crypto.randomUUID() : stableRequestId.replace(/[^A-Za-z0-9._-]/g, "_");
     const path = `/v1/projects/${component("project id", this.options.projectId)}/actors/${component("actor name", actorName)}/${component("actor id", actorId)}/invoke`;
     for (let attempt = 0; attempt < 2; attempt++) {
       const outcome = await this.attempt(`${this.baseUrl}${path}`, requestId, method, args, signal);

@@ -19,7 +19,8 @@
     "smoke:http": "bun scripts/http-smoke.ts",
     "smoke:unattended": "bun scripts/unattended-smoke.ts",
     "smoke:adapter": "bun scripts/adapter-smoke.ts",
-    "export:stub": "tsx scripts/export-stub.ts"
+    "export:stub": "tsx scripts/export-stub.ts",
+    "smoke:live": "bun scripts/live-smoke.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",
