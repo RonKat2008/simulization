@@ -10,7 +10,7 @@ import type { RunEntry, RunGroup, RunPair } from './types'
 export function groupRuns(entries: readonly RunEntry[]): RunGroup[] {
   const buckets = new Map<string, RunEntry[]>()
   for (const entry of entries) {
-    const key = `${entry.seed}|${entry.wealth_visibility}|${settingsKey(entry)}`
+    const key = `${entry.seed}|${entry.wealth_visibility}|${entry.mode ?? "unknown"}|${settingsKey(entry)}`
     buckets.set(key, [...(buckets.get(key) ?? []), entry])
   }
 

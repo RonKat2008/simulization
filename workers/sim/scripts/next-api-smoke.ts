@@ -9,7 +9,9 @@ const root=fileURLToPath(new URL('../../..',import.meta.url));
 const port=()=>new Promise<number>(resolve=>{const s=createServer();s.listen(0,'127.0.0.1',()=>{const p=(s.address() as {port:number}).port;s.close(()=>resolve(p));});});
 const actorPort=await port(),webPort=await port();
 const dir=await mkdtemp(tmpdir()+'/sim-next-');
-const env={...process.env,SIM_RUN_MODE:'stub',MODEL_MODE:'stub',AI_GATEWAY_API_KEY:'',AGENTRELAY_API_KEY:'',DATABASE_URL:'',ANTHROPIC_API_KEY:'',DURABLE_ACTORS_SECRET:'',DURABLE_ACTORS_URL:`http://127.0.0.1:${actorPort}`,DURABLE_ACTORS_PROJECT_ID:'local',DURABLE_ACTORS_DATA_DIR:dir,PORT:String(webPort)};
+const projectVersion=process.env.SIM_TEST_PRODUCT_PROJECT ?? 'off';
+assert.ok(projectVersion==='off'||projectVersion==='four-turn-v1');
+const env={...process.env,VERCEL:'0',SIM_RUN_MODE:'stub',MODEL_MODE:'stub',AI_GATEWAY_API_KEY:'',AGENTRELAY_API_KEY:'',DATABASE_URL:'',ANTHROPIC_API_KEY:'',DURABLE_ACTORS_SECRET:'',DURABLE_ACTORS_URL:`http://127.0.0.1:${actorPort}`,DURABLE_ACTORS_PROJECT_ID:'local',DURABLE_ACTORS_DATA_DIR:dir,PORT:String(webPort)};
 const spawn=(cmd:string[])=>Bun.spawn(cmd,{cwd:root,env,stdin:'pipe',stdout:'pipe',stderr:'pipe'});
 const logTail=new Map<number,string>();
 const ready=async(child:ReturnType<typeof spawn>,pattern:RegExp)=>{
@@ -34,11 +36,13 @@ try{
  web=spawn(['node',root+'/apps/web/node_modules/next/dist/bin/next','dev',root+'/apps/web','--port',String(webPort)]);await ready(web,/Ready in/);
  const invalid=await networkFetch(base+'/api/runs',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({condition:'BLIND',seed:2147483648})});assert.equal(invalid.status,400);
  const runId=`next-stub-${Date.now()}`;
- const body={condition:'BLIND',seed:42,wealth_visibility:'public'};
+ const body={condition:'BLIND',seed:42,wealth_visibility:'public',...(projectVersion==='off'?{}:{product_project:projectVersion})};
  assert.deepEqual(await request('/api/runs',body,runId),{runId});
  assert.deepEqual(await request('/api/runs',body,runId),{runId});
  const path=`/api/runs/${runId}`;
  const initial=await request(path);assert.equal(initial.mode,'deterministic-stub');assert.equal(initial.agents.length,6);assert.equal(initial.wealth_visibility,'public');
+ assert.equal(initial.product_project,projectVersion);
+ const projectConflict=await networkFetch(base+'/api/runs',{method:'POST',headers:{'content-type':'application/json','Idempotency-Key':runId},body:JSON.stringify({...body,product_project:projectVersion==='off'?'four-turn-v1':'off'})});assert.equal(projectConflict.status,409);
  const conflict=await networkFetch(base+'/api/runs',{method:'POST',headers:{'content-type':'application/json','Idempotency-Key':runId},body:JSON.stringify({...body,wealth_visibility:'private'})});assert.equal(conflict.status,409);
  assert.equal(initial.label_mode,'true');assert.equal(initial.monitoring,'standard');assert.equal(initial.label_mapping,null,'BLIND shows no labels');
  const blindSwap=await networkFetch(base+'/api/runs',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({condition:'BLIND',seed:1,label_mode:'swapped'})});assert.equal(blindSwap.status,400);
@@ -61,6 +65,7 @@ try{
  actors=spawn([process.execPath,'workers/sim/scripts/consolidated-dev.ts']);await ready(actors,/Consolidated Terse ready/);
  await new Promise(resolve=>setTimeout(resolve,12000)); // deliberately no status/socket requests
  const after=await request(path);assert.ok(after.seq>before.seq,'restart required viewer traffic');
+ assert.equal(after.product_project,projectVersion,'restart must retain version');
  console.log('PASS consolidated restart: run directory resumed progress without viewer traffic');
  const deadline=Date.now()+90000;let status=after;let reported=false;
  while(status.status==='running'&&Date.now()<deadline){
@@ -68,11 +73,12 @@ try{
   await new Promise(resolve=>setTimeout(resolve,2000));status=await request(path);
  }
  assert.equal(status.status,'done');assert.equal(status.reportStatus,'not-requested');assert.equal(status.wealth_visibility,'public');
+ assert.equal(status.product_project,projectVersion);
  assert.equal((await request(path+'/stop',{})).status,'done','stop must preserve completed runs');
  const events=await request(path+'/events?after=0');
  events.forEach((raw:unknown,i:number)=>{const e=EventSchema.parse(raw);assert.equal(e.seq,i+1);assert.equal(e.id,`${runId}-${i+1}`);});
  assert.deepEqual(await request(path+'/events?after=20'),events.slice(20));
  assert.equal((await networkFetch(base+path+'/events?after=-1')).status,400);
  const metrics=computeRunMetrics(events,status.agents);assert.equal(metrics.evalAwareness.total,144);
- console.log(`PASS Next.js six-round stub completion: ${events.length} ordered events; E metrics ${metrics.evalAwareness.total} turns; no live model/Relay/Neon/report claim`);
+ console.log(`PASS Next.js six-round stub completion: ${events.length} ordered events; E metrics ${metrics.evalAwareness.total} turns; project ${projectVersion}; no live model/Relay/Neon/report claim`);
 }catch(error){console.log('Product exit codes',actors.exitCode,web?.exitCode);console.log(web?logTail.get(web.pid)??'no stderr captured':'no web process');throw error;}finally{ws?.close();web?.kill('SIGTERM');if(web)await web.exited;actors.kill('SIGTERM');await actors.exited;await rm(dir,{recursive:true,force:true});}

@@ -2,7 +2,7 @@
 import {createActorTransport} from 'durable-actors/backend';
 import {SocketProxy} from 'durable-actors/proxy';
 import {neon} from '@neondatabase/serverless';
-import {EventSchema,LabelModeSchema,MonitoringSchema,WealthVisibilitySchema,runLabelMapping} from '@simulization/shared';
+import {EventSchema,ProductProjectSchema,LabelModeSchema,MonitoringSchema,WealthVisibilitySchema,runLabelMapping} from '@simulization/shared';
 import {rowToEvent} from '../../../mastra/db';
 import {reportDeliveryStatus} from './_report-status';
 
@@ -21,7 +21,7 @@ export async function invoke(id:string,method:string,args:unknown[]=[]):Promise<
 }
 function db(){if(!process.env.DATABASE_URL)throw new ApiError(503,'DATABASE_URL is not configured');return neon(process.env.DATABASE_URL);}
 export async function createRun(body:unknown,requestedId?:string|null){
-  const b=body as {condition?:unknown;seed?:unknown;wealth_visibility?:unknown;label_mode?:unknown;monitoring?:unknown};
+  const b=body as {condition?:unknown;seed?:unknown;wealth_visibility?:unknown;label_mode?:unknown;monitoring?:unknown;product_project?:unknown};
   if(!b||(b.condition!=='BLIND'&&b.condition!=='LABELED')||!Number.isInteger(b.seed)||Number(b.seed)<-2147483648||Number(b.seed)>2147483647)throw new ApiError(400,'condition and signed 32-bit integer seed are required');
   const visibility=WealthVisibilitySchema.safeParse(b.wealth_visibility===undefined?'private':b.wealth_visibility);
   if(!visibility.success)throw new ApiError(400,'wealth_visibility must be private or public');
@@ -33,6 +33,9 @@ export async function createRun(body:unknown,requestedId?:string|null){
   const monitoringResult=MonitoringSchema.safeParse(b.monitoring===undefined?'standard':b.monitoring);
   if(!monitoringResult.success)throw new ApiError(400,'monitoring must be standard or unmonitored');
   const monitoring=monitoringResult.data;
+  const project=ProductProjectSchema.safeParse(b.product_project===undefined?'off':b.product_project);
+  if(!project.success)throw new ApiError(400,'product_project must be off or four-turn-v1');
+  const product_project=project.data;
   const mode=process.env.SIM_RUN_MODE??'live';
   if(!['live','stub'].includes(mode))throw new ApiError(503,'SIM_RUN_MODE must be live or stub');
   if(mode==='live'){
@@ -43,9 +46,9 @@ export async function createRun(body:unknown,requestedId?:string|null){
   const agentCount=mode==='stub'?6:18;
   const runId=validId(requestedId||crypto.randomUUID());
   if(runId.length>110)throw new ApiError(400,'Run ID must be at most 110 characters');
-  const registration={runId,seed:b.seed,condition:b.condition,mode,agentCount,wealth_visibility,...(label_mode!=='true'?{label_mode}:{}),...(monitoring!=='standard'?{monitoring}:{})};
+  const registration={runId,seed:b.seed,condition:b.condition,mode,agentCount,wealth_visibility,...(label_mode!=='true'?{label_mode}:{}),...(monitoring!=='standard'?{monitoring}:{}),...(product_project!=='off'?{product_project}:{})};
   await createActorTransport(actorOptions()).invoke('RunDirectory','main','register',[registration]);
-  await invoke(runId,'startRun',[runId,b.seed,b.condition,mode,agentCount,wealth_visibility,label_mode,monitoring]);
+  await invoke(runId,'startRun',[runId,b.seed,b.condition,mode,agentCount,wealth_visibility,label_mode,monitoring,product_project]);
   return {runId};
 }
 async function initializingStatus(id:string):Promise<any|null>{
@@ -68,7 +71,7 @@ export async function runStatus(id:string){
       const reportStatus=await reportDeliveryStatus(row.status,config?.mode,Boolean(row.review_id),()=>createActorTransport(actorOptions()).invoke('ReportJob',id,'status',[]));
       return {id:row.id,condition:row.condition,seed:row.seed,status:row.status,round:row.current_round,phase:row.current_phase,finalScores:row.final_scores,agents,mode:config?.mode,wealth_visibility:config?.wealth_visibility??'private',...experimentSettings(row.condition,config),seq:config?.projectedSeq,projection:'synced',reportStatus,source:'neon'};
     }
-    const runs=await createActorTransport(actorOptions()).invoke('RunDirectory','main','list',[]) as {runId:string;condition:string;mode:string;wealth_visibility?:string;label_mode?:string;monitoring?:string}[];
+    const runs=await createActorTransport(actorOptions()).invoke('RunDirectory','main','list',[]) as {runId:string;condition:string;mode:string;wealth_visibility?:string;label_mode?:string;monitoring?:string;product_project?:string}[];
     const pending=runs.find(r=>r.runId===id);
     if(!pending)throw new ApiError(404,'Run not found');
     const initializing=await initializingStatus(id);
@@ -108,7 +111,7 @@ export async function listRuns(){
 function experimentSettings(condition:unknown,config:Record<string,unknown>|null|undefined){
   const label_mode=config?.label_mode==='swapped'?'swapped' as const:'true' as const;
   const monitoring=config?.monitoring==='unmonitored'?'unmonitored' as const:'standard' as const;
-  return {label_mode,monitoring,label_mapping:runLabelMapping(condition==='LABELED'?'LABELED':'BLIND',label_mode)};
+  return {label_mode,monitoring,product_project:ProductProjectSchema.parse(config?.product_project??'off'),label_mapping:runLabelMapping(condition==='LABELED'?'LABELED':'BLIND',label_mode)};
 }
 export async function respond(work:()=>Promise<unknown>){
   try{return Response.json(await work(),{headers:{'cache-control':'no-store'}});}

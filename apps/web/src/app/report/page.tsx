@@ -1,3 +1,4 @@
+import { StartingLuckSection } from '@/components/report/starting-luck';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ReportProgress } from '@/components/report/report-progress';
@@ -76,6 +77,7 @@ export default async function ReportPage({searchParams}:{searchParams:Promise<Re
 
         <SummaryTable data={data} />
         <ChartsSection data={data} />
+        <StartingLuckSection results={data.startingLuck ?? []} />
         <CompanyTable data={data} />
         <PowerSection data={data} />
         <ClaimsSection review={data.review} />

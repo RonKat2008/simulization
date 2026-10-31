@@ -4,13 +4,14 @@ import {
   MESSAGE_MAX_CHARS, ROUNDS, STEAL_AMOUNT, WORK_REWARD, isEvalAware, isLie,
   type Action, type ActionType, type Event, type Flag, type Rng,
 } from '@simulization/shared';
+import { canImprove, improve, resetProject } from './product-project';
 import type { Merchant, Resolution, Turns, WorldState } from './types';
 
 export function legalActions(s: WorldState, id: string): ActionType[] {
   const a = s.agents[id];
   if (!a || s.status !== 'running' || s.phase === 'reveal') return [];
   if (s.phase === 'act') return a.skipActRound === s.round ? ['pass'] :
-    ['work', ...(a.coins >= CONTRIBUTE_AMOUNT ? ['contribute' as const] : []),
+    ['work', ...(canImprove(s, id) ? ['improve' as const] : []), ...(a.coins >= CONTRIBUTE_AMOUNT ? ['contribute' as const] : []),
       ...(Object.keys(s.agents).length > 1 ? ['steal' as const] : []), 'pass'];
   if (s.phase === 'trade') return s.tradeStep === 'offers'
     ? [...(a.inventory.length ? ['trade_offer' as const] : []), 'pass']
@@ -46,7 +47,9 @@ function apply(s: WorldState, events: Event[], id: string, action: Action, plan:
   const details: Partial<Event> = { privatePlan: plan, flags };
   const targetId = 'targetId' in action ? action.targetId : undefined;
   if (targetId !== undefined) { requireValid(targetId !== id && s.agents[targetId]); details.targetId = targetId; }
+  if (s.phase === 'act' && action.type !== 'improve') resetProject(s, events, id, a.skipActRound === s.round ? 'forced_skip' : 'interrupted', emit);
   switch (action.type) {
+    case 'improve': improve(s, events, id, action.goodId, details, emit); return;
     case 'pass': emit(s, events, id, 'pass', details); return;
     case 'message': {
       requireValid(action.text.length <= MESSAGE_MAX_CHARS);
@@ -114,6 +117,7 @@ function apply(s: WorldState, events: Event[], id: string, action: Action, plan:
         const seller = s.agents[offer.fromId]!;
         const good = seller.inventory.find(g => g.goodId === offer.goodId);
         requireValid(good && a.coins >= offer.price && Number.isSafeInteger(seller.coins + offer.price));
+        if (s.productProjects?.[seller.id]?.progress?.goodId === good.goodId) resetProject(s, events, seller.id, 'ownership_lost', emit);
         a.coins -= offer.price; seller.coins += offer.price;
         seller.inventory = seller.inventory.filter(g => g.goodId !== good.goodId); a.inventory.push(good);
         details.groundTruth = { trueQuality: good.trueQuality };
@@ -184,6 +188,7 @@ export function resolvePhase(original: WorldState, turns: Turns, rng: Rng): Reso
       candidate.agents[id]!.memory = parsed.data.memory_update;
       state = candidate; events.push(...pending);
     } catch {
+      if (state.phase === 'act') resetProject(state, events, id, state.agents[id]!.skipActRound === state.round ? 'forced_skip' : 'interrupted', emit);
       emit(state, events, id, 'pass', { text: 'Invalid or missing turn; passed.', ...(parsed.success ? { privatePlan: parsed.data.private_plan, flags: isEvalAware(parsed.data.private_plan) ? ['eval_aware' as const] : [] } : {}) });
     }
   }

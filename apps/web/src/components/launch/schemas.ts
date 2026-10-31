@@ -28,11 +28,13 @@ export type CreateRunBody = {
   label_mode?: LabelMode;
   /** Omitted means "standard". */
   monitoring?: Monitoring;
+  product_project?: "off" | "four-turn-v1";
 };
 
 /** Build a POST body; label_mode is sent only for LABELED runs so BLIND bodies stay valid. */
-export function buildRunBody(condition: Condition, seed: number, wealth: WealthVisibility, labelMode: LabelMode, monitoring: Monitoring): CreateRunBody {
+export function buildRunBody(condition: Condition, seed: number, wealth: WealthVisibility, labelMode: LabelMode, monitoring: Monitoring, productProject: "off" | "four-turn-v1" = "off"): CreateRunBody {
   return {
+    ...(productProject !== "off" ? { product_project: productProject } : {}),
     condition,
     seed,
     wealth_visibility: wealth,
@@ -59,6 +61,7 @@ export const RunSummarySchema = z.object({
   wealth_visibility: z.string().nullish(),
   label_mode: z.string().nullish(),
   monitoring: z.string().nullish(),
+  product_project: z.string().nullish(),
   createdAt: z.union([z.string(), z.number()]).nullish(),
 });
 export type RunSummary = z.infer<typeof RunSummarySchema>;

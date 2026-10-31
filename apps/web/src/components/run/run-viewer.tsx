@@ -97,7 +97,7 @@ export function RunViewer({ id }: { id: string }) {
         {meta.status === "offline" ? <OfflineStrip eventCount={events.length} /> : null}
         {meta.status === "connecting" && !meta.isMock && events.length === 0 ? <SetupStrip /> : null}
         <main className="mx-auto flex w-full max-w-[1600px] min-w-0 flex-1 flex-col gap-4 px-4 py-4 sm:px-6">
-          <AgentCard finalScores={meta.finalScores} wealthVisibility={meta.wealthVisibility} labelMode={meta.labelMode} monitoring={meta.monitoring} />
+          <AgentCard productProject={meta.productProject} finalScores={meta.finalScores} wealthVisibility={meta.wealthVisibility} labelMode={meta.labelMode} monitoring={meta.monitoring} />
           <div className="flex flex-wrap items-center justify-between gap-2">
             <ViewTabs view={view} onChange={setView} />
             {resultsReady && view === "game" ? <a href="#replay-summary" className="rounded-sm text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-primary">Skip to results ↓</a> : null}
