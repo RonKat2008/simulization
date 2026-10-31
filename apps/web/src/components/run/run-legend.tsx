@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useRun } from "./run-context";
 
 export const SHORTCUTS: [string, string][] = [
@@ -30,6 +31,13 @@ export function RunLegend({ onClose }: { onClose: () => void }) {
         <div className="flex items-start justify-between gap-3">
           <h2 id="legend-title" className="font-display text-sm tracking-wide">
             Guide
+            <Link
+              href="/how-it-works"
+              target="_blank"
+              className="ml-3 rounded-sm font-sans text-xs font-normal tracking-normal text-primary underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-primary"
+            >
+              New here? How the game works<span className="sr-only"> (opens in a new tab)</span>
+            </Link>
           </h2>
           <button
             type="button"
