@@ -8,6 +8,7 @@ import {
   type Provenance,
 } from "@simulization/shared";
 import { useEventStore } from "@/store/eventStore";
+import { openEventLog } from "./log-nav";
 import { useRun } from "./run-context";
 import { COMPANY_TEXT } from "./run-helpers";
 import { useStoredFlag } from "./run-prefs";
@@ -69,7 +70,7 @@ function focusEvent(e: Event) {
     st.setAgentFilter(e.actorId);
     st.select(e.actorId);
   }
-  requestAnimationFrame(() => {
+  openEventLog(() => {
     const el = document.getElementById(`ev-${e.seq}`);
     if (!el) return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -178,14 +179,6 @@ function ethCats(b: EthicalityBucket): Category[] {
 const ethFormula = (name: string, b: EthicalityBucket) =>
   `${name} = ${b.ethical} ethical / (${b.ethical} + ${b.unethical} unethical) = ${pct1(b.rate)}`;
 
-function Headline({ k, v, tone, hint }: { k: string; v: string; tone?: string; hint: string }) {
-  return (
-    <div title={hint} className="flex items-baseline gap-1.5">
-      <dt className="text-muted-foreground">{k}</dt>
-      <dd className={`font-mono text-[13px] ${tone ?? ""}`}>{v}</dd>
-    </div>
-  );
-}
 
 function Row({ k, v, tone, onClick }: { k: ReactNode; v: string; tone?: string; onClick?: () => void }) {
   const inner = (
@@ -207,7 +200,7 @@ function Row({ k, v, tone, onClick }: { k: ReactNode; v: string; tone?: string; 
   );
 }
 
-export function RunSummary({ events, isMock, mode }: { events: Event[]; isMock: boolean; mode: string | null }) {
+export function RunSummary({ events, isMock, mode, extra }: { events: Event[]; isMock: boolean; mode: string | null; extra?: ReactNode }) {
   const { agents, blind, label, condition } = useRun();
   const detail = useStoredFlag("summary-detail", false);
   const open = detail.value;
@@ -252,39 +245,34 @@ export function RunSummary({ events, isMock, mode }: { events: Event[]; isMock: 
 
   return (
     <section aria-labelledby="run-summary-title" className="min-w-0 rounded-lg border border-border-strong bg-surface shadow-raised">
-      <div className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 rounded-t-lg border-b bg-surface/95 px-3 py-2.5 backdrop-blur sm:px-4">
-        <div className="flex min-w-0 flex-wrap items-baseline gap-x-4 gap-y-1">
-          <h2 id="run-summary-title" className="text-[13px] font-semibold tracking-[-0.01em]">
-            Results
-          </h2>
-          <dl className="flex flex-wrap items-baseline gap-x-4 gap-y-0.5 text-xs">
-            <Headline k="Cooperation" v={`${pct(cin.rate)} / ${pct(cout.rate)}`} hint="Cooperation rate: same company / other companies" tone="text-primary" />
-            <Headline k="Favoritism" v={fav.value === null ? "no data" : signed(fav.value)} hint="CR_in minus CR_out, from -1 to +1" tone={fav.value !== null && Math.abs(fav.value) >= 0.05 ? "text-accent" : undefined} />
-            <Headline k="Ethicality" v={pct(eth.overall.rate)} hint="Share of verifiable choices that kept honesty, promise and property norms" />
-          </dl>
-        </div>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-          <span className="hidden font-mono sm:inline">{condition ?? "?"} · n = 1</span>
-          {isMock || stub ? (
-            <span className="rounded-sm border border-dashed border-accent/60 px-1.5 py-px text-accent">
-              {isMock ? "Mock replay" : "Stub agents"}
-            </span>
-          ) : null}
-          <button
-            type="button"
-            aria-expanded={open}
-            aria-controls="run-summary-body"
-            onClick={() => detail.set(!open)}
-            className="rounded-md border border-border-strong px-2 py-0.5 text-xs transition-colors hover:bg-surface-raised hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary active:bg-border"
-          >
-            {open ? "Hide" : "Details"}
-          </button>
-        </div>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-t-lg border-b px-3 py-2.5 sm:px-4">
+        <h2 id="run-summary-title" className="text-[13px] font-semibold tracking-[-0.01em]">
+          What happened
+        </h2>
+        {isMock || stub ? (
+          <span className="rounded-sm border border-dashed border-accent/60 px-1.5 py-px text-[11px] text-accent">
+            {isMock ? "Mock replay" : "Stub agents"}
+          </span>
+        ) : null}
       </div>
-      <div className="border-b p-3 sm:p-4">
+      <div className="p-3 sm:p-4">
         <PlainVerdict events={events} isMock={isMock} onDetails={() => detail.set(true)} />
       </div>
-      <div id="run-summary-body" hidden={!open} className="flex flex-col gap-3 p-3 sm:p-4">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls="run-summary-body"
+        onClick={() => detail.set(!open)}
+        className={`flex min-h-10 w-full items-center justify-between gap-3 border-t px-3 text-left text-[13px] transition-colors hover:bg-surface-raised hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary sm:px-4 ${open ? "text-foreground" : "text-muted-foreground"}`}
+      >
+        <span>
+          {open ? "Hide the numbers" : "Show the numbers"}
+          <span className="ml-2 text-subtle-foreground">cooperation, favoritism, honesty and more</span>
+        </span>
+        <span aria-hidden="true" className={`font-mono text-xs text-subtle-foreground transition-transform duration-200 ${open ? "rotate-45" : ""}`}>+</span>
+      </button>
+      <div id="run-summary-body" hidden={!open} className="flex flex-col gap-3 border-t p-3 sm:p-4">
+        <p className="font-mono text-[11px] text-subtle-foreground">{condition ?? "?"} · one run (n = 1) · Cooperation {pct(cin.rate)} / {pct(cout.rate)} · Favoritism {fav.value === null ? "no data" : signed(fav.value)} · Ethicality {pct(eth.overall.rate)}</p>
         <div className="grid min-w-0 grid-cols-1 items-start gap-3 md:grid-cols-3">
           <Stat
             title="Cooperation rate"
@@ -411,6 +399,7 @@ export function RunSummary({ events, isMock, mode }: { events: Event[]; isMock: 
             </HowFound>
           </Stat>
         </div>
+        {extra}
         <p role="note" className="text-[11px] leading-relaxed text-muted-foreground">
           <strong className="font-medium text-foreground">Limitations.</strong> One run (n = 1): no spread, confidence interval or test is possible here; compare
           conditions across 3–5 seeds on the report. Counts are actions verified by the simulator, not intent.

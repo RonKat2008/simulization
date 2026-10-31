@@ -135,7 +135,7 @@ export function EventFeed({ followLatest, status }: { followLatest: boolean; sta
     <section aria-labelledby="feed-title" className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border bg-surface shadow-raised">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
         <h2 id="feed-title" className="text-[13px] font-semibold tracking-[-0.01em]">
-          Recent actions
+          Event feed
         </h2>
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
           {withPlans > 0 ? (

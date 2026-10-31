@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Phase } from "@simulization/shared";
 import VillageCanvas from "@/game/VillageCanvas";
 import { useEventStore } from "@/store/eventStore";
@@ -13,11 +13,13 @@ import { RunSummary } from "./run-summary";
 import { buildRunCtx, RunProvider } from "./run-context";
 import { mergeAgents } from "./run-helpers";
 import { ErrorPanel, OfflineStrip } from "./run-states";
-import { BlindBanner, TopBar } from "./top-bar";
+import { TopBar } from "./top-bar";
 import { useRunSource } from "./use-run-source";
 import { panelId, tabId, useView, ViewTabs } from "./view-tabs";
 import DataView from "@/components/run/views/data-view";
 import ResearchView from "@/components/run/views/research-view";
+import { GameSide } from "./game-side";
+import { OPEN_LOG_EVENT, openEventLog } from "./log-nav";
 import { GuideLine } from "./story/guide-line";
 import { StoryPanel } from "./story/story-panel";
 
@@ -52,6 +54,14 @@ export function RunViewer({ id }: { id: string }) {
     [agents, ctx],
   );
 
+  const openLog = useCallback(() => {
+    if (view === "game") setView("research");
+  }, [view, setView]);
+  useEffect(() => {
+    window.addEventListener(OPEN_LOG_EVENT, openLog);
+    return () => window.removeEventListener(OPEN_LOG_EVENT, openLog);
+  }, [openLog]);
+
   // Global shortcuts: Esc deselects, [ ] step through merchants, / focuses search.
   useEffect(() => {
     const onKey = (ev: KeyboardEvent) => {
@@ -65,7 +75,14 @@ export function RunViewer({ id }: { id: string }) {
       }
       if (ev.key === "/") {
         ev.preventDefault();
-        document.getElementById("feed-search")?.focus();
+        // The searchable log sits beside the Data/Research tabs; open it first when on the Game tab.
+        const focus = () => {
+          const el = document.getElementById("feed-search");
+          el?.closest("details")?.setAttribute("open", "");
+          el?.focus();
+        };
+        if (view === "game") openEventLog(focus);
+        else focus();
       }
       if ((ev.key === "[" || ev.key === "]") && agents.length) {
         const i = agents.findIndex((a) => a.id === st.selectedAgentId);
@@ -75,7 +92,7 @@ export function RunViewer({ id }: { id: string }) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [agents, guideDismissed, setGuide]);
+  }, [agents, guideDismissed, setGuide, view]);
 
   const last = events.at(-1);
   const round = meta.round ?? last?.round ?? null;
@@ -87,15 +104,24 @@ export function RunViewer({ id }: { id: string }) {
 
   if (meta.error && events.length === 0) return <ErrorPanel message={meta.error} />;
 
+  const metrics = (
+    <details className="group rounded-lg border bg-surface open:border-border-strong">
+      <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-4 text-[13px] text-muted-foreground transition-colors hover:bg-surface-raised hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary group-open:rounded-b-none group-open:text-foreground [&::-webkit-details-marker]:hidden">
+        <span>Behavioral measures <span className="text-subtle-foreground">· counts and denominators</span></span>
+        <span aria-hidden="true" className="font-mono text-xs text-subtle-foreground transition-transform duration-200 group-open:rotate-45">+</span>
+      </summary>
+      <div className="border-t px-3 py-3"><MetricsBar events={events} /></div>
+    </details>
+  );
+
   return (
     <RunProvider value={ctx}>
       <div className="flex min-h-dvh flex-col">
-        <TopBar status={meta.status} round={round} phase={phase} mode={meta.mode} wealthVisibility={meta.wealthVisibility} isMock={meta.isMock} reportStatus={meta.reportStatus} reportRunId={meta.reportRunId} helpOpen={guideOpen} onHelp={() => setGuide(guideOpen)} />
+        <TopBar status={meta.status} round={round} phase={phase} mode={meta.mode} wealthVisibility={meta.wealthVisibility} isMock={meta.isMock} reportStatus={meta.reportStatus} reportRunId={meta.reportRunId} seed={meta.seed} helpOpen={guideOpen} onHelp={() => setGuide(guideOpen)} />
         {guideOpen ? <RunLegend onClose={() => setGuide(true)} /> : guide.ready ? <GuideLine onOpen={() => setGuide(false)} /> : null}
-        {ctx.blind ? <BlindBanner /> : null}
         {meta.status === "offline" ? <OfflineStrip eventCount={events.length} /> : null}
         <main className="mx-auto flex w-full max-w-[1600px] min-w-0 flex-1 flex-col gap-4 px-4 py-4 sm:px-6">
-          <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start">
+          <div className={`grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3 lg:items-start ${view === "game" ? "lg:grid-cols-[minmax(0,1fr)_380px]" : "lg:grid-cols-[minmax(0,1fr)_420px]"}`}>
             <div className="flex min-w-0 flex-col gap-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <ViewTabs view={view} onChange={setView} />
@@ -107,29 +133,33 @@ export function RunViewer({ id }: { id: string }) {
               </div>
               <div role="tabpanel" id={panelId(view)} aria-labelledby={tabId(view)} tabIndex={0} className="min-w-0 max-w-full overflow-x-auto outline-none focus-visible:ring-1 focus-visible:ring-primary">
                 {view === "game" ? (
-                  <div className="overflow-hidden rounded-lg border bg-surface shadow-raised">
-                    <VillageCanvas key={id} agents={canvasAgents} />
-                  </div>
-                ) : null}
-                {view === "game" ? (
-                  <div className="mt-3">
+                  <div className="flex min-w-0 flex-col gap-3">
+                    <div className="overflow-hidden rounded-lg border bg-surface shadow-raised">
+                      <VillageCanvas key={id} agents={canvasAgents} />
+                    </div>
                     <StoryPanel key={id} events={events} runEnded={meta.status === "ended"} />
                   </div>
                 ) : view === "data" ? (
                   <DataView />
                 ) : (
-                  <ResearchView />
+                  <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4">
+                    <ResearchView />
+                    <Roster finalScores={meta.finalScores} />
+                    {resultsReady ? null : metrics}
+                  </div>
                 )}
               </div>
-              {resultsReady ? <RunSummary events={events} isMock={meta.isMock} mode={meta.mode} /> : null}
-              <details className="group rounded-lg border bg-surface open:border-border-strong"><summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-4 text-[13px] text-muted-foreground transition-colors hover:bg-surface-raised hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary group-open:rounded-b-none group-open:text-foreground [&::-webkit-details-marker]:hidden"><span>Behavioral measures <span className="text-subtle-foreground">· counts and denominators</span></span><span aria-hidden="true" className="font-mono text-xs text-subtle-foreground transition-transform duration-200 group-open:rotate-45">+</span></summary><div className="border-t px-3 py-3"><MetricsBar events={events} /></div></details>
-              <AgentCard finalScores={meta.finalScores} wealthVisibility={meta.wealthVisibility} />
-              <Roster finalScores={meta.finalScores} />
             </div>
-            <div className="flex min-h-[28rem] min-w-0 flex-col lg:sticky lg:top-3 lg:h-[calc(100dvh-1.5rem)] lg:min-h-0">
-              <EventFeed followLatest={!meta.isMock} status={meta.status} />
-            </div>
+            {view === "game" ? (
+              <GameSide events={events} status={meta.status} finalScores={meta.finalScores} wealthVisibility={meta.wealthVisibility} onOpenLog={openLog} />
+            ) : (
+              <div className="flex min-h-[28rem] min-w-0 flex-col lg:sticky lg:top-3 lg:h-[calc(100dvh-1.5rem)] lg:min-h-0">
+                <EventFeed followLatest={!meta.isMock} status={meta.status} />
+              </div>
+            )}
           </div>
+          {resultsReady ? <RunSummary events={events} isMock={meta.isMock} mode={meta.mode} extra={metrics} /> : null}
+          {view === "game" ? null : <AgentCard finalScores={meta.finalScores} wealthVisibility={meta.wealthVisibility} upto={Number.POSITIVE_INFINITY} ended={meta.status === "ended"} />}
         </main>
       </div>
     </RunProvider>

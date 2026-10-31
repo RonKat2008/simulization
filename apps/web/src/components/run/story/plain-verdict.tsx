@@ -4,6 +4,7 @@
 import { useMemo } from "react";
 import type { Event } from "@simulization/shared";
 import { useEventStore } from "@/store/eventStore";
+import { openEventLog } from "../log-nav";
 import { useRun } from "../run-context";
 import { buildVerdict, type Evidence } from "./verdict";
 
@@ -21,7 +22,7 @@ function showFlag(flag: "lie" | "theft") {
   const st = useEventStore.getState();
   st.clearFilters();
   st.setFlagFilter([flag]);
-  scrollTo("feed-title");
+  openEventLog(() => scrollTo("feed-title"));
 }
 
 interface Props {

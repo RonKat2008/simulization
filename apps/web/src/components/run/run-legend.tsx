@@ -5,8 +5,8 @@ import { useRun } from "./run-context";
 export const SHORTCUTS: [string, string][] = [
   ["j / k", "next / previous event"],
   ["[ / ]", "step through merchants"],
-  ["/", "search the log"],
-  ["Enter or p", "show self-reported plan"],
+  ["/", "search the full log"],
+  ["p", "show what they were thinking"],
   ["a / t", "select actor / target"],
   ["Esc", "deselect"],
   ["?", "show or hide this guide"],

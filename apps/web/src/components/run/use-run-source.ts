@@ -26,6 +26,8 @@ export interface RunMeta {
   reportStatus: string | null;
   /** Original run id for a static recorded replay's persisted report. */
   reportRunId: string | null;
+  /** RNG seed of the run, when the source reports it. */
+  seed: number | null;
 }
 
 const MOCKS = { mock: labeled, "mock-blind": blind } as const;
@@ -71,6 +73,7 @@ interface SimStatus {
   wealth_visibility?: "private" | "public";
   reportStatus?: string;
   setupError?: string | null;
+  seed?: number;
 }
 
 function parseRoster(raw: unknown): RunAgent[] | null {
@@ -99,6 +102,7 @@ function mockMeta(id: string): RunMeta {
     wealthVisibility: mock ? "private" : null,
     reportStatus: null,
     reportRunId: mock ? null : id,
+    seed: mock && typeof (mock.run as { seed?: unknown }).seed === "number" ? (mock.run as { seed: number }).seed : null,
   };
 }
 
@@ -141,6 +145,7 @@ export function useRunSource(id: string): RunMeta {
             wealthVisibility: s.wealth_visibility ?? "private",
             reportStatus: s.reportStatus ?? null,
             reportRunId: s.id ?? null,
+            seed: typeof s.seed === "number" ? s.seed : null,
             error: null,
           }));
         })
@@ -187,6 +192,7 @@ export function useRunSource(id: string): RunMeta {
           error: s.setupError ? "Agent setup failed. Check the simulation runtime before retrying with a new run." : null,
           wealthVisibility: s.wealth_visibility ?? m.wealthVisibility,
           reportStatus: s.reportStatus ?? m.reportStatus,
+          seed: typeof s.seed === "number" ? s.seed : m.seed,
         }));
       } catch (err) {
         if (stopped) return;

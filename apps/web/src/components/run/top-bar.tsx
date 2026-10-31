@@ -1,4 +1,5 @@
 "use client";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import type { Phase } from "@simulization/shared";
 import { useEventStore } from "@/store/eventStore";
@@ -12,42 +13,75 @@ const STATUS_STYLE: Record<RunStatus, { label: string; dot: string; text: string
   live: { label: "live", dot: "bg-lab-c animate-pulse motion-reduce:animate-none", text: "text-lab-c" },
   draining: { label: "receiving final events", dot: "bg-muted-foreground animate-pulse motion-reduce:animate-none", text: "text-muted-foreground" },
   failed: { label: "failed / stopped", dot: "bg-violation", text: "text-violation" },
-  ended: { label: "ended", dot: "bg-muted-foreground", text: "text-muted-foreground" },
+  ended: { label: "finished", dot: "bg-muted-foreground", text: "text-muted-foreground" },
   offline: { label: "offline, retrying", dot: "bg-violation", text: "text-violation" },
 };
 
 const MODE_LABEL: Record<string, { text: string; hint: string; warn: boolean }> = {
   "deterministic-stub": { text: "stub agents", hint: "Scripted stand-ins, not model output", warn: true },
-  "live-model-relay": { text: "live models", hint: "Real model calls relayed through the gateway", warn: false },
+  "live-model-relay": { text: "live models", hint: "Real AI models from three companies", warn: false },
   "initializing-live": { text: "initializing", hint: "Live run is starting up", warn: false },
   "recorded replay": { text: "recorded replay", hint: "A saved run played back from file", warn: false },
 };
 
 const WEALTH_HINT: Record<WealthVisibility, string> = {
-  private: "Wealth private: merchants could not see each other's coin balances",
-  public: "Wealth public: every merchant could see everyone's coin balances",
+  private: "Hidden: merchants could not see each other's coins",
+  public: "Public: every merchant could see everyone's coins",
 };
 
-function Badge({ children, tone, title }: { children: string; tone: string; title?: string }) {
+const CONDITION_TEXT = {
+  LABELED: { name: "Labeled", meaning: "merchants can see each other's company" },
+  BLIND: { name: "Blind", meaning: "companies hidden" },
+} as const;
+
+function DetailRow({ k, children }: { k: string; children: ReactNode }) {
   return (
-    <span title={title} className={`inline-flex h-5 items-center rounded-sm border px-1.5 font-mono text-[10.5px] tracking-[0.02em] ${tone}`}>
-      {children}
-    </span>
+    <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] gap-3 py-1">
+      <dt className="text-muted-foreground">{k}</dt>
+      <dd className="min-w-0 break-words text-foreground">{children}</dd>
+    </div>
   );
 }
 
-export function TopBar({
-  status,
-  round,
-  phase,
-  mode,
-  wealthVisibility,
-  isMock,
-  reportStatus,
-  reportRunId,
-  onHelp,
-  helpOpen,
-}: {
+/** Technical run facts, out of the way until asked for. */
+function RunDetails({ status, mode, wealthVisibility, isMock, reportStatus, reportRunId }: Pick<TopBarProps, "status" | "mode" | "wealthVisibility" | "isMock" | "reportStatus" | "reportRunId">) {
+  const { runId, blind } = useRun();
+  const total = useEventStore((s) => s.events.length);
+  const modeKey = mode?.replace(/^recorded /, "") ?? null;
+  const modeInfo = modeKey ? MODE_LABEL[modeKey] : null;
+  const reportLabel = reportStatus === "done" ? "Open the saved report" : reportStatus === "failed" ? "Report failed — details" : reportStatus === "not-requested" ? "Open run results" : "Report status";
+  return (
+    <details className="group relative">
+      <summary className="flex h-7 cursor-pointer list-none items-center gap-1.5 rounded-md border border-border px-2 text-muted-foreground transition-colors hover:bg-surface-raised hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary group-open:border-border-strong group-open:bg-surface-raised group-open:text-foreground [&::-webkit-details-marker]:hidden">
+        Run details
+        <span aria-hidden="true" className="text-[10px] transition-transform group-open:rotate-180">▾</span>
+      </summary>
+      <div className="absolute right-0 z-40 mt-1.5 w-[min(22rem,calc(100vw-2rem))] rounded-lg border border-border-strong bg-surface p-3 text-xs shadow-pop">
+        <dl className="divide-y divide-border/60">
+          <DetailRow k="Run id"><span className="font-mono text-[11px]">{runId}</span></DetailRow>
+          <DetailRow k="Status">{STATUS_STYLE[status].label}</DetailRow>
+          {mode ? (
+            <DetailRow k="Agents">
+              <span className={modeInfo?.warn ? "text-violation" : undefined}>{modeInfo?.hint ?? mode}</span>
+              {mode.startsWith("recorded") ? <span className="text-muted-foreground"> · saved recording</span> : null}
+              <span className="block font-mono text-[10.5px] text-subtle-foreground">{mode}</span>
+            </DetailRow>
+          ) : null}
+          {wealthVisibility ? <DetailRow k="Coin balances">{WEALTH_HINT[wealthVisibility]}</DetailRow> : null}
+          <DetailRow k="Events recorded"><span className="font-mono">{total}</span></DetailRow>
+          {blind ? <DetailRow k="Scoring">Merchants could not see companies; results still use each one&apos;s true company.</DetailRow> : null}
+        </dl>
+        {status === "ended" && !isMock ? (
+          <Link href={`/report?runId=${encodeURIComponent(reportRunId ?? runId)}`} className="mt-2 inline-block rounded-sm text-primary underline decoration-primary/40 underline-offset-4 transition-colors hover:decoration-primary focus-visible:outline-2 focus-visible:outline-primary">
+            {reportLabel} →
+          </Link>
+        ) : null}
+      </div>
+    </details>
+  );
+}
+
+type TopBarProps = {
   status: RunStatus;
   round: number | null;
   phase: Phase | null;
@@ -56,13 +90,17 @@ export function TopBar({
   isMock: boolean;
   reportStatus: string | null;
   reportRunId: string | null;
+  seed: number | null;
   onHelp: () => void;
   helpOpen: boolean;
-}) {
-  const { runId, condition, blind } = useRun();
-  const total = useEventStore((s) => s.events.length);
+};
+
+export function TopBar({ status, round, phase, mode, wealthVisibility, isMock, reportStatus, reportRunId, seed, onHelp, helpOpen }: TopBarProps) {
+  const { condition, blind } = useRun();
   const st = STATUS_STYLE[status];
-  const modeInfo = mode ? (MODE_LABEL[mode] ?? { text: mode, hint: undefined, warn: false }) : null;
+  const cond = condition ? CONDITION_TEXT[condition] : null;
+  const kind = status === "ended" ? "Replay" : "Live run";
+  const title = seed !== null ? `${kind} · Seed ${seed}` : kind;
 
   return (
     <header className="border-b bg-background">
@@ -70,42 +108,27 @@ export function TopBar({
         <Link href="/" className="rounded-sm text-[15px] font-semibold tracking-[-0.02em] text-foreground transition-colors hover:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
           Simulization
         </Link>
-        <span className="hidden text-border-strong sm:block" aria-hidden="true">/</span>
-        <h1 className="flex min-w-0 items-center gap-2 text-sm font-normal">
-          <span className="sr-only">Run</span>
-          <span className="max-w-[18ch] truncate font-mono text-[13px] text-foreground sm:max-w-[32ch]" title={runId}>
-            {runId}
-          </span>
-        </h1>
-        {condition ? (
+        <span className="text-border-strong" aria-hidden="true">/</span>
+        <h1 className="text-[15px] font-medium tracking-[-0.01em] text-foreground">{title}</h1>
+        {cond ? (
           <span
-            className={`inline-flex h-5 items-center rounded-sm border px-1.5 font-mono text-[10.5px] uppercase tracking-[0.08em] ${
-              blind ? "border-accent/40 bg-accent/[0.06] text-accent" : "border-primary/40 bg-primary/[0.06] text-primary"
+            title={blind ? "Merchants saw only names, never companies. Colors are hidden here too." : "Each merchant could see which company made every other merchant."}
+            className={`inline-flex min-h-6 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs ${
+              blind ? "border-accent/40 bg-accent/[0.06]" : "border-primary/40 bg-primary/[0.06]"
             }`}
           >
-            {condition}
+            <span className={`font-mono text-[10.5px] uppercase tracking-[0.08em] ${blind ? "text-accent" : "text-primary"}`}>{cond.name}</span>
+            <span className="text-muted-foreground">{cond.meaning}</span>
           </span>
         ) : null}
-        {modeInfo ? (
-          <Badge title={modeInfo.hint} tone={modeInfo.warn ? "border-violation/50 text-violation" : "border-border-strong text-muted-foreground"}>
-            {modeInfo.text}
-          </Badge>
-        ) : null}
-        {wealthVisibility ? (
-          <Badge title={WEALTH_HINT[wealthVisibility]} tone={wealthVisibility === "public" ? "border-lab-b/50 text-lab-b" : "border-border-strong text-muted-foreground"}>
-            {`wealth ${wealthVisibility}`}
-          </Badge>
-        ) : null}
-
-        {status === "ended" && !isMock ? (
-          <Link href={`/report?runId=${encodeURIComponent(reportRunId ?? runId)}`} className="rounded-sm text-xs text-primary underline decoration-primary/40 underline-offset-4 transition-colors hover:decoration-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-            {reportStatus === "done" ? "View persisted report" : reportStatus === "failed" ? "Report failed — details" : reportStatus === "not-requested" ? "View run results" : "View report status"}
-          </Link>
-        ) : null}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:ml-auto">
-          <p className="font-mono text-[11px] text-muted-foreground">
-            <span className="text-foreground">{total}</span> events
-          </p>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs sm:ml-auto">
+          {status !== "ended" ? (
+            <p role="status" className={`mr-1 flex items-center gap-2 font-mono text-[11px] ${st.text}`}>
+              <span className={`size-1.5 rounded-full ${st.dot}`} aria-hidden="true" />
+              {st.label}
+            </p>
+          ) : null}
+          <RunDetails status={status} mode={mode} wealthVisibility={wealthVisibility} isMock={isMock} reportStatus={reportStatus} reportRunId={reportRunId} />
           <button
             type="button"
             onClick={onHelp}
@@ -119,10 +142,6 @@ export function TopBar({
             <kbd className="inline-flex size-4 items-center justify-center rounded-[3px] border border-border-strong font-mono text-[10px] text-foreground">?</kbd>
             Guide
           </button>
-          <p role="status" className={`flex items-center gap-2 font-mono text-[11px] ${st.text}`}>
-            <span className={`size-1.5 rounded-full ${st.dot}`} aria-hidden="true" />
-            {st.label}
-          </p>
         </div>
       </div>
       {/* A finished run replays in the village; its live-position strip would show the end state and
@@ -141,17 +160,5 @@ export function TopBar({
         </>
       ) : null}
     </header>
-  );
-}
-
-export function BlindBanner() {
-  return (
-    <div role="note" className="border-b border-accent/25 bg-accent/[0.05]">
-      <p className="mx-auto max-w-[1600px] px-4 py-1.5 text-xs text-muted-foreground sm:px-6">
-        <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-accent">Blind</span>
-        <span className="mx-2 text-subtle-foreground" aria-hidden="true">/</span>
-        Labels hidden. Metrics use true companies.
-      </p>
-    </div>
   );
 }
