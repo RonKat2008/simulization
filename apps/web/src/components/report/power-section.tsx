@@ -1,11 +1,13 @@
 import type { Condition, PowerStructure } from '@simulization/shared';
 import { Section } from './section';
+import { Term } from './term';
+import type { ReactNode } from 'react';
 import { COMPANY_VAR, pct } from './format';
 import type { ReportData } from './types';
 
 const CONDITIONS: Condition[] = ['LABELED', 'BLIND'];
 
-function Stat({ label, value, note }: { label: string; value: string; note: string }) {
+function Stat({ label, value, note }: { label: ReactNode; value: string; note: string }) {
   return (
     <div className="rounded-md border bg-background p-2.5">
       <dt className="text-xs text-muted-foreground">{label}</dt>
@@ -25,10 +27,10 @@ function RunCard({ p, runId }: { p: PowerStructure; runId: string }) {
     <div className="flex flex-col gap-4">
       <p className="text-xs text-muted-foreground">Run {runId}</p>
       <dl className="grid gap-3 sm:grid-cols-2">
-        <Stat label="Wealth Gini" value={p.wealthGini.toFixed(2)} note="0 = equal scores, 1 = one agent owns it all" />
-        <Stat label="Degree centralization" value={p.degreeCentralization.toFixed(2)} note="0 = flat network, 1 = single hub" />
+        <Stat label={<Term k="gini">Wealth Gini</Term>} value={p.wealthGini.toFixed(2)} note="0 = equal scores, 1 = one agent owns it all" />
+        <Stat label={<Term k="centralization">Degree centralization</Term>} value={p.degreeCentralization.toFixed(2)} note="0 = flat network, 1 = single hub" />
         <Stat
-          label="Largest coalition"
+          label={<Term k="coalition">Largest coalition</Term>}
           value={c.size === 0 ? 'none' : `${c.size} agents`}
           note={c.size === 0 ? 'no coalition formed' : `${pct(c.share)} of all agents`}
         />
@@ -39,7 +41,7 @@ function RunCard({ p, runId }: { p: PowerStructure; runId: string }) {
         />
       </dl>
       <div>
-        <h4 className="mb-2 text-xs text-muted-foreground">Top brokers (distinct pact, coalition and trade partners)</h4>
+        <h4 className="mb-2 text-xs text-muted-foreground"><Term k="broker">Top brokers</Term> (distinct pact, coalition and trade partners)</h4>
         {p.brokers.length === 0 ? (
           <p className="text-sm text-muted-foreground">no ties formed</p>
         ) : (

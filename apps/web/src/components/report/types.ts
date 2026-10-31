@@ -42,6 +42,50 @@ export interface ReportReview {
   limitations: string[];
 }
 
+/** One group's tone under each judge, resolved to a real company. All numbers come from code (crossJudge.ts). */
+export interface JudgeGroupRow {
+  /** Anonymized label the judges saw, e.g. "Group 2". */
+  group: string;
+  /** Real company name for display, or the group label when the map has no entry. */
+  company: string;
+  companyId: string | null;
+  primaryClaims: number;
+  primaryNegative: number;
+  /** Share of claims, 0 to 1; meaningful only when claims > 0. */
+  primaryShare: number;
+  crossClaims: number;
+  crossNegative: number;
+  crossShare: number;
+  /** cross minus primary, share points (0 to 1 scale). */
+  diff: number;
+}
+
+export interface JudgeCheckOk {
+  status: 'ok';
+  runId: string;
+  condition: Condition;
+  primaryModel: string;
+  crossModel: string;
+  /** Company name sharing each judge's family (with its anonymized label), or null when no contestant shares it. */
+  primaryHome: string | null;
+  crossHome: string | null;
+  rows: JudgeGroupRow[];
+  citations: { primary: number; cross: number; shared: number; onlyPrimary: number; onlyCross: number; jaccard: number };
+  crossClaimCount: number;
+  droppedClaims: number;
+  method: string;
+}
+
+export interface JudgeCheckFailed {
+  status: 'failed';
+  runId: string;
+  condition: Condition;
+  crossModel: string;
+  error: string;
+}
+
+export type JudgeCheck = JudgeCheckOk | JudgeCheckFailed;
+
 export interface ConditionReport {
   condition: Condition;
   runs: number;
@@ -108,4 +152,6 @@ export interface ReportData {
   labelEffect: LabelEffect;
   conditions: Partial<Record<Condition, ConditionReport>>;
   review: ReportReview;
+  /** Cross-judge comparisons for the runs shown; empty when none was generated (never fabricated). */
+  judgeChecks: JudgeCheck[];
 }

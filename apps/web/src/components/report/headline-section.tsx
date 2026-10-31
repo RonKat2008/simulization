@@ -2,6 +2,8 @@ import type { ConditionSummary } from '@simulization/shared';
 import { effectRows, evidenceLevel, signedNum } from './effect';
 import { pct } from './format';
 import { Section } from './section';
+import { Term } from './term';
+import type { GlossaryKey } from './glossary';
 import type { ConditionReport, Frac, ReportData } from './types';
 
 const HEADLINE_KEYS = ['alliance', 'dm', 'deception-outGroup', 'theft-outGroup'];
@@ -11,6 +13,8 @@ const CAVEAT_STYLE = {
   thin: 'border-border text-foreground',
   ok: 'border-border text-muted-foreground',
 } as const;
+
+const CARD_TERM: Record<string, GlossaryKey> = { alliance: 'alliance', dm: 'dm', 'deception-outGroup': 'deception', 'theft-outGroup': 'theft' };
 
 const spread = (c: ConditionSummary) => {
   if (c.mean === null) return 'no data';
@@ -45,15 +49,15 @@ function CooperationHeadline({ data }: { data: ReportData }) {
   return (
     <div className="grid gap-px overflow-hidden rounded-md border bg-border md:grid-cols-2">
       <article className="flex min-w-0 flex-col gap-3 bg-surface p-3 sm:p-4">
-        <h3 className="text-xs text-muted-foreground">In-group favoritism in cooperation, two layers</h3>
+        <h3 className="text-xs text-muted-foreground"><Term k="favoritism">In-group favoritism</Term> in cooperation, two layers</h3>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="flex min-w-0 flex-col gap-1">
-            <h4 className="text-[11px] uppercase tracking-wider text-muted-foreground">1 · Style-recognition bias</h4>
+            <h4 className="text-[11px] uppercase tracking-wider text-muted-foreground">1 · <Term k="styleBias">Style-recognition bias</Term></h4>
             <p className="font-display text-3xl leading-none tabular-nums">{style}</p>
             <p className="text-[11px] text-muted-foreground">BLIND favoritism vs 0 · {nText(le.blind)}</p>
           </div>
           <div className="flex min-w-0 flex-col gap-1">
-            <h4 className="text-[11px] uppercase tracking-wider text-muted-foreground">2 · Label (social) bias</h4>
+            <h4 className="text-[11px] uppercase tracking-wider text-muted-foreground">2 · <Term k="labelBias">Label (social) bias</Term></h4>
             <p className="font-display text-3xl leading-none tabular-nums">{effect}</p>
             <p className="text-[11px] text-muted-foreground">LABELED − BLIND favoritism</p>
           </div>
@@ -79,7 +83,7 @@ function CooperationHeadline({ data }: { data: ReportData }) {
         </p>
       </article>
       <article className="flex min-w-0 flex-col gap-2 bg-surface p-3 sm:p-4">
-        <h3 className="text-xs text-muted-foreground">Ethicality</h3>
+        <h3 className="text-xs text-muted-foreground"><Term k="ethicality">Ethicality</Term></h3>
         <p className="font-display text-3xl leading-none tabular-nums sm:text-4xl">
           <span className="text-primary">{L?.ethicality.pooled.overall.rate == null ? '–' : pct(L.ethicality.pooled.overall.rate)}</span>
           <span className="px-2 text-muted-foreground">/</span>
@@ -120,7 +124,7 @@ export function HeadlineSection({ data }: { data: ReportData }) {
       <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-md border bg-border lg:grid-cols-4">
         {cards.map((r) => (
           <div key={r.key} className="flex flex-col gap-1.5 bg-surface p-3 sm:p-4">
-            <dt className="text-xs text-muted-foreground">{r.label}</dt>
+            <dt className="text-xs text-muted-foreground">{CARD_TERM[r.key] ? <Term k={CARD_TERM[r.key]!}>{r.label}</Term> : r.label}</dt>
             <dd className="font-display text-2xl tabular-nums leading-none sm:text-3xl">{r.delta}</dd>
             <dd className="flex flex-col gap-0.5 text-[11px] leading-snug text-muted-foreground tabular-nums">
               <span><span className="text-primary">L</span> {r.labeled}</span>

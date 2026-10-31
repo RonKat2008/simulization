@@ -40,7 +40,7 @@ export function RateChart({ title, caption, rows, reference }: RateChartProps) {
 
       <div className="h-48 w-full" aria-hidden="true">
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-          <BarChart data={rows} margin={{ top: 16, right: 6, bottom: 0, left: 0 }} barGap={3}>
+          <BarChart data={rows} margin={{ top: 16, right: reference ? 64 : 6, bottom: 0, left: 0 }} barGap={3}>
             <defs>
               <pattern id={hatch} width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
                 <rect width="6" height="6" fill={BLIND_FILL} />
@@ -55,7 +55,7 @@ export function RateChart({ title, caption, rows, reference }: RateChartProps) {
                 y={reference.value}
                 stroke="var(--foreground)"
                 strokeDasharray="4 4"
-                label={{ value: reference.label, position: 'insideTopRight', fill: 'var(--foreground)', fontSize: 10 }}
+                label={{ value: reference.label, position: 'right', fill: 'var(--foreground)', fontSize: 10, offset: 6 }}
               />
             )}
             <Bar dataKey="LABELED" fill={LABELED_FILL} radius={[2, 2, 0, 0]} isAnimationActive={false} minPointSize={1}>

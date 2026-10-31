@@ -17,6 +17,8 @@ import {
 import labeledRun from '@simulization/shared/mock/mock-run.labeled.json';
 import blindRun from '@simulization/shared/mock/mock-run.blind.json';
 import { buildSampleClaims } from './sample-claims';
+import { relabelForDisplay } from '@/mastra/anonymize';
+import { buildJudgeChecks } from './judge-check';
 import { toEvidence, type AgentLookup } from './summarize';
 import { loadNeonReport, type NeonReport } from './neon';
 import type { ConditionReport, EthicalitySplit, Frac, ReportClaim, ReportData, ReportReview, RunCooperation, RunEthicality, RunGroup } from './types';
@@ -160,17 +162,24 @@ function reviewClaimsFor(run: LoadedRun, claims: Review['claims']): ReportClaim[
   });
 }
 
-function realReview(runs: LoadedRun[], reviews: NeonReport['reviews']): ReportReview {
+function realReview(runs: LoadedRun[], reviews: NeonReport['reviews'], extras: NeonReport['extras']): ReportReview {
+  // Stored reviews use the anonymized labels the judge saw ("Group 2"); map them back with each run's own groupMap.
+  const show = (runId: string, text: string) => {
+    const map = extras.get(runId)?.groupMap;
+    return map ? relabelForDisplay(text, map) : text;
+  };
   const reviewed = runs.filter((r) => reviews.has(r.id));
-  const single = reviewed.length === 1 ? reviews.get(reviewed[0]!.id)! : undefined;
+  const single = reviewed.length === 1 ? { ...reviews.get(reviewed[0]!.id)!, summary: show(reviewed[0]!.id, reviews.get(reviewed[0]!.id)!.summary) } : undefined;
   const summary =
     single?.summary ??
     `Opus reviews for ${reviewed.length} of ${runs.length} runs, shown together. Runs without a stored review contribute no claims.`;
-  const limitations = [...new Set(reviewed.flatMap((r) => reviews.get(r.id)!.limitations))];
+  const limitations = [...new Set(reviewed.flatMap((r) => reviews.get(r.id)!.limitations.map((l) => show(r.id, l))))];
   return {
     isSample: false,
-    summary: reviewed.length > 1 ? `${summary}\n\n${reviewed.map((r) => reviews.get(r.id)!.summary).join('\n\n')}` : summary,
-    claims: reviewed.flatMap((r) => reviewClaimsFor(r, reviews.get(r.id)!.claims)),
+    summary: reviewed.length > 1 ? `${summary}\n\n${reviewed.map((r) => show(r.id, reviews.get(r.id)!.summary)).join('\n\n')}` : summary,
+    claims: reviewed.flatMap((r) =>
+      reviewClaimsFor(r, reviews.get(r.id)!.claims.map((c) => ({ ...c, text: show(r.id, c.text) }))),
+    ),
     limitations,
   };
 }
@@ -216,7 +225,7 @@ function defaultGroup(groups: RunGroup[]): RunGroup {
   return live.filter((g) => g.wealthVisibility === visibility).sort((a, b) => Number(b.mode === LIVE_MODE) - Number(a.mode === LIVE_MODE) || b.labeledRuns + b.blindRuns - (a.labeledRuns + a.blindRuns))[0]!;
 }
 
-function assemble(source: ReportData['source'], allRuns: LoadedRun[], review: (runs: LoadedRun[]) => ReportReview, requested?: string): ReportData {
+function assemble(source: ReportData['source'], allRuns: LoadedRun[], review: (runs: LoadedRun[]) => ReportReview, requested?: string, judge: (runs: LoadedRun[]) => ReportData['judgeChecks'] = () => []): ReportData {
   const groups = groupsOf(allRuns, source);
   const group = groups.find((g) => g.key === requested) ?? defaultGroup(groups);
   const runs = allRuns.filter((r) => groupKey(r) === group.key);
@@ -227,7 +236,7 @@ function assemble(source: ReportData['source'], allRuns: LoadedRun[], review: (r
   }
   const values = (c: ConditionReport | undefined) => (c?.cooperation ?? []).map((x) => ({ runId: x.runId, value: x.favoritism }));
   const labelEffect = labelEffectFromValues(values(conditions.LABELED), values(conditions.BLIND));
-  return { source, group, groups, labelEffect, conditions, review: review(runs) };
+  return { source, group, groups, labelEffect, conditions, review: review(runs), judgeChecks: judge(runs) };
 }
 
 function mockReport(): ReportData {
@@ -251,8 +260,8 @@ export async function loadReportData(groupKeyParam?: string): Promise<ReportData
     const neon = await loadNeonReport();
     if (neon && neon.runs.length > 0) {
       const review = (runs: LoadedRun[]) =>
-        runs.some((r) => neon.reviews.has(r.id)) ? realReview(runs, neon.reviews) : sampleReview(runs);
-      return assemble('neon', neon.runs, review, groupKeyParam);
+        runs.some((r) => neon.reviews.has(r.id)) ? realReview(runs, neon.reviews, neon.extras) : sampleReview(runs);
+      return assemble('neon', neon.runs, review, groupKeyParam, (runs) => buildJudgeChecks(runs, neon.extras));
     }
     if (neon) console.error('[report] Neon has no completed runs. Showing mock data.');
   } catch (err) {
