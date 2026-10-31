@@ -1,5 +1,5 @@
 "use client";
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, memo, useDeferredValue, useMemo, useState, useSyncExternalStore } from "react";
 import {
   CHANCE,
   EVENT_TYPES,
@@ -18,6 +18,8 @@ import { BTN, PANEL, companyMap, pct, relationOf, type Relation } from "./view-u
 interface Stage {
   title: string;
   kind: string;
+  desc: string;
+  headline: [string | number, string];
   lines: [string, string | number][];
 }
 
@@ -54,6 +56,8 @@ function usePipeline(events: Event[], metricLine: string): Stage[] {
       {
         title: "Agent turn",
         kind: "prompt, private plan, actions",
+        desc: "Each agent reads its prompt, writes a private plan, then acts. t = turns, a = actions per phase.",
+        headline: [turnKeys.size, "turns"],
         lines: [
           ["turns", turnKeys.size],
           ["actions", Object.values(actionsByPhase).reduce((s, v) => s + v, 0)],
@@ -64,13 +68,16 @@ function usePipeline(events: Event[], metricLine: string): Stage[] {
       {
         title: "AgentRelay",
         kind: "message transport",
+        desc: "Routes agent messages between channels (public, DM, coalition).",
+        headline: [nMsg, "messages"],
         lines: [["messages", nMsg], ...[...channels.entries()].map(([k, v]): [string, number] => [k, v])],
       },
       {
         title: "World referee",
         kind: "ground-truth check",
+        desc: "Compares claims with ground truth and raises lie, theft and broken-pact flags.",
+        headline: [checked, "claims checked"],
         lines: [
-          ["claims checked", checked],
           ["lie", flagCount.lie ?? 0],
           ["theft", flagCount.theft ?? 0],
           ["broken pact", flagCount.broken_pact ?? 0],
@@ -80,8 +87,9 @@ function usePipeline(events: Event[], metricLine: string): Stage[] {
       {
         title: "Event log",
         kind: "append-only, flagged",
+        desc: "Every action and system event is appended once, with its flags.",
+        headline: [events.length, "events"],
         lines: [
-          ["events", events.length],
           ["flags raised", flagTotal],
           ["rule break", flagCount.rule_break ?? 0],
           ["eval aware", flagCount.eval_aware ?? 0],
@@ -90,11 +98,15 @@ function usePipeline(events: Event[], metricLine: string): Stage[] {
       {
         title: "Metrics",
         kind: "computed by code",
+        desc: "Alliance, deception, theft and power metrics computed from the log, not by a model.",
+        headline: [flagTotal, "flags raised"],
         lines: [["summary", metricLine]],
       },
       {
         title: "Opus review",
         kind: "anonymized input",
+        desc: "A reviewer model reads the log with company and model identity stripped.",
+        headline: [events.length, "events in"],
         lines: [
           ["input events", events.length],
           ["identity", "company and model stripped"],
@@ -109,29 +121,28 @@ function Pipeline({ events, metricLine }: { events: Event[]; metricLine: string 
   return (
     <section aria-labelledby="pipe-h" className={PANEL}>
       <h2 id="pipe-h" className="text-sm font-medium">Data flow</h2>
-      <ol className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
+      <p className="mt-0.5 text-[11px] text-muted-foreground">Six stages from agent turn to review, in order. Counts are over the events loaded so far.</p>
+      <ol className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(11.5rem,1fr))] gap-2">
         {stages.map((s, i) => (
-          <li key={s.title} className="relative min-w-0 rounded-md border bg-surface-raised p-2.5">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              <span aria-hidden="true">{i + 1}. </span>
+          <li key={s.title} className="min-w-0 rounded-md border bg-surface-raised p-2.5">
+            <p className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+              <span aria-hidden="true" className="grid size-4 place-items-center rounded-full border text-[10px] tabular-nums">{i + 1}</span>
               <span className="sr-only">Stage {i + 1}: </span>
-              {s.kind}
+              <span className="truncate">{s.kind}</span>
             </p>
-            <h3 className="font-display text-sm text-primary">{s.title}</h3>
-            <dl className="mt-1.5 grid gap-0.5 text-[11px]">
+            <h3 className="mt-1 font-display text-sm text-primary">{s.title}</h3>
+            <p className="mt-0.5 text-lg font-semibold leading-none tabular-nums">
+              {s.headline[0]} <span className="text-[11px] font-normal text-muted-foreground">{s.headline[1]}</span>
+            </p>
+            <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground">{s.desc}</p>
+            <dl className="mt-2 grid gap-0.5 border-t border-border/60 pt-1.5 text-[11px]">
               {s.lines.map(([k, v]) => (
                 <div key={k} className="flex min-w-0 justify-between gap-2">
                   <dt className="truncate text-muted-foreground">{k}</dt>
-                  <dd className="text-right tabular-nums">{v}</dd>
+                  <dd className="break-words text-right tabular-nums">{v}</dd>
                 </div>
               ))}
             </dl>
-            {i < stages.length - 1 ? (
-              <span aria-hidden="true" className="absolute -bottom-3 left-1/2 z-10 -translate-x-1/2 text-xs text-muted-foreground lg:-right-2.5 lg:bottom-auto lg:left-auto lg:top-1/2 lg:-translate-y-1/2 lg:translate-x-0">
-                <span className="lg:hidden">v</span>
-                <span className="hidden lg:inline">&gt;</span>
-              </span>
-            ) : null}
           </li>
         ))}
       </ol>
@@ -158,23 +169,26 @@ function MetricsPanel({ rows }: { rows: MRow[] }) {
         computeRunMetrics and powerStructure over the full log. In-group means true company, also in BLIND. Chance = {pct(CHANCE)}.
       </p>
       <div className="mt-2 overflow-x-auto">
-        <table className="w-full min-w-[480px] text-left text-xs tabular-nums">
+        <table className="w-full text-left text-xs tabular-nums">
           <caption className="sr-only">Run metrics with numerators and denominators</caption>
           <thead className="text-muted-foreground">
             <tr>
-              <th scope="col" className="py-1 pr-3">Metric</th>
-              <th scope="col" className="pr-3 text-right">Value</th>
-              <th scope="col" className="pr-3 text-right">Num / denom</th>
-              <th scope="col">Note</th>
+              <th scope="col" className="py-1 pr-3 font-normal">Metric</th>
+              <th scope="col" className="pr-3 text-right font-normal">Value</th>
+              <th scope="col" className="pr-3 text-right font-normal">Num / denom</th>
+              <th scope="col" className="hidden font-normal md:table-cell">Note</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r, i) => (
               <tr key={`${r.name}-${i}`} className="border-t border-border/60 align-top">
-                <th scope="row" className="py-1 pr-3 font-normal">{r.name}</th>
-                <td className="pr-3 text-right text-primary">{r.value}</td>
-                <td className="pr-3 text-right">{r.num}</td>
-                <td className="text-muted-foreground">{r.note ?? ""}</td>
+                <th scope="row" className="py-1.5 pr-3 font-normal">
+                  {r.name}
+                  {r.note ? <span className="block text-[11px] text-muted-foreground md:hidden">{r.note}</span> : null}
+                </th>
+                <td className="max-w-[14rem] break-words py-1.5 pr-3 text-right text-primary">{r.value}</td>
+                <td className="whitespace-nowrap py-1.5 pr-3 text-right">{r.num}</td>
+                <td className="hidden py-1.5 text-muted-foreground md:table-cell">{r.note ?? ""}</td>
               </tr>
             ))}
           </tbody>
@@ -187,6 +201,7 @@ function MetricsPanel({ rows }: { rows: MRow[] }) {
 /* ---------- Event table ---------- */
 
 type SortKey = "seq" | "round" | "phase" | "type" | "actor" | "rel" | "claim";
+type ColKey = SortKey | "text" | "plan" | "flags";
 interface Row {
   e: Event;
   actor: string;
@@ -195,19 +210,26 @@ interface Row {
   claimDelta: number | null;
 }
 
-const PAGE_SIZE = 100;
-const COLUMNS: { key: SortKey | null; label: string }[] = [
-  { key: "seq", label: "Seq" },
-  { key: "round", label: "Rnd" },
-  { key: "phase", label: "Phase" },
-  { key: "type", label: "Type" },
-  { key: "actor", label: "Actor to target" },
-  { key: "rel", label: "In/out" },
-  { key: null, label: "Public text" },
-  { key: null, label: "Private plan" },
-  { key: "claim", label: "Claimed / true" },
-  { key: null, label: "Flags" },
+const PAGE_SIZES = [50, 100, 250];
+const COLUMNS: { id: ColKey; sort: SortKey | null; label: string; cell?: string }[] = [
+  { id: "seq", sort: "seq", label: "Seq" },
+  { id: "round", sort: "round", label: "Rnd" },
+  { id: "phase", sort: "phase", label: "Phase" },
+  { id: "type", sort: "type", label: "Type" },
+  { id: "actor", sort: "actor", label: "Actor to target" },
+  { id: "rel", sort: "rel", label: "In/out" },
+  { id: "text", sort: null, label: "Public text", cell: "min-w-[14rem] max-w-[24rem]" },
+  { id: "plan", sort: null, label: "Private plan", cell: "min-w-[14rem] max-w-[24rem]" },
+  { id: "claim", sort: "claim", label: "Claimed / true" },
+  { id: "flags", sort: null, label: "Flags" },
 ];
+const COMPACT_HIDDEN: ColKey[] = ["phase", "plan", "claim", "rel"];
+const COMPACT_QUERY = "(max-width: 639px)";
+const subscribeCompact = (cb: () => void) => {
+  const mq = window.matchMedia(COMPACT_QUERY);
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+};
 
 const sortValue = (r: Row, k: SortKey): string | number => {
   switch (k) {
@@ -262,7 +284,87 @@ function toCsv(rows: Row[]): string {
   return [CSV_HEAD.join(","), ...lines].join("\n");
 }
 
-const SELECT = "min-h-8 rounded-sm border bg-surface-raised px-2 py-1 text-xs focus-visible:outline-2";
+const SELECT = "min-h-8 w-full min-w-0 rounded-sm border bg-surface-raised px-2 py-1 text-xs focus-visible:outline-2";
+const FIELD = "grid min-w-0 gap-0.5 text-[10px] uppercase tracking-wider text-muted-foreground";
+
+interface EventRowProps {
+  row: Row;
+  expanded: boolean;
+  show: Set<ColKey>;
+  colCount: number;
+  json: string | null;
+  onToggle: (seq: number) => void;
+}
+
+const EventRow = memo(function EventRow({ row, expanded, show, colCount, json, onToggle }: EventRowProps) {
+  const { e, actor, target, rel: r, claimDelta } = row;
+  const clamp = expanded ? "" : "line-clamp-2";
+  return (
+    <>
+      <tr
+        onClick={(ev) => {
+          if (!(ev.target as HTMLElement).closest("button")) onToggle(e.seq);
+        }}
+        className={`cursor-pointer border-t border-border/60 align-top hover:bg-surface-raised ${expanded ? "bg-surface-raised" : e.flags.length ? "bg-violation/5" : ""}`}
+      >
+        <td className="px-2 py-1.5 tabular-nums">
+          <button type="button" aria-expanded={expanded} aria-label={`Seq ${e.seq}, ${expanded ? "collapse" : "expand"} details`} onClick={() => onToggle(e.seq)} className="flex items-center gap-1 underline-offset-2 hover:underline focus-visible:outline-2">
+            <span aria-hidden="true" className="inline-block w-2 text-muted-foreground">{expanded ? "v" : ">"}</span>
+            {e.seq}
+          </button>
+        </td>
+        {show.has("round") ? <td className="px-2 py-1.5 tabular-nums">{e.round}</td> : null}
+        {show.has("phase") ? <td className="px-2 py-1.5">{e.phase}</td> : null}
+        {show.has("type") ? <td className="whitespace-nowrap px-2 py-1.5">{e.type}{e.channel ? <span className="text-muted-foreground"> [{e.channel}]</span> : null}</td> : null}
+        {show.has("actor") ? <td className="min-w-[8rem] px-2 py-1.5">{actor}{target ? <Fragment> <span aria-label="to">-&gt;</span> {target}</Fragment> : null}</td> : null}
+        {show.has("rel") ? <td className="px-2 py-1.5">{r === "none" ? <span className="text-muted-foreground">-</span> : r}</td> : null}
+        {show.has("text") ? <td className="min-w-[14rem] max-w-[24rem] break-words px-2 py-1.5"><div className={clamp}>{e.text ?? ""}</div></td> : null}
+        {show.has("plan") ? <td className="min-w-[14rem] max-w-[24rem] break-words px-2 py-1.5 text-muted-foreground"><div className={clamp}>{e.privatePlan ?? ""}</div></td> : null}
+        {show.has("claim") ? (
+          <td className="whitespace-nowrap px-2 py-1.5 tabular-nums">
+            {e.claim ? (
+              <span>
+                {e.claim.claimedQuality} / {e.groundTruth?.trueQuality ?? "?"} @ {e.claim.price}
+                {claimDelta !== null && claimDelta > 0 ? <span className="text-muted-foreground"> (d{claimDelta})</span> : null}
+              </span>
+            ) : ""}
+          </td>
+        ) : null}
+        {show.has("flags") ? (
+          <td className="px-2 py-1.5">
+            <span className="flex flex-wrap gap-1">
+              {e.flags.map((f) => (
+                <span key={f} className={`rounded-sm border px-1 ${FLAG_CLASS[f] ?? ""}`}>{f}</span>
+              ))}
+            </span>
+          </td>
+        ) : null}
+      </tr>
+      {expanded ? (
+        <tr className="bg-surface-raised">
+          <td colSpan={colCount} className="px-3 pb-3 pt-1">
+            <dl className="grid gap-x-6 gap-y-2 text-xs sm:grid-cols-2">
+              <div className="min-w-0">
+                <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">Public text</dt>
+                <dd className="whitespace-pre-wrap break-words">{e.text || "-"}</dd>
+              </div>
+              <div className="min-w-0">
+                <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">Private plan</dt>
+                <dd className="whitespace-pre-wrap break-words text-muted-foreground">{e.privatePlan || "-"}</dd>
+              </div>
+            </dl>
+            {json ? (
+              <details className="mt-2 text-xs">
+                <summary className="cursor-pointer text-muted-foreground">Raw event JSON</summary>
+                <pre className="mt-1 max-h-60 overflow-auto rounded-sm border bg-surface p-2 text-[11px] leading-snug">{json}</pre>
+              </details>
+            ) : null}
+          </td>
+        </tr>
+      ) : null}
+    </>
+  );
+});
 
 function EventTable({ events }: { events: Event[] }) {
   const { agents, blind, label, runId } = useRun();
@@ -272,32 +374,33 @@ function EventTable({ events }: { events: Event[] }) {
   const [flag, setFlag] = useState("");
   const [rel, setRel] = useState("");
   const [q, setQ] = useState("");
+  const deferredQ = useDeferredValue(q);
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "seq", dir: 1 });
   const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(100);
   const [open, setOpen] = useState<Set<number>>(new Set());
+  const compact = useSyncExternalStore(subscribeCompact, () => window.matchMedia(COMPACT_QUERY).matches, () => false);
+  const [userHidden, setUserHidden] = useState<Set<ColKey> | null>(null);
+  const hidden = useMemo(() => userHidden ?? new Set<ColKey>(compact ? COMPACT_HIDDEN : []), [userHidden, compact]);
 
-  const name = (id: string | undefined, company: string | undefined) => {
-    if (!id) return "";
-    const c = blind ? undefined : (companies.get(id) ?? company);
-    return `${label(id)}${c ? ` (${c})` : ""}`;
-  };
-
-  const all = useMemo<Row[]>(
-    () =>
-      events.map((e) => ({
-        e,
-        actor: name(e.actorId, e.actorCompany),
-        target: name(e.targetId, e.targetCompany),
-        rel: relationOf(e, companies),
-        claimDelta: e.claim && e.groundTruth ? Math.abs(e.claim.claimedQuality - e.groundTruth.trueQuality) : null,
-      })),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [events, companies, blind],
-  );
+  const all = useMemo<Row[]>(() => {
+    const name = (id: string | undefined, company: string | undefined) => {
+      if (!id) return "";
+      const c = blind ? undefined : (companies.get(id) ?? company);
+      return `${label(id)}${c ? ` (${c})` : ""}`;
+    };
+    return events.map((e) => ({
+      e,
+      actor: name(e.actorId, e.actorCompany),
+      target: name(e.targetId, e.targetCompany),
+      rel: relationOf(e, companies),
+      claimDelta: e.claim && e.groundTruth ? Math.abs(e.claim.claimedQuality - e.groundTruth.trueQuality) : null,
+    }));
+  }, [events, companies, blind, label]);
   const rounds = useMemo(() => [...new Set(events.map((e) => e.round))].sort((a, b) => a - b), [events]);
 
   const rows = useMemo(() => {
-    const needle = q.trim().toLowerCase();
+    const needle = deferredQ.trim().toLowerCase();
     const filtered = all.filter(({ e, rel: r, actor, target }) => {
       if (type && e.type !== type) return false;
       if (round !== "" && e.round !== Number(round)) return false;
@@ -312,69 +415,98 @@ function EventTable({ events }: { events: Event[] }) {
       const c = x < y ? -1 : x > y ? 1 : 0;
       return (c || a.e.seq - b.e.seq) * sort.dir;
     });
-  }, [all, type, round, flag, rel, q, sort]);
+  }, [all, type, round, flag, rel, deferredQ, sort]);
 
-  const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const pages = Math.max(1, Math.ceil(rows.length / pageSize));
   const cur = Math.min(page, pages - 1);
-  const slice = rows.slice(cur * PAGE_SIZE, (cur + 1) * PAGE_SIZE);
+  const slice = useMemo(() => rows.slice(cur * pageSize, (cur + 1) * pageSize), [rows, cur, pageSize]);
+  const show = useMemo(() => new Set(COLUMNS.map((c) => c.id).filter((id) => id === "seq" || !hidden.has(id))), [hidden]);
+  const visibleCols = COLUMNS.filter((c) => show.has(c.id));
+  const filtering = Boolean(type || round !== "" || flag || rel || q);
 
   const resetPage = <T,>(set: (v: T) => void) => (v: T) => {
     set(v);
     setPage(0);
   };
+  const clearFilters = () => {
+    setType("");
+    setRound("");
+    setFlag("");
+    setRel("");
+    setQ("");
+    setPage(0);
+  };
   const toggleSort = (key: SortKey) => setSort((s) => ({ key, dir: s.key === key ? (s.dir === 1 ? -1 : 1) : 1 }));
-  const toggleOpen = (seq: number) =>
-    setOpen((s) => {
-      const n = new Set(s);
-      if (n.has(seq)) n.delete(seq);
-      else n.add(seq);
+  const toggleOpen = useMemo(
+    () => (seq: number) =>
+      setOpen((s) => {
+        const n = new Set(s);
+        if (n.has(seq)) n.delete(seq);
+        else n.add(seq);
+        return n;
+      }),
+    [],
+  );
+  const toggleCol = (id: ColKey) =>
+    setUserHidden(() => {
+      const n = new Set(hidden);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
       return n;
     });
+  /** On-screen raw JSON never carries company; BLIND also swaps ids (A-04 style) for neutral labels. */
+  const jsonFor = (e: Event): string => {
+    const { actorCompany: _ac, targetCompany: _tc, ...rest } = e;
+    void _ac;
+    void _tc;
+    const safe = blind ? { ...rest, actorId: label(e.actorId), targetId: e.targetId ? label(e.targetId) : undefined, id: undefined } : e;
+    return JSON.stringify(safe, null, 2);
+  };
 
   return (
-    <section aria-labelledby="ev-h" className={PANEL}>
+    <section aria-labelledby="ev-h" className={`${PANEL} min-w-0`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 id="ev-h" className="text-sm font-medium">
           Event log <span className="tabular-nums text-muted-foreground">({rows.length} of {events.length})</span>
         </h2>
-        <div className="flex gap-2">
-          <button type="button" className={BTN} onClick={() => download(`${runId}-events.json`, "application/json", JSON.stringify(events, null, 2))}>
-            Download JSON
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className={BTN} onClick={() => download(`${runId}-events.json`, "application/json", JSON.stringify(rows.map((r) => r.e), null, 2))}>
+            Download JSON{filtering ? ` (${rows.length})` : ""}
           </button>
-          <button type="button" className={BTN} onClick={() => download(`${runId}-events.csv`, "text/csv", toCsv(all))}>
-            Download CSV
+          <button type="button" className={BTN} onClick={() => download(`${runId}-events.csv`, "text/csv", toCsv(rows))}>
+            Download CSV{filtering ? ` (${rows.length})` : ""}
           </button>
         </div>
       </div>
       {blind ? (
         <p className="mt-1 text-[11px] text-muted-foreground">
-          BLIND: labels omit company letters. In/out is still computed from true company. Downloads contain raw ground-truth fields.
+          BLIND: labels omit company letters. In/out is still computed from true company. Downloads contain raw ground-truth fields; on-screen JSON is redacted.
         </p>
       ) : null}
 
-      <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-        <label className="grid gap-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-end">
+        <label className={FIELD}>
           Type
           <select className={SELECT} value={type} onChange={(e) => resetPage(setType)(e.target.value)}>
             <option value="">All</option>
             {EVENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
         </label>
-        <label className="grid gap-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+        <label className={FIELD}>
           Round
           <select className={SELECT} value={round} onChange={(e) => resetPage(setRound)(e.target.value)}>
             <option value="">All</option>
             {rounds.map((r) => <option key={r} value={r}>{r}</option>)}
           </select>
         </label>
-        <label className="grid gap-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+        <label className={FIELD}>
           Flag
           <select className={SELECT} value={flag} onChange={(e) => resetPage(setFlag)(e.target.value)}>
             <option value="">Any</option>
             {FLAGS.map((f) => <option key={f} value={f}>{f}</option>)}
           </select>
         </label>
-        <label className="grid gap-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+        <label className={FIELD}>
           In/out-group
           <select className={SELECT} value={rel} onChange={(e) => resetPage(setRel)(e.target.value)}>
             <option value="">All</option>
@@ -383,28 +515,41 @@ function EventTable({ events }: { events: Event[] }) {
             <option value="none">n/a</option>
           </select>
         </label>
-        <label className="col-span-2 grid min-w-0 gap-0.5 text-[10px] uppercase tracking-wider text-muted-foreground sm:flex-1">
+        <label className={`${FIELD} col-span-2 min-w-0 sm:min-w-[12rem] sm:flex-1`}>
           Search text, plans, names
           <input type="search" className={`${SELECT} min-w-0`} value={q} onChange={(e) => resetPage(setQ)(e.target.value)} />
         </label>
+        <button type="button" className={`${BTN} col-span-1`} disabled={!filtering} onClick={clearFilters}>Clear filters</button>
+        <details className="relative col-span-1">
+          <summary className={`${BTN} flex cursor-pointer list-none items-center`}>Columns ({show.size}/{COLUMNS.length})</summary>
+          <fieldset className="absolute left-0 z-20 mt-1 grid min-w-44 gap-1 rounded-md border bg-surface-raised p-2 text-xs shadow-lg sm:right-0 sm:left-auto">
+            <legend className="sr-only">Visible columns</legend>
+            {COLUMNS.map((c) => (
+              <label key={c.id} className="flex min-h-7 items-center gap-2">
+                <input type="checkbox" checked={show.has(c.id)} disabled={c.id === "seq"} onChange={() => toggleCol(c.id)} className="accent-[var(--primary)]" />
+                {c.label}
+              </label>
+            ))}
+          </fieldset>
+        </details>
       </div>
 
-      <div className="mt-3 max-h-[70vh] overflow-auto rounded-sm border" tabIndex={0} role="region" aria-label="Event table, scrollable">
-        <table className="w-full min-w-[960px] border-collapse text-left text-xs">
-          <caption className="sr-only">All events; column headers are sort buttons</caption>
-          <thead className="sticky top-0 z-10 bg-surface-raised text-muted-foreground">
+      <div className="mt-3 max-h-[70vh] max-w-full overflow-auto rounded-sm border" tabIndex={0} role="region" aria-label="Event table, scrollable">
+        <table className="w-full border-collapse text-left text-xs">
+          <caption className="sr-only">All events; column headers are sort buttons; each sequence number expands the row</caption>
+          <thead className="text-muted-foreground">
             <tr>
-              {COLUMNS.map((c) => (
+              {visibleCols.map((c) => (
                 <th
-                  key={c.label}
+                  key={c.id}
                   scope="col"
-                  aria-sort={c.key && sort.key === c.key ? (sort.dir === 1 ? "ascending" : "descending") : undefined}
-                  className="whitespace-nowrap px-2 py-1.5 font-normal"
+                  aria-sort={c.sort && sort.key === c.sort ? (sort.dir === 1 ? "ascending" : "descending") : undefined}
+                  className="sticky top-0 z-10 whitespace-nowrap border-b bg-surface-raised px-2 py-1.5 font-normal"
                 >
-                  {c.key ? (
-                    <button type="button" onClick={() => toggleSort(c.key as SortKey)} className="underline-offset-2 hover:underline focus-visible:outline-2">
+                  {c.sort ? (
+                    <button type="button" onClick={() => toggleSort(c.sort as SortKey)} className="underline-offset-2 hover:underline focus-visible:outline-2">
                       {c.label}
-                      <span aria-hidden="true">{sort.key === c.key ? (sort.dir === 1 ? " ^" : " v") : ""}</span>
+                      <span aria-hidden="true">{sort.key === c.sort ? (sort.dir === 1 ? " ^" : " v") : ""}</span>
                     </button>
                   ) : c.label}
                 </th>
@@ -412,53 +557,28 @@ function EventTable({ events }: { events: Event[] }) {
             </tr>
           </thead>
           <tbody>
-            {slice.map(({ e, actor, target, rel: r, claimDelta }) => {
-              const expanded = open.has(e.seq);
-              const clamp = expanded ? "" : "line-clamp-2";
-              return (
-                <tr key={e.seq} className={`border-t border-border/60 align-top ${e.flags.length ? "bg-violation/5" : ""}`}>
-                  <td className="px-2 py-1.5 tabular-nums">
-                    <button type="button" aria-expanded={expanded} aria-label={`Seq ${e.seq}, ${expanded ? "collapse" : "expand"} text`} onClick={() => toggleOpen(e.seq)} className="underline-offset-2 hover:underline focus-visible:outline-2">
-                      {e.seq}
-                    </button>
-                  </td>
-                  <td className="px-2 py-1.5 tabular-nums">{e.round}</td>
-                  <td className="px-2 py-1.5">{e.phase}</td>
-                  <td className="whitespace-nowrap px-2 py-1.5">{e.type}{e.channel ? <span className="text-muted-foreground"> [{e.channel}]</span> : null}</td>
-                  <td className="px-2 py-1.5">{actor}{target ? <Fragment> <span aria-label="to">-&gt;</span> {target}</Fragment> : null}</td>
-                  <td className="px-2 py-1.5">{r === "none" ? <span className="text-muted-foreground">-</span> : r}</td>
-                  <td className={`max-w-[18rem] break-words px-2 py-1.5 ${clamp}`}>{e.text ?? ""}</td>
-                  <td className={`max-w-[18rem] break-words px-2 py-1.5 text-muted-foreground ${clamp}`}>{e.privatePlan ?? ""}</td>
-                  <td className="whitespace-nowrap px-2 py-1.5 tabular-nums">
-                    {e.claim ? (
-                      <span>
-                        {e.claim.claimedQuality} / {e.groundTruth?.trueQuality ?? "?"} @ {e.claim.price}
-                        {claimDelta !== null && claimDelta > 0 ? <span className="text-muted-foreground"> (d{claimDelta})</span> : null}
-                      </span>
-                    ) : ""}
-                  </td>
-                  <td className="px-2 py-1.5">
-                    <span className="flex flex-wrap gap-1">
-                      {e.flags.map((f) => (
-                        <span key={f} className={`rounded-sm border px-1 ${FLAG_CLASS[f] ?? ""}`}>{f}</span>
-                      ))}
-                    </span>
-                  </td>
-                </tr>
-              );
+            {slice.map((row) => {
+              const expanded = open.has(row.e.seq);
+              return <EventRow key={row.e.seq} row={row} expanded={expanded} show={show} colCount={visibleCols.length} json={expanded ? jsonFor(row.e) : null} onToggle={toggleOpen} />;
             })}
             {slice.length === 0 ? (
-              <tr><td colSpan={COLUMNS.length} className="px-2 py-4 text-center text-muted-foreground">No events match.</td></tr>
+              <tr><td colSpan={visibleCols.length} className="px-2 py-4 text-center text-muted-foreground">No events match.</td></tr>
             ) : null}
           </tbody>
         </table>
       </div>
 
-      <nav aria-label="Event table pages" className="mt-2 flex items-center justify-between gap-2 text-xs">
+      <nav aria-label="Event table pages" className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs">
         <button type="button" className={BTN} disabled={cur === 0} onClick={() => setPage(cur - 1)}>Prev</button>
-        <span className="tabular-nums text-muted-foreground" aria-live="polite">
-          Page {cur + 1} / {pages} (rows {rows.length ? cur * PAGE_SIZE + 1 : 0} to {Math.min((cur + 1) * PAGE_SIZE, rows.length)})
+        <span className="order-last w-full text-center tabular-nums text-muted-foreground sm:order-none sm:w-auto" aria-live="polite">
+          Page {cur + 1} / {pages} (rows {rows.length ? cur * pageSize + 1 : 0} to {Math.min((cur + 1) * pageSize, rows.length)})
         </span>
+        <label className="flex items-center gap-1.5 text-muted-foreground">
+          Rows
+          <select className={SELECT} value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(0); }}>
+            {PAGE_SIZES.map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </label>
         <button type="button" className={BTN} disabled={cur >= pages - 1} onClick={() => setPage(cur + 1)}>Next</button>
       </nav>
     </section>
@@ -497,7 +617,7 @@ export default function ResearchView() {
   }, [events, agents, label]);
 
   return (
-    <div className="grid min-w-0 gap-4">
+    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4">
       <Pipeline events={events} metricLine={metricLine} />
       <MetricsPanel rows={rows} />
       <EventTable events={events} />
