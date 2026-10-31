@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
+import { ReportProgress } from '@/components/report/report-progress';
 import { ChartsSection } from '@/components/report/charts-section';
 import { ClaimsSection } from '@/components/report/claims-section';
 import { CompanyTable } from '@/components/report/company-table';
@@ -9,8 +11,8 @@ import { SummaryTable } from '@/components/report/summary-table';
 import { loadReportData } from '@/components/report/data';
 import { SiteHeader } from '@/components/landing/site-header';
 
-/** ISR: serve a cached render and refresh from Neon at most every 30s. */
-export const revalidate = 30;
+/** Per-run reports and explicit stratum selections always read current persisted data. */
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = { title: 'Report | Simulization' };
 
@@ -24,8 +26,11 @@ const NAV = [
   ['method-title', 'Method'],
 ] as const;
 
-export default async function ReportPage() {
-  const data = await loadReportData();
+export default async function ReportPage({searchParams}:{searchParams:Promise<Record<string,string|string[]|undefined>>}) {
+  const query=await searchParams;
+  const param=(key:string)=>typeof query[key]==='string'?query[key] as string:undefined;
+  const data = await loadReportData({runId:param('runId'),wealthVisibility:param('wealth_visibility'),mode:param('mode'),mock:param('mock')==='1'});
+  const ready=!data.state||data.state==='ready';
   const isMock = data.source === 'mock';
   const nL = data.conditions.LABELED?.runs ?? 0;
   const nB = data.conditions.BLIND?.runs ?? 0;
@@ -37,17 +42,26 @@ export default async function ReportPage() {
         <header className="border-b">
           <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-8 sm:px-6 sm:py-10 lg:px-8 print:py-4">
             <h1 className="font-display text-2xl font-semibold leading-tight text-balance sm:text-3xl">
-              Does the company label change agent behavior?
+              {data.selection?.runId ? 'Run report' : 'Does the company label change agent behavior?'}
             </h1>
             <p className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
               <span
                 className={`rounded-sm border px-1.5 py-0.5 ${isMock ? 'border-dashed border-accent/60 text-accent' : 'text-foreground'}`}
               >
-                {isMock ? 'Mock data (scripted stubs)' : 'Data: Neon, completed runs'}
+                {isMock ? 'Mock data (scripted stubs)' : 'Data: Neon'}
               </span>
               <span className="tabular-nums">{nL} LABELED, {nB} BLIND runs</span>
-              <span>18 agents, 3 companies, 6 rounds</span>
+              {data.selection && <span>Wealth: {data.selection.wealthVisibility} · Mode: {data.selection.mode}</span>}
             </p>
+            {data.selection?.runId && <Link className="break-all text-sm underline underline-offset-4" href={`/run/${encodeURIComponent(data.selection.runId)}`}>Run {data.selection.runId} · open replay</Link>}
+            {!data.selection?.runId && <div className="flex flex-wrap gap-4 text-xs">
+              <Link className="underline" href="/report?wealth_visibility=private&mode=live-model-relay">Private · live</Link>
+              <Link className="underline" href="/report?wealth_visibility=public&mode=live-model-relay">Public · live</Link>
+              <Link className="underline" href="/report?wealth_visibility=private&mode=deterministic-stub">Private · stub</Link>
+              <Link className="underline" href="/report?wealth_visibility=public&mode=deterministic-stub">Public · stub</Link>
+              <Link className="underline" href="/report?mock=1">Offline fixtures</Link>
+            </div>}
+            {data.selection?.runId && (data.pendingReview || data.state==='pending' || data.state==='empty') && <ReportProgress runId={data.selection.runId} />}
             <nav aria-label="Report sections" className="print:hidden">
               <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                 {NAV.map(([id, label]) => (
@@ -57,6 +71,8 @@ export default async function ReportPage() {
             </nav>
           </div>
         </header>
+        {!ready && <section role="status" className="mx-auto max-w-6xl px-4 py-10 sm:px-6"><h2 className="font-display text-xl">{data.state==='error'?'Report unavailable':data.state==='failed'?'Run did not complete':data.state==='pending'?'Run in progress':'No report yet'}</h2><p className="mt-3 text-sm text-muted-foreground">{data.message}</p><Link className="mt-4 inline-block text-sm underline" href="/launch">Back to runs</Link></section>}
+        {ready && <>
         <HeadlineSection data={data} />
         <SummaryTable data={data} />
         <ChartsSection data={data} />
@@ -64,6 +80,7 @@ export default async function ReportPage() {
         <PowerSection data={data} />
         <ClaimsSection review={data.review} />
         <MethodologySection data={data} />
+        </>}
       </main>
     </>
   );

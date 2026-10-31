@@ -192,7 +192,7 @@ export function EventFeed({ followLatest, status }: { followLatest: boolean; sta
                 status === "offline" ? (
                   <p>No events received. The sim is unreachable; retrying.</p>
                 ) : (
-                  <p>{status === "ended" ? "This run has no events." : "Waiting for the first event. The run is starting, so this can take a minute."}</p>
+                  <p>{status === "failed" ? "This run failed or stopped before any events were committed." : status === "ended" ? "This run has no events." : "Waiting for the first event. The run is starting, so this can take a minute."}</p>
                 )
               ) : (
                 <>

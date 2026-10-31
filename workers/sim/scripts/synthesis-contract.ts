@@ -27,3 +27,8 @@ for(const run of runs){
 }
 assert.deepEqual(saved,result);
 console.log('PASS synthesis contract: eight condition × visibility × mode strata, labeled reviewer inputs and saved result; injected reviewer, no paid calls');
+
+const hierarchyPath='../../../apps/web/src/mastra/hierarchy';
+const {wealthVisibilityOf}=await import(hierarchyPath);
+assert.equal(wealthVisibilityOf({}),'private');
+assert.equal(wealthVisibilityOf({wealth_visibility:'invalid'}),'unrecorded');

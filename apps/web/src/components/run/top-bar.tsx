@@ -9,6 +9,8 @@ import type { RunStatus } from "./use-run-source";
 const STATUS_STYLE: Record<RunStatus, { label: string; dot: string; text: string }> = {
   connecting: { label: "connecting", dot: "bg-muted-foreground animate-pulse", text: "text-muted-foreground" },
   live: { label: "live", dot: "bg-lab-c animate-pulse motion-reduce:animate-none", text: "text-lab-c" },
+  draining: { label: "receiving final events", dot: "bg-muted-foreground animate-pulse", text: "text-muted-foreground" },
+  failed: { label: "failed / stopped", dot: "bg-violation", text: "text-violation" },
   ended: { label: "ended", dot: "bg-muted-foreground", text: "text-muted-foreground" },
   offline: { label: "sim unreachable, retrying", dot: "bg-violation", text: "text-violation" },
 };
@@ -25,11 +27,17 @@ export function TopBar({
   round,
   phase,
   mode,
+  wealthVisibility,
+  isMock,
+  reportStatus,
 }: {
   status: RunStatus;
   round: number | null;
   phase: Phase | null;
   mode: string | null;
+  wealthVisibility: "private" | "public" | null;
+  isMock: boolean;
+  reportStatus: string | null;
 }) {
   const { runId, condition, blind } = useRun();
   const total = useEventStore((s) => s.events.length);
@@ -62,6 +70,12 @@ export function TopBar({
           <span className={`text-xs ${modeInfo.warn ? "text-violation" : "text-muted-foreground"}`}>{modeInfo.text}</span>
         ) : null}
 
+        {wealthVisibility ? <span className="text-xs text-muted-foreground">{wealthVisibility} wealth</span> : null}
+        {status === "ended" && !isMock ? (
+          <Link href={`/report?runId=${encodeURIComponent(runId)}`} className="text-xs text-primary underline underline-offset-4">
+            {reportStatus === "done" ? "View persisted report" : reportStatus === "failed" ? "Report failed — details" : reportStatus === "not-requested" ? "View run results" : "View report status"}
+          </Link>
+        ) : null}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:ml-auto">
           <p className="tabular-nums text-muted-foreground">
             <span className="text-foreground">{total}</span> events

@@ -41,6 +41,12 @@ export async function createRun(body:unknown,requestedId?:string|null){
   await invoke(runId,'startRun',[runId,b.seed,b.condition,mode,agentCount,wealth_visibility]);
   return {runId};
 }
+async function initializingStatus(id:string):Promise<any|null>{
+  let timer:ReturnType<typeof setTimeout>|undefined;
+  try{return await Promise.race([invoke(id,'status'),new Promise<never>((_,reject)=>{timer=setTimeout(()=>reject(new Error('Actor busy')),750);})]);}
+  catch{return null;}
+  finally{if(timer!==undefined)clearTimeout(timer);}
+}
 export async function runStatus(id:string){
   validId(id);
   // Reading the committed projection never queues behind a serialized actor's model calls.
@@ -51,12 +57,15 @@ export async function runStatus(id:string){
       const row=rows[0]!;
       const agents=await sql`SELECT agent_id AS id,name,company FROM agents WHERE run_id=${id} ORDER BY agent_id`;
       const config=row.config as Record<string,unknown>;
+      if(config?.mode==='initializing-live'){const current=await initializingStatus(id);if(current)return current;}
       const reportStatus=await reportDeliveryStatus(row.status,config?.mode,Boolean(row.review_id),()=>createActorTransport(actorOptions()).invoke('ReportJob',id,'status',[]));
       return {id:row.id,condition:row.condition,seed:row.seed,status:row.status,round:row.current_round,phase:row.current_phase,finalScores:row.final_scores,agents,mode:config?.mode,wealth_visibility:config?.wealth_visibility??'private',seq:config?.projectedSeq,projection:'synced',reportStatus,source:'neon'};
     }
     const runs=await createActorTransport(actorOptions()).invoke('RunDirectory','main','list',[]) as {runId:string;condition:string;mode:string;wealth_visibility?:string}[];
     const pending=runs.find(r=>r.runId===id);
     if(!pending)throw new ApiError(404,'Run not found');
+    const initializing=await initializingStatus(id);
+    if(initializing)return initializing;
     return {id,condition:pending.condition,wealth_visibility:pending.wealth_visibility??'private',status:'running',round:1,phase:'negotiate',mode:pending.mode==='live'?'initializing-live':'deterministic-stub',seq:0,agents:[],projection:'pending',reportStatus:'not-requested'};
   }
   return invoke(id,'status');

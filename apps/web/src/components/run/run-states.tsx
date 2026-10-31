@@ -12,7 +12,7 @@ export function ErrorPanel({ message }: { message: string }) {
         <Link href="/run/mock" className="rounded-md border border-primary/50 px-3 py-1.5 text-primary transition-colors hover:bg-primary hover:text-primary-foreground">
           Open the mock replay
         </Link>
-        <Link href="/" className="rounded-md border px-3 py-1.5 text-muted-foreground transition-colors hover:border-accent/50 hover:text-accent">
+        <Link href="/launch" className="rounded-md border px-3 py-1.5 text-muted-foreground transition-colors hover:border-accent/50 hover:text-accent">
           Launch a run
         </Link>
       </div>

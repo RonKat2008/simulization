@@ -143,7 +143,7 @@ export function PastRuns({ refreshKey = 0 }: { refreshKey?: number }) {
                       viewer
                     </Link>
                     <span className="mx-2 text-muted-foreground" aria-hidden="true">/</span>
-                    <Link href="/report" className={LINK}>
+                    <Link href={`/report?runId=${encodeURIComponent(run.id)}`} className={LINK}>
                       report
                     </Link>
                   </td>

@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { OptionGroup, type Option } from "./option-group";
 import {
@@ -9,6 +9,7 @@ import {
   parseSeed,
   type Condition,
   type WealthVisibility,
+  type CreateRunBody,
 } from "./schemas";
 import { startRun } from "./start-run";
 
@@ -38,6 +39,16 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
   const [seed, setSeed] = useState(String(DEFAULT_SEED));
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   const pending = phase.kind === "pending";
+  // Preserve identity after an uncertain response so retry cannot buy a second live run.
+  const pendingRequests = useRef(new Map<string, string>());
+  async function startOnce(body: CreateRunBody) {
+    const key = JSON.stringify(body);
+    const requestId = pendingRequests.current.get(key) ?? crypto.randomUUID();
+    pendingRequests.current.set(key, requestId);
+    const result = await startRun(body, requestId);
+    // Retain successful halves too: retrying a partially failed pair must reuse its first run.
+    return result;
+  }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -48,7 +59,7 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
       return;
     }
     setPhase({ kind: "pending", what: "single" });
-    const result = await startRun({ condition, seed: parsedSeed.value, wealth_visibility: wealth });
+    const result = await startOnce({ condition, seed: parsedSeed.value, wealth_visibility: wealth });
     if (!result.ok) {
       setPhase({ kind: "error", message: result.message });
       return;
@@ -66,13 +77,13 @@ export function LaunchForm({ onStarted }: { onStarted?: () => void }) {
     }
     setPhase({ kind: "pending", what: "pair" });
     const base = { seed: parsedSeed.value, wealth_visibility: wealth };
-    const labeled = await startRun({ ...base, condition: "LABELED" });
+    const labeled = await startOnce({ ...base, condition: "LABELED" });
     if (!labeled.ok) {
       setPhase({ kind: "error", message: `LABELED run failed, BLIND was not started. ${labeled.message}` });
       return;
     }
     onStarted?.();
-    const blind = await startRun({ ...base, condition: "BLIND" });
+    const blind = await startOnce({ ...base, condition: "BLIND" });
     onStarted?.();
     setPhase({
       kind: "pair",

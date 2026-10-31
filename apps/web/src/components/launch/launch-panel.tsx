@@ -28,7 +28,7 @@ export function LaunchPanel() {
             <Link href="/run/mock-blind" className={LINK}>Mock run (blind)</Link>
           </li>
           <li>
-            <Link href="/report" className={LINK}>Report card</Link>
+            <Link href="/report?mock=1" className={LINK}>Report card</Link>
           </li>
         </ul>
       </section>

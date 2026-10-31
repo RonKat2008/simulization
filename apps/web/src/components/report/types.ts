@@ -58,6 +58,10 @@ export interface ConditionReport {
 
 export interface ReportData {
   source: ReportSource;
+  state?: 'ready' | 'pending' | 'failed' | 'empty' | 'error';
+  message?: string;
+  selection?: { runId?: string; wealthVisibility: string; mode: string };
+  pendingReview?: boolean;
   conditions: Partial<Record<Condition, ConditionReport>>;
   review: ReportReview;
 }

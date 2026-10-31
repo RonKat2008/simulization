@@ -450,7 +450,8 @@ export function crossRunHierarchy(runs: CrossRunInput[], excludedRuns: CrossRunH
  */
 export function wealthVisibilityOf(config: unknown): WealthVisibility {
   const value = (config as { wealth_visibility?: unknown } | null)?.wealth_visibility;
-  return value === 'public' || value === 'private' ? value : 'unrecorded';
+  // Runs predating this setting used the engine's private default. Invalid explicit values stay separate.
+  return value === undefined ? 'private' : value === 'public' || value === 'private' ? value : 'unrecorded';
 }
 
 export function runModeOf(config: unknown): string {

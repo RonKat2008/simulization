@@ -24,6 +24,7 @@ const isTyping = (t: EventTarget | null) => {
 export function RunViewer({ id }: { id: string }) {
   const meta = useRunSource(id);
   const events = useEventStore((s) => s.events);
+  const storeRunId = useEventStore((s) => s.runId);
   const [view, setView] = useView();
 
   const agents = useMemo(() => mergeAgents(meta.roster, events), [events, meta.roster]);
@@ -60,12 +61,14 @@ export function RunViewer({ id }: { id: string }) {
   const round = meta.round ?? last?.round ?? null;
   const phase: Phase | null = meta.phase ?? last?.phase ?? null;
 
+  if (storeRunId !== id) return <p role="status" className="p-6 text-sm text-muted-foreground">Loading run...</p>;
+
   if (meta.error && events.length === 0) return <ErrorPanel message={meta.error} />;
 
   return (
     <RunProvider value={ctx}>
       <div className="flex min-h-dvh flex-col">
-        <TopBar status={meta.status} round={round} phase={phase} mode={meta.mode} />
+        <TopBar status={meta.status} round={round} phase={phase} mode={meta.mode} wealthVisibility={meta.wealthVisibility} isMock={meta.isMock} reportStatus={meta.reportStatus} />
         {ctx.blind ? <BlindBanner /> : null}
         {meta.status === "offline" ? <OfflineStrip eventCount={events.length} /> : null}
         <main className="mx-auto flex w-full max-w-[1600px] min-w-0 flex-1 flex-col gap-3 px-4 py-3 sm:px-6">
@@ -76,7 +79,7 @@ export function RunViewer({ id }: { id: string }) {
               <div role="tabpanel" id={panelId(view)} aria-labelledby={tabId(view)} tabIndex={0} className="min-w-0 max-w-full overflow-x-auto outline-none focus-visible:ring-1 focus-visible:ring-primary">
                 {view === "game" ? (
                   <div className="overflow-hidden rounded-lg border bg-surface">
-                    <VillageCanvas agents={canvasAgents} />
+                    <VillageCanvas key={id} agents={canvasAgents} />
                   </div>
                 ) : view === "data" ? (
                   <DataView />

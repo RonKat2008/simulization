@@ -24,6 +24,9 @@ export interface LoadedRun {
   agents: { id: string; name: string; company: string }[];
   events: Event[];
   finalScores: Record<string, number>;
+  config?: { wealth_visibility?: string; mode?: string };
+  status?: string;
+  storedMetrics?: RunMetrics & { byCompany?: Record<string, RunMetrics> };
 }
 
 const MockSchema = z.object({
@@ -41,8 +44,8 @@ const mean = (xs: number[]) => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.l
 
 function conditionReport(condition: Condition, runs: LoadedRun[]): ConditionReport {
   const perRun = runs.map((r) => ({
-    metrics: computeRunMetrics(r.events, r.agents),
-    byCompany: computeCompanyMetrics(r.events, r.agents),
+    metrics: r.storedMetrics ?? computeRunMetrics(r.events, r.agents),
+    byCompany: r.storedMetrics?.byCompany ?? computeCompanyMetrics(r.events, r.agents),
     run: r,
   }));
   const companies = [...new Set(runs.flatMap((r) => r.agents.map((a) => a.company)))].sort();
@@ -145,30 +148,35 @@ function mockReport(): ReportData {
   return assemble('mock', runs, sampleReview(runs));
 }
 
-/**
- * The single data seam for /report.
- *
- * With DATABASE_URL set: completed runs from Neon (see neon.ts), metrics recomputed here with the
- * shared functions, review = latest stored kind 'run' review per run (isSample false). If no run has
- * a stored review yet, claims are the flagged-event placeholders (isSample true) over the real events.
- * Falls back to the schema-validated mock for the whole report when DATABASE_URL is unset, the query
- * throws, or either condition has no completed run. Never throws.
- */
-export async function loadReportData(): Promise<ReportData> {
+export interface ReportOptions { runId?: string; wealthVisibility?: string; mode?: string; mock?: boolean; }
+const emptyReview: ReportReview = {isSample:false,summary:'No stored review is available.',claims:[],limitations:[]};
+export function selectReportRuns(runs: LoadedRun[], options: ReportOptions): LoadedRun[] {
+  if(options.runId) return runs.filter(r=>r.id===options.runId);
+  const latest=runs.at(-1);
+  const wealth=options.wealthVisibility ?? latest?.config?.wealth_visibility ?? 'private';
+  const mode=options.mode ?? latest?.config?.mode ?? 'unknown';
+  return runs.filter(r=>(r.config?.wealth_visibility??'private')===wealth&&(r.config?.mode??'unknown')===mode);
+}
+export function assembleNeonReport(neon: NeonReport, options: ReportOptions): ReportData {
+  const runs=selectReportRuns(neon.runs,options);
+  const first=runs[0];
+  const selection={runId:options.runId,wealthVisibility:first?.config?.wealth_visibility??options.wealthVisibility??'private',mode:first?.config?.mode??options.mode??'unknown'};
+  if(!runs.length)return {source:'neon',state:'empty',message:options.runId?'Run not found in the reporting database yet. Open the live viewer to check initialization.':'No completed runs match this report selection.',selection,conditions:{},review:emptyReview};
+  if(first?.status!=='done')return {source:'neon',state:first?.status==='failed'?'failed':'pending',message:first?.status==='failed'?'This run stopped before completion; no completed report is available.':'This run is still in progress. Its report will appear after completion.',selection,conditions:{},review:emptyReview};
+  const reviewed=runs.filter(r=>neon.reviews.has(r.id));
+  const pendingReview=reviewed.length<runs.length;
+  const review=realReview(runs,neon.reviews);
+  if(!reviewed.length)review.summary='Metrics are available. No persisted model review is available yet; review generation may be pending or failed. Check the run status for delivery details.';
+  return {...assemble('neon',runs,review),state:'ready',selection,pendingReview};
+}
+/** Explicit fixtures only; database errors never masquerade as a mock report. */
+export async function loadReportData(options: ReportOptions = {}): Promise<ReportData> {
+  if(options.mock)return mockReport();
   try {
-    const neon = await loadNeonReport();
-    if (neon) {
-      const has = (c: Condition) => neon.runs.some((r) => r.condition === c);
-      if (has('LABELED') && has('BLIND')) {
-        const review = neon.reviews.size > 0 ? realReview(neon.runs, neon.reviews) : sampleReview(neon.runs);
-        return assemble('neon', neon.runs, review);
-      }
-      console.error(
-        `[report] Neon has ${neon.runs.filter((r) => r.condition === 'LABELED').length} LABELED and ${neon.runs.filter((r) => r.condition === 'BLIND').length} BLIND completed runs; need both. Showing mock data.`,
-      );
-    }
-  } catch (err) {
-    console.error('[report] Neon read failed; showing mock data', err);
+    const neon=await loadNeonReport(options.runId);
+    if(!neon)return {source:'neon',state:'error',message:'Reporting database is not configured. Use the explicitly labeled fixture report for an offline preview.',conditions:{},review:emptyReview};
+    return assembleNeonReport(neon,options);
+  }catch{
+    return {source:'neon',state:'error',message:'The reporting database could not be read. Retry shortly; no fixture data has been substituted.',conditions:{},review:emptyReview};
   }
-  return mockReport();
 }
