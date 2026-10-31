@@ -8,7 +8,7 @@
 // - name labels with a dark backing that dodge each other,
 // - BLIND-safe colors/looks/positions, and prefers-reduced-motion (no walking, hops or arcs).
 import * as Phaser from "phaser";
-import { LANTERN_GOAL, type Event } from "@simulization/shared";
+import { LANTERN_GOAL, START_COINS, STEAL_AMOUNT, CAUGHT_PENALTY, COALITION_PAYOUT, LANTERN_BONUS, type Event } from "@simulization/shared";
 import { contiguousCursor } from "@/components/run/event-progress";
 import { useEventStore } from "@/store/eventStore";
 import { HEIGHT, SPOTS, WIDTH, homeSpot, jitter, type Spot } from "./spots";
@@ -30,7 +30,6 @@ const IDLE_MS = 250; // poll interval while waiting for live events
 const PHASE_CARD_MS = 1300; // pause on the "ROUND 2 · TRADE" card before the phase's first action
 const LIE_REVEAL_MS = 800; // claim shown alone, then the referee's verdict
 const BUBBLE_MS = 2600; // a bubble outlives its beat a little so the previous action stays readable (dimmed)
-const START_COINS = 10;
 const LABEL_DY = 17; // default name-label offset below the sprite's feet
 const LABEL_LAYOUT_MS = 100;
 const LABEL_DEPTH = 9000; // labels sit above every sprite (and arcs), below bubbles (10000+)
@@ -97,10 +96,13 @@ export function setSpeed(x: number) {
 }
 
 let seekTo = 0;
+let seekRunId: string | null = null;
 
 /** Jump to the start of round r: replay earlier rounds instantly, animate from r on. */
 export function seekRound(r: number) {
   seekTo = r;
+  narrate({ round: r, phase: "negotiate", sentence: `Replaying from round ${r}…`, icon: null, violation: false });
+  useEventStore.getState().setPlaybackSeq(0);
   current?.scene.restart();
 }
 
@@ -187,6 +189,10 @@ class VillageScene extends Phaser.Scene {
 
   create() {
     register(this);
+    const store = useEventStore.getState();
+    const activeRun = store.runId ?? store.events[0]?.runId ?? null;
+    if (activeRun !== seekRunId) seekTo = 0;
+    seekRunId = activeRun;
     setSpeed(speed); // survives scene restarts and remounts
     this.agents = new Map();
     this.tents = new Map();
@@ -205,7 +211,9 @@ class VillageScene extends Phaser.Scene {
     this.lastBubble = undefined;
     this.labelClock = 0;
     this.clock = 0;
-    narrate({ ...lastNarration, sentence: seekTo > 1 ? `Skipping ahead to round ${seekTo}…` : "Waiting for the market to open…", icon: null, violation: false });
+    narrate({ round: Math.max(1, seekTo), phase: "negotiate", sentence: seekTo > 1 ? `Ready to replay round ${seekTo}.` : "Ready to replay the first actions.", icon: null, violation: false });
+    useEventStore.getState().setPlaybackSeq(0);
+    this.game.canvas.dataset.playbackSeq = "0";
 
     this.drawMap();
     this.setNight(1);
@@ -221,7 +229,10 @@ class VillageScene extends Phaser.Scene {
     const onMotion = () => (this.reduced = prefersReducedMotion());
     motion?.addEventListener?.("change", onMotion);
 
-    const unsub = useEventStore.subscribe((s) => this.sync(s.events, s.selectedAgentId));
+    const unsub = useEventStore.subscribe((s, prev) => {
+      // Cursor updates come from this scene; do not feed them back into its ingestion loop.
+      if (s.events !== prev.events || s.selectedAgentId !== prev.selectedAgentId) this.sync(s.events, s.selectedAgentId);
+    });
     const s = useEventStore.getState();
     this.sync(s.events, s.selectedAgentId);
     const cleanup = () => {
@@ -269,6 +280,7 @@ class VillageScene extends Phaser.Scene {
     }
     if (events.length) this.runId = events[0].runId;
     const through = contiguousCursor(events);
+    let appliedSeq: number | undefined;
     for (const e of events) {
       if (e.seq > through) break;
       if (e.seq > this.lastSeq) {
@@ -283,8 +295,10 @@ class VillageScene extends Phaser.Scene {
         this.play(e);
         this.phaseKey = `${e.round}:${e.phase}`;
         this.instant = false;
+        appliedSeq = e.seq;
       }
     }
+    if (appliedSeq !== undefined) this.setPlaybackSeq(appliedSeq);
     this.game.canvas.dataset.acceptedSeq = String(this.lastSeq);
     this.game.canvas.dataset.reducedMotion = String(prefersReducedMotion());
     this.game.canvas.dataset.runId = this.runId ?? "";
@@ -304,10 +318,15 @@ class VillageScene extends Phaser.Scene {
       const e = this.pending.shift()!;
       const lead = this.enterPhase(e);
       if (lead > 0) {
-        this.time.delayedCall(lead, () => this.schedule(Math.max(50, this.play(e))));
+        this.time.delayedCall(lead, () => {
+          const ms = this.play(e);
+          this.setPlaybackSeq(e.seq);
+          this.schedule(Math.max(50, ms));
+        });
         return;
       }
       const ms = this.play(e);
+      this.setPlaybackSeq(e.seq);
       if (ms > 0) return this.schedule(ms);
     }
     this.schedule(IDLE_MS);
@@ -327,6 +346,11 @@ class VillageScene extends Phaser.Scene {
     return PHASE_CARD_MS;
   }
 
+  private setPlaybackSeq(seq: number) {
+    this.game.canvas.dataset.playbackSeq = String(seq);
+    useEventStore.getState().setPlaybackSeq(seq);
+  }
+
   // ---- event → visual ----------------------------------------------------------
 
   /** Applies the event's state + motion, shows its bubble/arc/banner. Returns how long to dwell (0 = nothing visible). */
@@ -335,6 +359,10 @@ class VillageScene extends Phaser.Scene {
     if (e.round !== this.round) this.setNight(e.round);
     const beat = describe(e, nameOf);
     if (e.actorId === "world") {
+      if (e.type === "system" && e.targetId) {
+        if (e.text === `Coalition reward: ${COALITION_PAYOUT} coins.`) this.addCoins(this.agent(e.targetId), COALITION_PAYOUT);
+        else if (e.text === `Lantern reward: ${LANTERN_BONUS} coins.`) this.addCoins(this.agent(e.targetId), LANTERN_BONUS);
+      }
       if (!beat || this.instant) return 0;
       this.setFocus(null, null);
       narrate({ round: e.round, phase: e.phase, sentence: beat.sentence, icon: null, violation: false });
@@ -405,11 +433,14 @@ class VillageScene extends Phaser.Scene {
         break;
       case "steal":
         if (!t) return 0;
-        this.addCoins(a, 4);
-        this.addCoins(t, -4);
+        // The engine caps theft by the target's balance and records the actual amount.
+        const stolen = /^Stole (\d+) coins\.$/.exec(e.text ?? "");
+        const amount = stolen ? Number(stolen[1]) : Math.min(STEAL_AMOUNT, t.coins);
+        this.addCoins(a, amount);
+        this.addCoins(t, -amount);
         this.enqueue(a, async () => {
           await this.walk(a, { x: t.c.x + 20, y: t.c.y });
-          this.float({ x: t.c.x, y: t.c.y - 40 }, "-4", "#e5484d");
+          this.float({ x: t.c.x, y: t.c.y - 40 }, `-${amount}`, "#e5484d");
           a.c.setAlpha(0.6);
           await this.wait(300);
           a.c.setAlpha(1);
@@ -417,7 +448,8 @@ class VillageScene extends Phaser.Scene {
         this.walkHome(a);
         break;
       case "caught":
-        this.addCoins(a, -6);
+        const fine = /^Fined (\d+) coins;/.exec(e.text ?? "");
+        this.addCoins(a, -(fine ? Number(fine[1]) : Math.min(CAUGHT_PENALTY, a.coins)));
         a.stockedRound = e.round;
         this.emote({ x: a.c.x, y: a.c.y - 70 }, EMOTE.exclamation, 2200);
         this.walkHome(a); // home is now the stocks
@@ -576,7 +608,7 @@ class VillageScene extends Phaser.Scene {
     this.updateLanterns();
   }
 
-  // ponytail: coins replayed from events only; coalition payouts + lantern bonus aren't events, so glow is approximate.
+  // Relative coin balance reconstructed from applied actions and recorded world payouts.
   private updateLanterns() {
     const max = Math.max(1, ...[...this.agents.values()].map((a) => a.coins));
     for (const a of this.agents.values()) {
@@ -789,6 +821,7 @@ class VillageScene extends Phaser.Scene {
 }
 
 export function createGame(parent: HTMLElement): Phaser.Game {
+  narrate({ round: 1, phase: "negotiate", sentence: "Waiting for the market to open…", icon: null, violation: false });
   const game = new Phaser.Game({
     type: Phaser.AUTO,
     parent,

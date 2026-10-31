@@ -16,7 +16,9 @@ const chip = (on: boolean, tone = "primary") =>
 
 export function FeedFilters() {
   const { agents, label } = useRun();
-  const events = useEventStore((s) => s.events);
+  const allEvents = useEventStore((s) => s.events);
+  const playbackSeq = useEventStore((s) => s.playbackSeq);
+  const events = useMemo(() => playbackSeq === null ? allEvents : allEvents.filter(e => e.seq <= playbackSeq), [allEvents, playbackSeq]);
   const typeFilter = useEventStore((s) => s.typeFilter);
   const flagFilter = useEventStore((s) => s.flagFilter);
   const agentFilter = useEventStore((s) => s.agentFilter);

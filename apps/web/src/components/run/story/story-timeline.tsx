@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { PHASES } from "@simulization/shared";
 import { PHASE_LABEL } from "@/game/narrate";
-import { KIND_LABEL, type Moment, type MomentKind } from "./moments";
+import { type Moment, type MomentKind } from "./moments";
 
 /** Shape + color per kind, so the track reads without color alone. Red stays reserved for violations. */
 const MARK: Record<MomentKind, string> = {
@@ -17,7 +17,6 @@ const MARK: Record<MomentKind, string> = {
   lantern: "size-3 rounded-full bg-foreground ring-2 ring-primary/50",
 };
 
-const LEGEND_ORDER: MomentKind[] = ["lie", "caught", "theft", "pact_break", "pact", "coalition", "lantern"];
 const LANE_PX = 9;
 const MAX_LANES = 3;
 const NEAR = 0.012; // markers closer than this (fraction of the track) stack instead of overlapping
@@ -45,18 +44,19 @@ interface Props {
 export function StoryTimeline({ moments, rounds, cell, ended, onSeek }: Props) {
   const [hover, setHover] = useState<Moment | null>(null);
   const [picked, setPicked] = useState<Moment | null>(null);
-  const shown = hover ?? picked;
+  const candidate = hover ?? picked;
+  const shown = candidate && moments.some(m => m.id === candidate.id) ? candidate : null;
   const lane = lanes(moments);
-  const kinds = LEGEND_ORDER.filter((k) => moments.some((m) => m.kind === k));
   const cells = rounds * PHASES.length;
   const position = ended
-    ? "Night over"
+    ? "Replay complete"
     : cell >= 0
-      ? `Now: Round ${Math.floor(cell / PHASES.length) + 1} · ${PHASE_LABEL[PHASES[cell % PHASES.length]!]}`
+      ? `Recorded through: Round ${Math.floor(cell / PHASES.length) + 1} · ${PHASE_LABEL[PHASES[cell % PHASES.length]!]}`
       : null;
 
   return (
-    <section aria-label="Timeline of the night" className="min-w-0">
+    <section aria-label="Agent-to-Agent Interactions" className="min-w-0">
+      <h3 className="pt-2 text-sm font-medium">Agent-to-Agent Interactions</h3>
       <div className="relative pt-8">
         {/* markers */}
         <ol className="absolute inset-x-0 top-0 h-8" aria-label="Key moments">
@@ -73,7 +73,7 @@ export function StoryTimeline({ moments, rounds, cell, ended, onSeek }: Props) {
                   setPicked(m);
                   onSeek(m.round);
                 }}
-                className="group -m-1.5 flex items-center justify-center rounded-sm p-1.5 focus-visible:outline-2 focus-visible:outline-primary"
+                className="group -m-1.5 flex min-h-6 min-w-6 items-center justify-center rounded-sm p-1.5 focus-visible:outline-2 focus-visible:outline-primary"
               >
                 <span aria-hidden className={`block transition-transform group-hover:scale-150 motion-reduce:transition-none ${MARK[m.kind]} ${shown?.id === m.id ? "scale-150" : ""}`} />
               </button>
@@ -110,7 +110,7 @@ export function StoryTimeline({ moments, rounds, cell, ended, onSeek }: Props) {
                 onClick={() => onSeek(r + 1)}
                 aria-current={current ? "step" : undefined}
                 aria-label={`Replay from round ${r + 1}`}
-                className={`flex-1 rounded-sm py-0.5 text-center text-[11px] tabular-nums transition-colors hover:bg-surface-raised hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary ${current ? "font-medium text-foreground" : "text-muted-foreground"}`}
+                className={`min-h-8 flex-1 rounded-sm py-0.5 text-center text-[11px] tabular-nums transition-colors hover:bg-surface-raised hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary ${current ? "font-medium text-foreground" : "text-muted-foreground"}`}
               >
                 <span className="sm:hidden">R{r + 1}</span>
                 <span className="hidden sm:inline">Round {r + 1}</span>
@@ -131,14 +131,8 @@ export function StoryTimeline({ moments, rounds, cell, ended, onSeek }: Props) {
         ) : (
           <ul className="flex flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground">
             {position ? <li className="font-medium text-foreground">{position}</li> : null}
-            {kinds.map((k) => (
-              <li key={k} className="flex items-center gap-1.5">
-                <span aria-hidden className={`block ${MARK[k]}`} />
-                {KIND_LABEL[k]}
-              </li>
-            ))}
-            {moments.length ? <li className="hidden text-subtle-foreground sm:block">· tap a mark to replay that round</li> : null}
-            {cells && !moments.length ? <li>No lies, thefts or pacts in this run.</li> : null}
+            {moments.length ? <li>{moments.length} recorded highlights</li> : null}
+            {cells && !moments.length ? <li>No flagged claims, thefts or pacts at this playback position.</li> : null}
           </ul>
         )}
       </div>

@@ -89,7 +89,10 @@ function parseRoster(raw: unknown): RunAgent[] | null {
     if (!r || typeof r !== "object") return [];
     const o = r as Record<string, unknown>;
     if (typeof o.id !== "string") return [];
-    return [{ id: o.id, name: typeof o.name === "string" && o.name ? o.name : o.id, company: typeof o.company === "string" ? o.company : "" }];
+    return [{ id: o.id, name: typeof o.name === "string" && o.name ? o.name : o.id, company: typeof o.company === "string" ? o.company : "",
+      ...(typeof o.provider === "string" && o.provider ? { provider: o.provider } : {}),
+      ...(typeof o.model === "string" && o.model ? { model: o.model } : {}),
+    }];
   });
   return out.length ? out : null;
 }

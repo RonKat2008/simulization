@@ -3,11 +3,12 @@ import Link from "next/link";
 import { useRun } from "./run-context";
 
 export const SHORTCUTS: [string, string][] = [
-  ["j / k", "next / previous event"],
   ["[ / ]", "step through merchants"],
-  ["/", "search the full log"],
-  ["p", "show what they were thinking"],
-  ["a / t", "select actor / target"],
+  ["Tab", "move between controls"],
+  ["Enter / Space", "open focused action details"],
+  ["/", "open and search the full-run log"],
+  ["j / k", "next / previous row in the full log"],
+  ["p", "expand the stated plan in the full log"],
   ["Esc", "deselect"],
   ["?", "show or hide this guide"],
 ];
@@ -50,7 +51,7 @@ export function RunLegend({ onClose }: { onClose: () => void }) {
         </div>
         <div className="grid gap-x-8 gap-y-2.5 text-xs leading-relaxed text-muted-foreground md:grid-cols-[1fr_1fr_1.4fr]">
           <p>
-            <span className="text-foreground">{merchants > 0 ? `${merchants} AI merchants` : "AI merchants"}</span> trade, pact and sometimes cheat.{" "}
+            <span className="text-foreground">{merchants > 0 ? `${merchants} AI merchants` : "AI merchants"}</span> trade, make agreements and compete.{" "}
             {condition ? (
               blind ? (
                 <>

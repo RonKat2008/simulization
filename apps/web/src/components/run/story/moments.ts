@@ -21,8 +21,8 @@ export interface Moment {
 const RANK: Record<MomentKind, number> = { caught: 7, theft: 6, pact_break: 5, lie: 4, lantern: 3, coalition: 2, pact: 1 };
 
 export const KIND_LABEL: Record<MomentKind, string> = {
-  lie: "Lie",
-  caught: "Thief caught",
+  lie: "False quality claim",
+  caught: "Theft detected",
   theft: "Theft",
   pact: "Pact formed",
   pact_break: "Pact broken",

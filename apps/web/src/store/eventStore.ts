@@ -7,6 +7,9 @@ interface EventState {
   runId: string | null;
   events: Event[];
   selectedAgentId: string | null;
+  /** Last event dispatched by the village; 0 = start, null = explicit latest/data view. */
+  playbackSeq: number | null;
+  setPlaybackSeq: (seq: number | null) => void;
   append: (incoming: Event[]) => void;
   load: (events: Event[]) => void;
   select: (id: string | null) => void;
@@ -48,8 +51,10 @@ export const useEventStore = create<EventState>((set) => ({
   runId: null,
   events: [],
   selectedAgentId: null,
+  playbackSeq: 0,
+  setPlaybackSeq: (seq) => set({ playbackSeq: seq }),
   append: (incoming) => set((s) => ({ events: mergeAppend(s.events, incoming) })),
-  load: (events) => set({ events: sortedUnique(events) }),
+  load: (events) => set({ events: sortedUnique(events), playbackSeq: 0 }),
   select: (id) => set({ selectedAgentId: id }),
   typeFilter: [],
   agentFilter: null,
@@ -62,5 +67,5 @@ export const useEventStore = create<EventState>((set) => ({
   query: "",
   setQuery: (q) => set({ query: q }),
   clearFilters: () => set({ ...NO_FILTERS, typeFilter: [], flagFilter: [] }),
-  reset: (runId = null) => set({ runId, events: [], selectedAgentId: null, ...NO_FILTERS, typeFilter: [], flagFilter: [] }),
+  reset: (runId = null) => set({ runId, events: [], selectedAgentId: null, playbackSeq: 0, ...NO_FILTERS, typeFilter: [], flagFilter: [] }),
 }));

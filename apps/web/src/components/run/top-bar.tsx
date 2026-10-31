@@ -126,7 +126,7 @@ export function TopBar({ status, round, phase, mode, wealthVisibility, labelMode
         {labelMode === "swapped" ? (
           <span title="Merchants saw company labels, but every other merchant's label was deliberately wrong (rotated)." className="inline-flex min-h-6 items-center gap-1.5 rounded-full border border-border-strong px-2.5 py-0.5 text-xs">
             <span className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-foreground">Swapped</span>
-            <span className="text-muted-foreground">labels shown are wrong</span>
+            <span className="text-muted-foreground">agents saw swapped labels</span>
           </span>
         ) : null}
         {monitoring === "unmonitored" ? (

@@ -1,95 +1,60 @@
 "use client";
-import { useMemo, type KeyboardEvent } from "react";
+import { useMemo } from "react";
 import { useEventStore } from "@/store/eventStore";
 import { useRun } from "./run-context";
-import { COMPANY_BG, computeAgentStats, emptyStats } from "./run-helpers";
-
-const COLS: { key: "messages" | "lies" | "thefts" | "caught" | "pactsBroken"; head: string; title: string; bad: boolean }[] = [
-  { key: "messages", head: "Msg", title: "Messages sent", bad: false },
-  { key: "lies", head: "Lies", title: "Lies told (ground truth)", bad: true },
-  { key: "thefts", head: "Theft", title: "Thefts attempted", bad: true },
-  { key: "caught", head: "Caught", title: "Times caught stealing", bad: true },
-  { key: "pactsBroken", head: "Broke", title: "Pacts broken", bad: true },
-];
+import { buildLeaderboardRows } from "./leaderboard-data";
+import { COMPANY_BG } from "./run-helpers";
 
 export function Roster({ finalScores }: { finalScores: Record<string, number> | null }) {
   const { agents, label, shownCompany } = useRun();
-  const events = useEventStore((s) => s.events);
-  const selected = useEventStore((s) => s.selectedAgentId);
-  const select = useEventStore((s) => s.select);
-  const stats = useMemo(() => computeAgentStats(events), [events]);
+  const events = useEventStore(s => s.events);
+  const seq = useEventStore(s => s.playbackSeq);
+  const selected = useEventStore(s => s.selectedAgentId);
+  const select = useEventStore(s => s.select);
+  const rows = useMemo(() => buildLeaderboardRows(agents, events, seq, finalScores), [agents, events, seq, finalScores]);
 
-  const onKeyDown = (ev: KeyboardEvent<HTMLTableSectionElement>) => {
-    if (ev.key !== "ArrowDown" && ev.key !== "ArrowUp") return;
-    const btns = [...ev.currentTarget.querySelectorAll<HTMLButtonElement>("button[data-agent]")];
-    const i = btns.indexOf(document.activeElement as HTMLButtonElement);
-    if (i < 0) return;
-    ev.preventDefault();
-    btns[Math.max(0, Math.min(btns.length - 1, i + (ev.key === "ArrowDown" ? 1 : -1)))]?.focus();
-  };
-
-  if (agents.length === 0) {
-    return (
-      <section aria-labelledby="roster-title" className="rounded-lg border bg-surface p-3">
-        <h2 id="roster-title" className="text-[13px] font-semibold tracking-[-0.01em]">Merchants</h2>
-        <p className="mt-2 text-sm text-muted-foreground">Roster appears once the run publishes its agents.</p>
-      </section>
-    );
-  }
-
-  return (
-    <section aria-labelledby="roster-title" className="min-w-0 overflow-hidden rounded-lg border bg-surface shadow-raised">
-      <div className="flex items-baseline justify-between border-b px-3 py-2">
-        <h2 id="roster-title" className="text-[13px] font-semibold tracking-[-0.01em]">Merchants</h2>
-        <span className="font-mono text-[11px] text-subtle-foreground">{agents.length}</span>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[22rem] border-collapse text-sm">
-          <caption className="sr-only">Per-merchant counts from the event log. Select a merchant to inspect it.</caption>
-          <thead>
-            <tr className="text-left font-mono text-[10.5px] uppercase tracking-[0.08em] text-subtle-foreground">
-              <th scope="col" className="px-3 py-1.5 font-normal">Merchant</th>
-              {COLS.map((c) => (
-                <th key={c.key} scope="col" title={c.title} className="px-2 py-1.5 text-right font-normal">
-                  {c.head}
-                </th>
-              ))}
-              <th scope="col" title="Final coins (set when the run ends)" className="px-3 py-1.5 text-right font-normal">
-                Score
+  return <section aria-label="Leaderboard" className="min-w-0">
+    <p className="border-b px-3 py-2 text-xs text-muted-foreground">
+      {seq === null ? "Full loaded run · all rounds" : "Through the current replay position"}
+    </p>
+    {rows.length === 0 ? <p className="p-4 text-sm text-muted-foreground">No agents recorded yet.</p> :
+      <div className="max-h-[65dvh] overflow-auto">
+        <table className="w-full table-fixed border-collapse text-sm">
+          <caption className="sr-only">Ranked by current coins, highest first. Equal balances share a rank. Select an agent to inspect their recorded activity.</caption>
+          <colgroup><col className="w-[38%]"/><col className="w-[16%]"/><col className="w-[24%]"/><col className="w-[22%]"/></colgroup>
+          <thead><tr className="text-left text-xs text-muted-foreground">
+            <th scope="col" className="px-3 py-3 font-normal">Agent</th>
+            <th scope="col" className="px-1 font-normal text-right" title="Current coin balance; separate from game score">Wealth<span className="block font-normal">(coins)</span></th>
+            <th scope="col" className="px-2 font-normal text-right" title="Engine-flagged false quality claims / all recorded offers">False claims</th>
+            <th scope="col" className="px-3 font-normal text-right" title="Recorded executed theft actions, caught or not. Rejected or unrecorded attempts are unavailable.">Theft attempts</th>
+          </tr></thead>
+          <tbody>{rows.map(({ agent, history, rank }) => {
+            const on = selected === agent.id, company = shownCompany(agent.id);
+            const toggle = () => select(on ? null : agent.id);
+            return <tr key={agent.id} onClick={toggle} className={`cursor-pointer border-t border-border/60 hover:bg-surface-raised ${on ? "bg-primary/10" : ""}`}>
+              <th scope="row" className="px-2 py-1 text-left font-normal">
+                <button data-agent data-agent-id={agent.id} type="button" aria-pressed={on}
+                  aria-label={`${on ? "Deselect" : "Select"} ${label(agent.id)}${company ? `, company ${company}` : ""}${rank !== null ? `, wealth rank ${rank}` : ""}`}
+                  onClick={event => { event.stopPropagation(); toggle(); }}
+                  className="flex min-h-10 w-full items-center gap-1.5 rounded-sm px-1 text-left focus-visible:outline-2 focus-visible:outline-primary">
+                  <span aria-hidden="true" className="w-3 shrink-0 text-xs text-muted-foreground tabular-nums">{rank ?? "—"}</span>
+                  <span aria-hidden="true" className={`size-2 shrink-0 rounded-[2px] ${company ? COMPANY_BG[company] ?? "bg-muted-foreground" : "bg-muted-foreground"}`}/>
+                  <span className="min-w-0 break-words">{label(agent.id)}</span>
+                </button>
               </th>
-            </tr>
-          </thead>
-          <tbody onKeyDown={onKeyDown}>
-            {agents.map((a) => {
-              const on = selected === a.id;
-              const co = shownCompany(a.id);
-              const s = stats.get(a.id) ?? emptyStats();
-              return (
-                <tr key={a.id} className={`border-t border-border/60 transition-colors ${on ? "bg-primary/[0.08]" : "hover:bg-surface-raised"}`}>
-                  <th scope="row" className="px-1 py-0.5 text-left font-normal">
-                    <button
-                      type="button"
-                      data-agent
-                      aria-pressed={on}
-                      onClick={() => select(on ? null : a.id)}
-                      className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-foreground focus-visible:outline-2 focus-visible:outline-primary"
-                    >
-                      <span className={`size-2 shrink-0 rounded-[2px] ${co ? COMPANY_BG[co] ?? "bg-muted-foreground/40" : "bg-muted-foreground/30"}`} aria-hidden="true" />
-                      <span className="truncate">{label(a.id)}</span>
-                    </button>
-                  </th>
-                  {COLS.map((c) => (
-                    <td key={c.key} className={`px-2 text-right font-mono text-[12.5px] ${c.bad && s[c.key] > 0 ? "text-violation" : "text-muted-foreground"}`}>
-                      {s[c.key]}
-                    </td>
-                  ))}
-                  <td className="px-3 text-right font-mono text-[12.5px] text-foreground">{finalScores?.[a.id] ?? "–"}</td>
-                </tr>
-              );
-            })}
-          </tbody>
+              <td className="px-1 text-right font-medium tabular-nums">
+                {history.coins ?? <span title={history.reason ?? "Coin balance unavailable"}><span aria-hidden="true">—</span><span className="sr-only">Coin balance unavailable</span></span>}
+              </td>
+              <td className={`px-2 text-right tabular-nums ${history.falseClaims ? "text-violation" : "text-muted-foreground"}`}>
+                {history.claims ? <span aria-label={`${history.falseClaims} false claims out of ${history.claims} claims`}>{history.falseClaims}/{history.claims}</span> : <span className="text-[11px] leading-tight">No claims yet</span>}
+              </td>
+              <td className="px-3 text-right tabular-nums">{history.thefts}</td>
+            </tr>;
+          })}</tbody>
         </table>
-      </div>
-    </section>
-  );
+      </div>}
+    <p className="border-t px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+      Ranked by coins; game score also includes goods and is shown at the end. Ties share a rank. False claims: flagged / total. Theft counts include recorded actions only. “—” means wealth is unavailable.
+    </p>
+  </section>;
 }
